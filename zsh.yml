@@ -1,0 +1,22 @@
+- hosts: localhost      
+  roles:
+    - role: gantsign.oh-my-zsh
+      users:
+        - username: "{{lookup('env', 'USER')}}"
+          antigen_libraries:
+            - name: oh-my-zsh
+          antigen_theme:
+            name: robbyrussell
+          antigen_bundles:
+            - name: git
+            - name: pip
+            - name: lein
+            - name: command-not-found
+            - name: zsh-syntax-highlighting
+              url: zsh-users/zsh-syntax-highlighting
+            - name: wakatime
+              url: sobolevn/wakatime-zsh-plugin
+  tasks:
+  - name: Default zsh
+    become: true
+    shell: chsh -s $(which zsh)
