@@ -1,0 +1,17 @@
+- hosts: localhost
+  become: true
+  tasks:
+  - name: add kde-nlive gpg
+    apt_key: 
+      url: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xa59e5ebfccc61564d6d4365b2763b0ee7709fe97
+      state: present 
+  - name: add repositorio
+    apt_repository: 
+      validate_certs: false
+      repo: ppa:kdenlive/kdenlive-stable
+      state: present
+      update_cache: yes
+  - name: Install kdenlive Editor de video
+    apt:
+      name: kdenlive
+      state: present      

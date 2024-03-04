@@ -1,0 +1,48 @@
+- hosts: localhost      
+  roles:
+    - role: gantsign.visual-studio-code
+      users:
+        - username: satanas
+          visual_studio_code_extensions:
+            - streetsidesoftware.code-spell-checker
+            - wholroyd.jinja
+            - ms-python.python
+          visual_studio_code_settings_overwrite: true
+          visual_studio_code_settings: {
+            "editor.rulers": [80, 100, 120],
+            "editor.renderWhitespace": true,
+            "files.associations": {
+              "Vagrantfile": "ruby"
+            }
+          }
+    - role: gantsign.intellij
+      intellij_default_maven_home: '/opt/maven/apache-maven-3.9.4'
+      users:
+        - username: satanas
+          # intellij_jdks:
+          #   - name: '17'
+          #     home: '/usr/lib/jvm/java-17-openjdk-amd64'
+          #   - name: '11'
+          #     home: '/usr/lib/jvm/java-11-openjdk-amd64'
+          #   - name: '1.8'
+          #     home: '/usr/lib/jvm/java-8-openjdk-amd64'
+          # intellij_default_jdk: '17'
+          intellij_disabled_plugins:
+            - org.jetbrains.plugins.gradle
+            - CVS
+            - com.intellij.uiDesigner
+            - org.jetbrains.android
+            - TestNG-J
+            - hg4idea
+            - AntSupport
+            - DevKit
+          intellij_codestyles:
+            - name: GoogleStyle
+              url: 'https://raw.githubusercontent.com/google/styleguide/gh-pages/intellij-java-google-style.xml'
+          intellij_default_codestyle: GoogleStyle
+          intellij_inspection_profiles:
+            - name: GantSign
+              url: 'https://raw.githubusercontent.com/gantsign/inspection-profile-intellij/master/GantSign.xml'
+          intellij_default_inspection_profile: GantSign
+          intellij_plugins:
+            - CheckStyle-IDEA
