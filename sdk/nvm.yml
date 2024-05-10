@@ -5,10 +5,36 @@
       url: https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh
       dest: /tmp/nvm-installer.sh
       mode: 0755
+  - name: Add script to automatically switch node versions
+    blockinfile:
+      path: ~/.zshrc
+      block: |
+        # place this after nvm initialization!
+        autoload -U add-zsh-hook
+        load-nvmrc() {
+          local node_version="$(nvm version)"
+          local nvmrc_path="$(nvm_find_nvmrc)"
+        
+          if [ -n "$nvmrc_path" ]; then
+            local nvmrc_node_version=$(nvm version "$(cat "${nvmrc_path}")")
+        
+            if [ "$nvmrc_node_version" = "N/A" ]; then
+              nvm install
+            elif [ "$nvmrc_node_version" != "$node_version" ]; then
+              nvm use
+            fi
+          elif [ "$node_version" != "$(nvm version default)" ]; then
+            echo "Reverting to nvm default version"
+            nvm use default
+          fi
+        }
+        add-zsh-hook chpwd load-nvmrc
+        load-nvmrc
+        
   - name: Execute the nvm-installer.sh
     shell: /tmp/nvm-installer.sh
-  - name: Install node and set version
-    shell: "source ~/.nvm/nvm.sh && nvm install 8.11.3" 
-    args:
-      executable: /bin/bash
 
+  - name: Install node and set version using zsh
+    shell: "source ~/.nvm/nvm.sh && nvm install 18" 
+    args:
+      executable: /bin/zsh
