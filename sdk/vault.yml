@@ -4,7 +4,7 @@
   - name: add hashcorp gpg
     apt_key: 
       url: https://apt.releases.hashicorp.com/gpg
-      state: present 
+      state: present
   - name: add hashicorp apt repository
     apt_repository: 
       repo: "deb https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
@@ -12,6 +12,7 @@
       filename: hashicorp 
       update_cache: yes
   - name: Install hashcorp vault
+    ignore_errors: true
     apt:
       name: vault
       state: present

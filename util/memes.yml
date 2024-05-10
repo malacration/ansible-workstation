@@ -1,0 +1,48 @@
+- hosts: localhost
+  become: true
+  name: Install swayidle on Ubuntu
+  become: yes
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install necessary packages
+      apt:
+        name:
+          - build-essential
+          - meson
+          - libwayland-client0
+          - libwayland-dev
+          - pkg-config
+          - git
+          - wayland-protocols
+          - cmake
+        state: present
+
+    - name: Clone swayidle repository
+      git:
+        repo: 'https://github.com/swaywm/swayidle.git'
+        dest: '/tmp/swayidle'
+        clone: yes
+        update: yes
+
+    - name: Create build directory
+      ansible.builtin.file:
+        path: "/tmp/swayidle/build"
+        state: directory
+
+    - name: Configure build with meson
+      ansible.builtin.shell:
+        cmd: 'meson build'
+        chdir: '/tmp/swayidle'
+
+    - name: Compile swayidle using ninja
+      ansible.builtin.shell:
+        cmd: 'ninja -C build'
+        chdir: '/tmp/swayidle'
+
+    - name: Install swayidle
+      ansible.builtin.shell:
+        cmd: 'ninja -C build install'
+        chdir: '/tmp/swayidle'

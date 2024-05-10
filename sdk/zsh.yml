@@ -1,0 +1,40 @@
+- hosts: localhost
+  vars:
+    - zsh_dependencies: []
+  roles:
+    - role: gantsign.oh-my-zsh
+      users:
+        - username: "{{lookup('env', 'USER')}}"
+          antigen_libraries:
+            - name: oh-my-zsh
+          antigen_theme:
+            name: robbyrussell
+          antigen_bundles:
+            - name: git
+            - name: pip
+            - name: lein
+            - name: command-not-found
+            - name: zsh-syntax-highlighting
+              url: zsh-users/zsh-syntax-highlighting
+            - name: wakatime
+              url: sobolevn/wakatime-zsh-plugin
+  tasks:
+  - name: Ensure Zsh with dependencies are installed
+    apt:
+      name: "{{ ['zsh'] + zsh_dependencies }}"
+      state: present
+      update_cache: yes
+    become: true
+  - name: Ensure zsh is the default shell "{{lookup('env', 'USER')}}"
+    user:
+      name: "{{lookup('env', 'USER')}}"
+      shell: "/usr/bin/zsh"
+    become: true
+  - name: Download Oh My Zsh installation script
+    get_url:
+      url: https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh
+      dest: /tmp/install_ohmyzsh.sh
+  - name: Run Oh My Zsh installation script
+    command: sh /tmp/install_ohmyzsh.sh --unattended
+    register: ohmyzsh_result
+    failed_when: "'FAILED' in ohmyzsh_result.stderr"        

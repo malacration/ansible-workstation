@@ -1,0 +1,20 @@
+- hosts: localhost
+  become: true
+- name: Include zsh
+  ansible.builtin.import_playbook: sdk/zsh.yml
+- name: Include vault
+  ansible.builtin.import_playbook: sdk/vault.yml
+- name: Include sdkman
+  ansible.builtin.import_playbook: sdk/sdkman.yml
+- name: Include python
+  ansible.builtin.import_playbook: sdk/python.yml
+- name: Include nvm
+  ansible.builtin.import_playbook: sdk/nvm.yml
+- name: Include dbeaver
+  ansible.builtin.import_playbook: ide/dbeaver.yml
+- name: Include kdenlive
+  ansible.builtin.import_playbook: media-editor/kdenlive.yml
+- name: Include ide-development
+  ansible.builtin.import_playbook: ide/ide-development.yml
+- name: Include brave
+  ansible.builtin.import_playbook: browser/brave.yml

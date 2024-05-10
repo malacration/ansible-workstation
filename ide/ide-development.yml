@@ -2,7 +2,7 @@
   roles:
     - role: gantsign.visual-studio-code
       users:
-        - username: satanas
+        - username: andrew
           visual_studio_code_extensions:
             - streetsidesoftware.code-spell-checker
             - wholroyd.jinja
@@ -16,17 +16,8 @@
             }
           }
     - role: gantsign.intellij
-      intellij_default_maven_home: '/opt/maven/apache-maven-3.9.4'
       users:
-        - username: satanas
-          # intellij_jdks:
-          #   - name: '17'
-          #     home: '/usr/lib/jvm/java-17-openjdk-amd64'
-          #   - name: '11'
-          #     home: '/usr/lib/jvm/java-11-openjdk-amd64'
-          #   - name: '1.8'
-          #     home: '/usr/lib/jvm/java-8-openjdk-amd64'
-          # intellij_default_jdk: '17'
+        - username: andrew
           intellij_disabled_plugins:
             - org.jetbrains.plugins.gradle
             - CVS
@@ -46,3 +37,8 @@
           intellij_default_inspection_profile: GantSign
           intellij_plugins:
             - CheckStyle-IDEA
+  tasks:
+    - name: Install jq (json editor)
+      apt:
+        name: jq
+        state: present

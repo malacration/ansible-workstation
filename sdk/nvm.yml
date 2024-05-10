@@ -1,0 +1,14 @@
+- hosts: localhost
+  tasks:
+  - name: Download nvm installer
+    get_url: 
+      url: https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh
+      dest: /tmp/nvm-installer.sh
+      mode: 0755
+  - name: Execute the nvm-installer.sh
+    shell: /tmp/nvm-installer.sh
+  - name: Install node and set version
+    shell: "source ~/.nvm/nvm.sh && nvm install 8.11.3" 
+    args:
+      executable: /bin/bash
+

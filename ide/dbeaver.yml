@@ -1,0 +1,17 @@
+- hosts: localhost
+  become: true
+  tasks:
+  - name: add Dbeaver gpg
+    apt_key: 
+      url: https://dbeaver.io/debs/dbeaver.gpg.key
+      state: present 
+  - name: add repositorio
+    apt_repository: 
+      validate_certs: false
+      repo: ppa:serge-rider/dbeaver-ce
+      state: present
+      update_cache: yes
+  - name: Install Dbeaver
+    apt:
+      name: dbeaver-ce
+      state: present
