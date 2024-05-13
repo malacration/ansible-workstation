@@ -37,4 +37,15 @@
   - name: Run Oh My Zsh installation script
     command: sh /tmp/install_ohmyzsh.sh --unattended
     register: ohmyzsh_result
-    failed_when: "'FAILED' in ohmyzsh_result.stderr"        
+    failed_when: "'FAILED' in ohmyzsh_result.stderr"
+  - name: Assegurar que o script de autocomplete seja carregado pelo zsh
+    blockinfile:
+      path: "~/.zshrc"
+      block: |
+        if [ -d /etc/zsh_completion.d ]; then
+          for file in /etc/zsh_completion.d/*; do
+            source $file
+          done
+        fi
+      marker: "# {mark} ANSIBLE MANAGED BLOCK for OpenShift autocomplete"
+

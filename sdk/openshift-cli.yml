@@ -1,0 +1,41 @@
+---
+- name: Instalar o OpenShift CLI
+  hosts: localhost
+  become: yes
+  tasks:
+    - name: Instalar dependências necessárias para desempacotar arquivos
+      ansible.builtin.package:
+        name: tar,gzip
+        state: present
+
+    - name: Baixar o OpenShift CLI
+      get_url:
+        url: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz"
+        dest: "/tmp/openshift-client-linux.tar.gz"
+        mode: '0755'
+
+    - name: Extrair o OpenShift CLI
+      unarchive:
+        src: "/tmp/openshift-client-linux.tar.gz"
+        dest: "/usr/local/bin"
+        remote_src: yes
+        creates: "/usr/local/bin/oc"
+
+    - name: Criar diretório para arquivos de autocomplete do zsh
+      file:
+        path: "/etc/zsh_completion.d"
+        state: directory
+        mode: '0755'
+
+
+    - name: Instalar autocomplete para OpenShift CLI no zsh
+      shell: oc completion zsh > /etc/zsh_completion.d/oc
+      args:
+        creates: /etc/zsh_completion.d/oc
+
+    - name: Verificar a instalação do OpenShift CLI
+      command: oc version
+      register: resultado
+
+    - debug:
+        var: resultado.stdout
