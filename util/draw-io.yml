@@ -1,0 +1,28 @@
+- name: Install Draw.io Desktop on Ubuntu
+  hosts: localhost
+  become: yes
+  tasks:
+
+    - name: Ensure dependencies are installed
+      apt:
+        name: 
+          - wget
+          - apt-transport-https
+          - ca-certificates
+        state: present
+        update_cache: yes
+
+    - name: Download Draw.io Desktop .deb package
+      get_url:
+        url: https://github.com/jgraph/drawio-desktop/releases/download/v24.4.0/drawio-amd64-24.4.0.deb
+        dest: /tmp/draw.io-amd64-21.2.8.deb
+
+    - name: Install Draw.io Desktop
+      apt:
+        deb: /tmp/draw.io-amd64-21.2.8.deb
+        state: present
+
+    - name: Clean up .deb package
+      file:
+        path: /tmp/draw.io-amd64-21.2.8.deb
+        state: absent

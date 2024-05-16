@@ -18,5 +18,7 @@
   ansible.builtin.import_playbook: ide/ide-development.yml
 - name: Include brave
   ansible.builtin.import_playbook: browser/brave.yml
+- name: Draw.io Desktop
+  ansible.builtin.import_playbook: util/draw-io.yml
 - name: Include Openshift CLI
   ansible.builtin.import_playbook: openshift-cli.yml
