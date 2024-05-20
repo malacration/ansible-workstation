@@ -1,23 +1,14 @@
 - hosts: localhost
   vars:
     - zsh_dependencies: []
-  roles:
-    - role: gantsign.oh-my-zsh
-      users:
-        - username: "{{lookup('env', 'USER')}}"
-          antigen_libraries:
-            - name: oh-my-zsh
-          antigen_theme:
-            name: robbyrussell
-          antigen_bundles:
-            - name: git
-            - name: pip
-            - name: lein
-            - name: command-not-found
-            - name: zsh-syntax-highlighting
-              url: zsh-users/zsh-syntax-highlighting
-            - name: wakatime
-              url: sobolevn/wakatime-zsh-plugin
+    - zsh_plugins:
+        - git
+        - python
+        - docker
+        - pip
+        - lein
+        - command-not-found
+
   tasks:
   - name: Ensure Zsh with dependencies are installed
     apt:
@@ -38,9 +29,15 @@
     command: sh /tmp/install_ohmyzsh.sh --unattended
     register: ohmyzsh_result
     failed_when: "'FAILED' in ohmyzsh_result.stderr"
+  - name: Ensure desired Zsh plugins are activated
+    lineinfile:
+      path: ~/.zshrc
+      regexp: '^plugins='
+      line: "plugins=({{ zsh_plugins | join(' ') }})"
+      create: yes
   - name: Assegurar que o script de autocomplete seja carregado pelo zsh
     blockinfile:
-      path: "~/.zshrc"
+      path: "{{ lookup('env', 'HOME') }}/.zshrc"
       block: |
         if [ -d /etc/zsh_completion.d ]; then
           for file in /etc/zsh_completion.d/*; do
@@ -48,4 +45,31 @@
           done
         fi
       marker: "# {mark} ANSIBLE MANAGED BLOCK for OpenShift autocomplete"
+  - name: Activate virtual environment on cd
+    blockinfile:
+      path: "{{ lookup('env', 'HOME') }}/.zshrc"
+      block: |
+        function cd() {
+          builtin cd "$@"
+          if [[ -z "$VIRTUAL_ENV" ]] ; then
+            ## If env folder is found then activate the vitualenv
+              if [[ -d ./.venv ]] ; then
+                source ./.venv/bin/activate
+              fi
+          else
+            ## check the current folder belong to earlier VIRTUAL_ENV folder
+            # if yes then do nothing
+            # else deactivate
+              parentdir="$(dirname "$VIRTUAL_ENV")"
+              if [[ "$PWD"/ != "$parentdir"/* ]] ; then
+                deactivate
+              fi
+          fi
+        }
+        # Automatically activate the virtual environment if it exists
+        if [[ -d ./.venv ]]; then
+          source ./.venv/bin/activate
+        fi
+      marker: "# {mark} ANSIBLE MANAGED BLOCK for virtualenv activation"
+
 
