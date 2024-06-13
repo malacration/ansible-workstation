@@ -34,7 +34,9 @@
   - name: Execute the nvm-installer.sh
     shell: /tmp/nvm-installer.sh
 
-  - name: Install node and set version using zsh
-    shell: "source ~/.nvm/nvm.sh && nvm install 18" 
-    args:
-      executable: /bin/zsh
+  - name: Adiciona nvm no zshrc
+    blockinfile:
+      path: "{{ lookup('env', 'HOME') }}/.zshrc"
+      block: |
+        source ~/.nvm/nvm.sh
+      marker: "# {mark} ANSIBLE MANAGED BLOCK for nvm no zshrc"

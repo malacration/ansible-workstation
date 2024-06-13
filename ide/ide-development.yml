@@ -1,20 +1,5 @@
 - hosts: localhost      
   roles:
-    - role: gantsign.visual-studio-code
-      users:
-        - username: andrew
-          visual_studio_code_extensions:
-            - streetsidesoftware.code-spell-checker
-            - wholroyd.jinja
-            - ms-python.python
-          visual_studio_code_settings_overwrite: true
-          visual_studio_code_settings: {
-            "editor.rulers": [80, 100, 120],
-            "editor.renderWhitespace": true,
-            "files.associations": {
-              "Vagrantfile": "ruby"
-            }
-          }
     - role: gantsign.intellij
       users:
         - username: andrew
