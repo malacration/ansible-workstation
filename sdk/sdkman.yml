@@ -1,7 +1,7 @@
 ---
 - hosts: localhost
   vars:
-    - home: /home/andrew
+    - home: /home/{{ lookup('env', 'USER') }}
 
   pre_tasks:
     - name: Installing SDKMAn dependencies

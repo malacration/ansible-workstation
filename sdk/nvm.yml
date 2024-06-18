@@ -5,6 +5,27 @@
       url: https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh
       dest: /tmp/nvm-installer.sh
       mode: 0755
+  - name: Execute the nvm-installer.sh
+    shell: /tmp/nvm-installer.sh
+  - name: Adiciona nvm no zshrc
+    blockinfile:
+      path: "{{ ansible_env.HOME }}/.zshrc"
+      block: |
+        # Inicia nvm
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+        [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+      marker: "# {mark} ANSIBLE MANAGED BLOCK for nvm no zshrc"
+      
+  - name: Instalar a versão LTS do Node.js e configurá-la como padrão
+    shell: |
+      export NVM_DIR="$HOME/.nvm"
+      [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+      nvm install --lts
+      nvm alias default lts/*
+    args:
+      creates: "{{ ansible_env.HOME }}/.nvm/versions/node"
+
   - name: Add script to automatically switch node versions
     blockinfile:
       path: ~/.zshrc
@@ -30,13 +51,3 @@
         }
         add-zsh-hook chpwd load-nvmrc
         load-nvmrc
-        
-  - name: Execute the nvm-installer.sh
-    shell: /tmp/nvm-installer.sh
-
-  - name: Adiciona nvm no zshrc
-    blockinfile:
-      path: "{{ lookup('env', 'HOME') }}/.zshrc"
-      block: |
-        source ~/.nvm/nvm.sh
-      marker: "# {mark} ANSIBLE MANAGED BLOCK for nvm no zshrc"

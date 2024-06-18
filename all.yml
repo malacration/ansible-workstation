@@ -21,4 +21,13 @@
 - name: Draw.io Desktop
   ansible.builtin.import_playbook: util/draw-io.yml
 - name: Include Openshift CLI
-  ansible.builtin.import_playbook: openshift-cli.yml
+  ansible.builtin.import_playbook: sdk/openshift-cli.yml
+- name: Include chrome
+  ansible.builtin.import_playbook: browser/chrome.yml
+- name: Install Vscode
+  ansible.builtin.import_playbook: ide/vscode.yml
+- name: Open Tofu
+  ansible.builtin.import_playbook: sdk/open-tofu.yml
+- name: Install Vim
+  ansible.builtin.import_playbook: sdk/vim.yml
+  
