@@ -2,7 +2,7 @@
   roles:
     - role: gantsign.intellij
       users:
-        - username: "{{ ansible_env.USER }}"
+        - username: "{{ ansible_env.USER.split('@')[0] }}"
           intellij_disabled_plugins:
             - org.jetbrains.plugins.gradle
             - CVS

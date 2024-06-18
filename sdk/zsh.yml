@@ -16,9 +16,9 @@
       state: present
       update_cache: yes
     become: true
-  - name: Ensure zsh is the default shell "{{lookup('env', 'USER')}}"
+  - name: Ensure zsh is the default shell "{{ ansible_env.USER.split('@')[0] }}"
     user:
-      name: "{{lookup('env', 'USER')}}"
+      name: "{{ ansible_env.USER.split('@')[0] }}"
       shell: "/usr/bin/zsh"
     become: true
   - name: Download Oh My Zsh installation script
