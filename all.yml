@@ -30,4 +30,6 @@
   ansible.builtin.import_playbook: sdk/open-tofu.yml
 - name: Install Vim
   ansible.builtin.import_playbook: sdk/vim.yml
+- name: Git secrets
+  ansible.builtin.import_playbook: sdk/git-secrets.yml
   
