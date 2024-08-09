@@ -1,0 +1,32 @@
+---
+- name: Install Velero CLI
+  hosts: localhost
+  become: yes
+
+  vars:
+    velero_version: "v1.14.0"
+    velero_os_arch: "linux-amd64"
+    velero_download_url: "https://github.com/vmware-tanzu/velero/releases/download/{{ velero_version }}/velero-{{ velero_version }}-{{ velero_os_arch }}.tar.gz"
+    velero_dir: "velero-{{ velero_version }}-{{ velero_os_arch }}"
+
+  tasks:
+    - name: Install curl if not present
+      apt:
+        name: curl
+        state: present
+
+    - name: Download Velero CLI
+      shell: |
+        curl -L -o /tmp/velero.tar.gz {{ velero_download_url }}
+
+    - name: Extract Velero CLI
+      command: |
+        tar -xzf /tmp/velero.tar.gz -C /tmp
+      register: extract_output
+      failed_when: extract_output.rc != 0
+
+    - name: Move Velero binary to /usr/local/bin
+      copy:
+        src: /tmp/{{ velero_dir }}/velero
+        dest: /usr/local/bin/velero
+        mode: '0755'

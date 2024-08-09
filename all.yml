@@ -32,4 +32,6 @@
   ansible.builtin.import_playbook: sdk/vim.yml
 - name: Git secrets
   ansible.builtin.import_playbook: sdk/git-secrets.yml
+- name: Veleiro
+  ansible.builtin.import_playbook: cli/veleiro.yml
   
