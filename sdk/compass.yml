@@ -1,0 +1,62 @@
+---
+- name: Instalar MongoDB Compass
+  hosts: localhost
+  become: yes
+  vars:
+    compass_version: "1.44.5"  # Defina a versão desejada do MongoDB Compass
+  tasks:
+    - name: Verificar o sistema operacional
+      assert:
+        that:
+          - ansible_os_family in ["Debian", "RedHat"]
+        fail_msg: "Este playbook suporta apenas sistemas Debian/Ubuntu ou CentOS/RHEL."
+
+    - name: Instalar dependências no Debian/Ubuntu
+      apt:
+        name:
+          - wget
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Baixar o pacote do MongoDB Compass para Debian/Ubuntu
+      get_url:
+        url: "https://downloads.mongodb.com/compass/mongodb-compass_{{ compass_version }}_amd64.deb"
+        dest: "/tmp/mongodb-compass_{{ compass_version }}_amd64.deb"
+      when: ansible_os_family == "Debian"
+
+    - name: Instalar o MongoDB Compass no Debian/Ubuntu
+      apt:
+        deb: "/tmp/mongodb-compass_{{ compass_version }}_amd64.deb"
+      when: ansible_os_family == "Debian"
+
+    - name: Remover o pacote baixado no Debian/Ubuntu
+      file:
+        path: "/tmp/mongodb-compass_{{ compass_version }}_amd64.deb"
+        state: absent
+      when: ansible_os_family == "Debian"
+
+    - name: Instalar dependências no CentOS/RHEL
+      yum:
+        name:
+          - wget
+          - GConf2
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Baixar o pacote do MongoDB Compass para CentOS/RHEL
+      get_url:
+        url: "https://downloads.mongodb.com/compass/mongodb-compass-{{ compass_version }}.x86_64.rpm"
+        dest: "/tmp/mongodb-compass-{{ compass_version }}.x86_64.rpm"
+      when: ansible_os_family == "RedHat"
+
+    - name: Instalar o MongoDB Compass no CentOS/RHEL
+      yum:
+        name: "/tmp/mongodb-compass-{{ compass_version }}.x86_64.rpm"
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Remover o pacote baixado no CentOS/RHEL
+      file:
+        path: "/tmp/mongodb-compass-{{ compass_version }}.x86_64.rpm"
+        state: absent
+      when: ansible_os_family == "RedHat"

@@ -1,0 +1,24 @@
+---
+- name: Instalar o MinIO Client (mc)
+  hosts: localhost
+  become: yes
+  vars:
+    mc_url: "https://dl.min.io/client/mc/release/linux-amd64/mc"
+    mc_dest: "/usr/local/bin/mc"
+
+  tasks:
+    - name: Baixar o binário do mc
+      get_url:
+        url: "{{ mc_url }}"
+        dest: "{{ mc_dest }}"
+        mode: '0755'
+        force: no  # Evita re-download se o arquivo já existir
+
+    - name: Verificar a instalação do mc
+      command: mc --version
+      register: mc_version_instalada
+      changed_when: false
+
+    - name: Exibir a versão instalada do mc
+      debug:
+        msg: "MinIO Client instalado: {{ mc_version_instalada.stdout }}"
