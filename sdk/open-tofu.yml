@@ -3,7 +3,7 @@
   hosts: localhost
   become: true
   vars:
-    opentofo_version: "1.7.2"  # Especifique a versão desejada ou use "latest" para a versão mais recente
+    opentofo_version: "1.8.7"  # Especifique a versão desejada ou use "latest" para a versão mais recente
   tasks:
     - name: Update apt cache
       apt:
