@@ -1,0 +1,564 @@
+diff --git a/home/andrew/git/ansible-workstation/tasks/ansible-cao-updates/baseline/ai/README.md b/home/andrew/git/ansible-workstation/ai/README.md
+index 3c8360a..8cdef50 100644
+--- a/home/andrew/git/ansible-workstation/tasks/ansible-cao-updates/baseline/ai/README.md
++++ b/home/andrew/git/ansible-workstation/ai/README.md
+@@ -76,6 +76,7 @@ ansible-playbook all.yml --tags ai -K
+ | `browser/chrome.yml` | Navegador Chrome, reutilizado pelo componente Chrome DevTools |
+ | `ai/uv.yml` | Gerenciador uv |
+ | `ai/cao.yml` | CAO e seu ambiente Python isolado |
++| `ai/cao-update.yml` | Atualização explícita do CAO na origem/ref configurada |
+ | `ai/mcp.yml` | Sincronizador e perfis CAO com os MCPs dos clientes |
+ | `ai/cao-service.yml` | Serviço systemd opcional |
+ | `ai/all.yml` | Sequência completa da stack de IA |
+@@ -322,9 +323,17 @@ ansible-playbook ai/all.yml -K -e @ai/vars.example.yml
+ | `codex_version` | `latest` | Versão numérica ou `latest` |
+ | `claude_version` | `stable` | Versão numérica, `stable` ou `latest` |
+ | `cao_uv_version` | `latest` | Versão do uv: numérica ou `latest` |
+-| `cao_version` | `latest` | Versão do pacote PyPI ou `latest` |
++| `cao_source` | `git` | Origem do CAO: `git` ou `pypi` |
++| `cao_git_url` | Repositório oficial AWS Labs | URL Git do CAO |
++| `cao_git_ref` | `3e30ea3ed6e7fb607b13358d81123afff5a8e69f` | Commit upstream verificado em 2026-11-16; aceita tag/branch/SHA |
++| `cao_version` | `latest` | Versão PyPI, usada apenas com `cao_source=pypi` |
++| `cao_upgrade` | Valor de `ai_stack_upgrade` | Consultar atualizações apenas do pacote CAO |
++| `cao_extras` | `[]` | Acrescentar extras aos já declarados no recibo uv |
++| `cao_with_packages` | `[]` | Acrescentar dependências `--with` às já declaradas no recibo uv |
++| `cao_install_spec` | Derivado da origem/ref/versão | Override PEP 508 com nome explícito `cli-agent-orchestrator` |
+ | `cao_python_version` | `3.12` | Python usado pelo ambiente do CAO |
+ | `cao_service_enabled` | `false` | Habilitar o serviço systemd |
++| `cao_restart_on_change` | `false` | Permitir o handler de reinício, se o serviço estiver habilitado |
+ | `cao_mcp_sync_enabled` | `true` | Gerar perfis CAO com os MCPs dos clientes |
+ | `cao_mcp_clients` | `[codex, claude_code]` | Clientes cujos MCPs serão reutilizados |
+ | `cao_mcp_profiles` | `[code_supervisor, developer, reviewer]` | Perfis base locais ou do pacote CAO |
+@@ -348,6 +357,60 @@ Os mecanismos próprios de atualização dos CLIs continuam ativos; fixar uma ve
+ no playbook define a versão aplicada na execução, sem bloquear atualizações
+ posteriores feitas pelo próprio CLI.
+ 
++### Atualizar CAO e escolher a origem
++
++`latest` no PyPI e `main` upstream são canais diferentes. Em 2026-11-16, o PyPI
++publicava `2.5.4`; o commit upstream padrão deste playbook também declara `2.5.4`,
++mas já transporta esforço decidido no plano de lançamento para agentes efêmeros
++com `effort: "auto"`. A release PyPI não tem esse consumidor. Veja a
++[documentação no commit fixado](https://github.com/awslabs/cli-agent-orchestrator/blob/3e30ea3ed6e7fb607b13358d81123afff5a8e69f/docs/decisions.md).
++Lançamentos de perfis instalados continuam sem consultar `effort.route` nesse
++commit. Instalar esse core não instala um classificador nem habilita decisões;
++uma validação funcional posterior precisa conferir o consumidor e os providers.
++
++O padrão usa um SHA para repetibilidade. Alterar origem, ref, versão ou Python
++reconcilia a instalação na próxima execução. Com a mesma solicitação e recibo,
++uma execução normal mantém a revisão instalada, inclusive para uma branch móvel.
++Para atualizar o CAO explicitamente, execute em uma janela de manutenção:
++
++```bash
++# Reaplicar o pin configurado e atualizar dependências dentro das restrições:
++ansible-playbook /home/andrew/git/ansible-workstation/ai/cao-update.yml -K
++# Acompanhar o main oficial (cada execução explícita consulta a branch):
++ansible-playbook /home/andrew/git/ansible-workstation/ai/cao-update.yml -K -e cao_git_ref=main
++# Alternativa equivalente sem o subplaybook de atualização:
++ansible-playbook /home/andrew/git/ansible-workstation/ai/cao.yml -K -e cao_upgrade=true -e cao_git_ref=main
++# Voltar a um commit previamente validado:
++ansible-playbook /home/andrew/git/ansible-workstation/ai/cao.yml -K -e cao_git_ref=SHA_VALIDADO
++# Última release publicada ou pin de release PyPI:
++ansible-playbook /home/andrew/git/ansible-workstation/ai/cao-update.yml -K -e cao_source=pypi
++ansible-playbook /home/andrew/git/ansible-workstation/ai/cao.yml -K -e cao_source=pypi -e cao_version=2.5.4
++```
++
++Esses comandos reutilizam os pré-requisitos comuns da role (APT e diretórios),
++mas não atualizam os outros CLIs ou o uv com `ai_stack_upgrade=false`. Guarde as
++variáveis de origem/ref no seu arquivo de inventário/extra vars e use o mesmo
++arquivo nas execuções futuras; um `-e` isolado não muda os defaults persistentes.
++Um SHA ou uma versão fixa permanece restrito mesmo com `cao_upgrade=true`.
++
++O instalador preserva os extras e requisitos `--with` declarados no
++`uv-receipt.toml`, inclusive ao migrar PyPI → Git, e permite acrescentar requisitos
++com `cao_extras` e `cao_with_packages`. Pacotes instalados manualmente dentro do
++venv sem constar nesse recibo não são declarações gerenciadas. Os requisitos
++preservados são aditivos; para trocar/remover um extra ou pin auxiliar, revise
++o recibo e planeje uma recriação explícita do ambiente. Formatos de recibo não
++suportados falham antes da instalação, sem descartar silenciosamente requisitos.
++Plugins de decisões só devem ser declarados com fonte conhecida; este playbook
++não inclui nem instala decider hospedado.
++
++`cao_restart_on_change=false` impede o handler de reinício, inclusive quando
++`cao_service_enabled=true`. A atualização do venv compartilhado deve acontecer
++quando não houver sessões em uso: processos existentes podem manter código
++antigo em memória ou carregar módulos novos. Após a manutenção, planeje o
++reinício separadamente; para permitir o handler em uma execução autorizada, use
++`cao_restart_on_change=true` junto de `cao_service_enabled=true`. O subplaybook
++de atualização não importa o gerenciamento de serviços nem a sincronização MCP.
++
+ Os instaladores oficiais são baixados antes de serem executados. As variáveis
+ `codex_installer_checksum`, `claude_installer_checksum` e `cao_uv_installer_checksum`
+ aceitam `sha256:HASH` para conferir também o script baixado.
+@@ -373,6 +436,13 @@ dependências. A partir da raiz de `ansible-workstation`, execute:
+ "$(uv tool dir)/cli-agent-orchestrator/bin/python" -m unittest discover -s ai/tests -v
+ ```
+ 
++Os testes de instalação/upgrade do CAO usam wheels e um Git local descartáveis,
++com `UV_TOOL_DIR`, `UV_TOOL_BIN_DIR` e `UV_CACHE_DIR` temporários e uv offline:
++
++```bash
++python3 -m unittest discover -s /home/andrew/git/ansible-workstation/ai/tests -p test_install_cao.py -v
++```
++
+ Para validar o MCP instalado e a abertura do Chrome em um perfil temporário,
+ isolado e sem interface gráfica:
+ 
+diff --git a/home/andrew/git/ansible-workstation/tasks/ansible-cao-updates/baseline/ai/vars.example.yml b/home/andrew/git/ansible-workstation/ai/vars.example.yml
+index 55b4238..52f0d48 100644
+--- a/home/andrew/git/ansible-workstation/tasks/ansible-cao-updates/baseline/ai/vars.example.yml
++++ b/home/andrew/git/ansible-workstation/ai/vars.example.yml
+@@ -5,7 +5,14 @@ ai_stack_upgrade: false
+ codex_version: latest
+ claude_version: stable
+ cao_uv_version: latest
+-cao_version: latest
++cao_source: git  # pypi para releases publicadas; latest não significa main.
++cao_git_url: https://github.com/awslabs/cli-agent-orchestrator.git
++cao_git_ref: 3e30ea3ed6e7fb607b13358d81123afff5a8e69f  # main para branch móvel.
++cao_version: latest  # Aplicável apenas a cao_source=pypi.
++cao_upgrade: false  # Atualização apenas do CAO; não atualiza uv/outros CLIs.
++cao_extras: []  # Acrescenta aos extras já declarados no recibo uv.
++cao_with_packages: []  # Acrescenta aos --with já declarados no recibo uv.
++cao_restart_on_change: false
+ cao_python_version: '3.12'
+ cao_service_enabled: false
+ cao_mcp_sync_enabled: true
+diff --git a/home/andrew/git/ansible-workstation/tasks/ansible-cao-updates/baseline/ai/roles/cao/defaults/main.yml b/home/andrew/git/ansible-workstation/ai/roles/cao/defaults/main.yml
+index 345f790..39859a2 100644
+--- a/home/andrew/git/ansible-workstation/tasks/ansible-cao-updates/baseline/ai/roles/cao/defaults/main.yml
++++ b/home/andrew/git/ansible-workstation/ai/roles/cao/defaults/main.yml
+@@ -2,10 +2,23 @@
+ cao_uv_version: latest
+ cao_uv_installer_url: "https://astral.sh/uv/{{ '' if cao_uv_version == 'latest' else cao_uv_version ~ '/' }}install.sh"
+ cao_uv_installer_checksum: ''
+-cao_version: latest
++# PyPI latest (2.5.4) não contém os consumidores de effort:auto deste commit.
++# Pin upstream auditável; use main + cao_upgrade=true para acompanhar a branch.
++cao_source: git
++cao_git_url: https://github.com/awslabs/cli-agent-orchestrator.git
++cao_git_ref: 3e30ea3ed6e7fb607b13358d81123afff5a8e69f
++cao_version: latest  # Somente para cao_source=pypi.
++cao_upgrade: "{{ ai_stack_upgrade }}"
++cao_extras: []
++cao_with_packages: []
+ # uv baixa este Python quando ele não existe; o Python do Ubuntu não é substituído.
+ cao_python_version: '3.12'
+-cao_install_spec: "cli-agent-orchestrator{{ '' if cao_version == 'latest' else '==' ~ cao_version }}"
++cao_install_spec: >-
++  {{ 'cli-agent-orchestrator @ git+' ~ cao_git_url ~ '@' ~ cao_git_ref
++     if cao_source == 'git' else
++     'cli-agent-orchestrator' ~ ('' if cao_version == 'latest' else '==' ~ cao_version) }}
++# Reinício após instalação exige opt-in e janela de manutenção.
++cao_restart_on_change: false
+ # O servidor pode ser iniciado manualmente com cao-server ou pelo systemd.
+ cao_service_enabled: false
+ cao_service_name: "cao-server-{{ ai_stack_user }}"
+diff --git a/home/andrew/git/ansible-workstation/tasks/ansible-cao-updates/baseline/ai/roles/cao/handlers/main.yml b/home/andrew/git/ansible-workstation/ai/roles/cao/handlers/main.yml
+index e3007df..141b46e 100644
+--- a/home/andrew/git/ansible-workstation/tasks/ansible-cao-updates/baseline/ai/roles/cao/handlers/main.yml
++++ b/home/andrew/git/ansible-workstation/ai/roles/cao/handlers/main.yml
+@@ -3,4 +3,5 @@
+   ansible.builtin.include_tasks: "{{ role_path }}/tasks/restart-service.yml"
+   when:
+     - cao_service_enabled | bool
++    - cao_restart_on_change | bool
+     - not ansible_check_mode
+diff --git a/home/andrew/git/ansible-workstation/tasks/ansible-cao-updates/baseline/ai/roles/cao/tasks/main.yml b/home/andrew/git/ansible-workstation/ai/roles/cao/tasks/main.yml
+index 097d59b..ee4453d 100644
+--- a/home/andrew/git/ansible-workstation/tasks/ansible-cao-updates/baseline/ai/roles/cao/tasks/main.yml
++++ b/home/andrew/git/ansible-workstation/ai/roles/cao/tasks/main.yml
+@@ -1,13 +1,18 @@
+ ---
+-- name: Garantir instalação do uv
+-  ansible.builtin.import_tasks: uv.yml
+-
+ - name: Validar versões solicitadas para CAO e Python
+   ansible.builtin.assert:
+     that:
+       - cao_version | string is match('^(latest|[0-9]+\.[0-9]+\.[0-9]+([a-zA-Z0-9.+-]+)?)$')
+       - cao_python_version | string is version('3.11', '>=')
+-    fail_msg: Use uma versão numérica ou latest, com Python 3.11 ou superior para CAO.
++      - cao_source in ['pypi', 'git']
++      - cao_git_url | length > 0
++      - cao_git_ref | length > 0
++      - cao_extras is sequence and cao_extras is not string
++      - cao_with_packages is sequence and cao_with_packages is not string
++    fail_msg: Use origem pypi ou git, ref não vazia, listas de extras/pacotes e Python 3.11+.
++
++- name: Garantir instalação do uv
++  ansible.builtin.import_tasks: uv.yml
+ 
+ - name: Instalar CAO como usuário comum
+   become: "{{ ansible_facts['user_id'] != ai_stack_user }}"
+@@ -15,15 +20,20 @@
+   environment: "{{ ai_stack_environment | combine({'UV_TOOL_BIN_DIR': ai_stack_bin_dir}) }}"
+   block:
+     - name: Instalar CAO em ambiente Python isolado
+-      ansible.builtin.command:
+-        argv: >-
+-          {{ [ai_stack_bin_dir ~ '/uv', 'tool', 'install', '--python',
+-              cao_python_version | string, cao_install_spec]
+-             + (['--upgrade'] if ai_stack_upgrade | bool else []) }}
++      ansible.builtin.script:
++        cmd: >-
++          {{ (role_path ~ '/files/install_cao.py') | quote }}
++          --uv {{ (ai_stack_bin_dir ~ '/uv') | quote }}
++          --config {{ {'spec': cao_install_spec, 'python': cao_python_version | string,
++                       'upgrade': cao_upgrade | bool, 'extras': cao_extras,
++                       'with_packages': cao_with_packages} | to_json | quote }}
++        # Ubuntu 22.04 tem Python 3.10 no sistema; tomllib requer o Python 3.11+
++        # escolhido para CAO. uv run não usa/cria ambiente do projeto atual.
++        executable: >-
++          {{ (ai_stack_bin_dir ~ '/uv') | quote }} run --no-project --no-config
++          --python {{ cao_python_version | string | quote }}
+       register: cao_install_result
+-      changed_when: >-
+-        'Installed ' in cao_install_result.stderr or
+-        'Uninstalled ' in cao_install_result.stderr
++      changed_when: (cao_install_result.stdout | from_json).changed
+       notify: Reiniciar servidor CAO
+       when: not ansible_check_mode
+ 
+diff --git a/home/andrew/git/ansible-workstation/ai/cao-update.yml b/home/andrew/git/ansible-workstation/ai/cao-update.yml
+new file mode 100644
+index 0000000..168d556
+--- /dev/null
++++ b/home/andrew/git/ansible-workstation/ai/cao-update.yml
+@@ -0,0 +1,6 @@
++---
++# Execute na janela de manutenção; não gerencia serviço nem configura decisões.
++- name: Atualizar somente o pacote CAO na origem configurada
++  ansible.builtin.import_playbook: cao.yml
++  vars:
++    cao_upgrade: true
+diff --git a/home/andrew/git/ansible-workstation/ai/roles/cao/files/install_cao.py b/home/andrew/git/ansible-workstation/ai/roles/cao/files/install_cao.py
+new file mode 100644
+index 0000000..e878fbc
+--- /dev/null
++++ b/home/andrew/git/ansible-workstation/ai/roles/cao/files/install_cao.py
+@@ -0,0 +1,133 @@
++#!/usr/bin/env python3
++"""Install CAO with uv without losing declared extras or --with requirements.
++
++uv tool install replaces the receipt on source changes. Read that receipt first
++and merge its explicit requirements; do not freeze transitive dependencies.
++Unknown receipt formats fail before modifying the tool environment.
++"""
++
++import argparse
++import json
++from pathlib import Path
++import re
++import subprocess
++import sys
++import tomllib
++from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
++
++
++PACKAGE = 'cli-agent-orchestrator'
++
++
++def requirement_text(requirement):
++    """Render uv's receipt requirement as PEP 508, rejecting lossy conversions."""
++    known = {'name', 'extras', 'specifier', 'url', 'git', 'path', 'marker'}
++    unknown = set(requirement) - known
++    if unknown:
++        raise ValueError(f'Unsupported uv receipt fields: {sorted(unknown)}')
++    name = requirement['name']
++    if requirement.get('extras'):
++        name += '[' + ','.join(sorted(requirement['extras'])) + ']'
++    sources = [key for key in ('url', 'git', 'path') if key in requirement]
++    if len(sources) > 1 or (sources and requirement.get('specifier')):
++        raise ValueError('Ambiguous requirement in uv receipt')
++    if sources:
++        key = sources[0]
++        source = requirement[key]
++        if not isinstance(source, str):
++            raise ValueError('Unsupported uv receipt source format')
++        if key == 'path':
++            source = Path(source).as_uri()
++        elif key == 'git':
++            # Receipts encode a Git ref as ?rev=..., unlike PEP 508's @ref.
++            parts = urlsplit(source.removeprefix('git+'))
++            query = parse_qs(parts.query)
++            if set(query) - {'rev', 'branch', 'tag', 'subdirectory'}:
++                raise ValueError('Unsupported Git query in uv receipt')
++            refs = [query[key][0] for key in ('rev', 'branch', 'tag') if key in query]
++            if len(refs) > 1:
++                raise ValueError('Ambiguous Git ref in uv receipt')
++            source = 'git+' + urlunsplit((parts.scheme, parts.netloc, parts.path, '', ''))
++            if refs:
++                source += '@' + refs[0]
++            fragment = parts.fragment
++            if 'subdirectory' in query:
++                fragment = urlencode({'subdirectory': query['subdirectory'][0]})
++            if fragment:
++                source += '#' + fragment
++        name += ' @ ' + source
++    else:
++        name += requirement.get('specifier', '')
++    if requirement.get('marker'):
++        name += '; ' + requirement['marker']
++    return name
++
++
++def install(uv, config):
++    directory = subprocess.run([uv, 'tool', 'dir'], check=True, text=True,
++                               capture_output=True).stdout.strip()
++    receipt_path = Path(directory) / PACKAGE / 'uv-receipt.toml'
++    requirements = []
++    tool = {}
++    previous_receipt = receipt_path.read_bytes() if receipt_path.exists() else None
++    if receipt_path.exists():
++        with receipt_path.open('rb') as receipt:
++            tool = tomllib.load(receipt)['tool']
++            requirements = tool['requirements']
++    extras = set(config['extras'])
++    packages = list(config['with_packages'])
++    for requirement in requirements:
++        if requirement['name'].replace('_', '-').lower() == PACKAGE:
++            extras.update(requirement.get('extras', []))
++        else:
++            packages.append(requirement_text(requirement))
++
++    # Preserve extras in custom cao_install_spec as well as the old uv receipt.
++    match = re.match(r'^cli[-_]agent[-_]orchestrator(?:\[([^]]+)\])?(.*)$',
++                     config['spec'], re.IGNORECASE)
++    if not match:
++        raise ValueError('cao_install_spec must name cli-agent-orchestrator explicitly')
++    extras.update(match.group(1).split(',') if match.group(1) else [])
++    if any(not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]*', extra) for extra in extras):
++        raise ValueError('Invalid CAO extra name')
++    spec = PACKAGE + ('[' + ','.join(sorted(extras)) + ']' if extras else '') + match.group(2)
++    # uv resolves a mutable Git branch even without --upgrade. A matching receipt
++    # is therefore the no-update boundary. Source/ref/Python/requirements changes
++    # still reconcile immediately, and an explicit upgrade always calls uv.
++    requested = {spec, *packages}
++    installed = {requirement_text(requirement) for requirement in requirements}
++    entrypoints = tool.get('entrypoints', [])
++    if (not config['upgrade'] and requested == installed
++            and tool.get('python') == config['python'] and entrypoints
++            and all(Path(entry['install-path']).exists() for entry in entrypoints)
++            and (receipt_path.parent / 'bin/python').exists()):
++        return {'changed': False, 'extras': sorted(extras), 'with_count': len(set(packages))}
++    command = [uv, 'tool', 'install', '--python', config['python'], spec]
++    for package in dict.fromkeys(packages):
++        command.extend(['--with', package])
++    if config['upgrade']:
++        command.append('--upgrade')
++    result = subprocess.run(command, check=True, text=True, capture_output=True)
++    # uv reports package changes on stderr, including same-version Git revisions.
++    changed = bool(re.search(r'^(?:Installed|Uninstalled) \d+ packages?\b',
++                             result.stderr, re.MULTILINE))
++    changed = changed or receipt_path.read_bytes() != previous_receipt
++    return {'changed': changed, 'extras': sorted(extras), 'with_count': len(set(packages))}
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('--uv', required=True)
++    parser.add_argument('--config', required=True)
++    args = parser.parse_args()
++    try:
++        print(json.dumps(install(args.uv, json.loads(args.config))))
++    except (ValueError, KeyError, OSError, subprocess.CalledProcessError) as error:
++        # Preserve uv's actionable error output, without dumping the receipt.
++        print(getattr(error, 'stderr', None) or str(error), file=sys.stderr)
++        return 1
++    return 0
++
++
++if __name__ == '__main__':
++    sys.exit(main())
+diff --git a/home/andrew/git/ansible-workstation/ai/tests/test_install_cao.py b/home/andrew/git/ansible-workstation/ai/tests/test_install_cao.py
+new file mode 100644
+index 0000000..677c7e4
+--- /dev/null
++++ b/home/andrew/git/ansible-workstation/ai/tests/test_install_cao.py
+@@ -0,0 +1,185 @@
++"""Offline tests using disposable uv tools and local wheel/Git fixtures only."""
++
++import importlib.util
++import json
++import os
++from pathlib import Path
++import shutil
++import subprocess
++import tempfile
++import tomllib
++import unittest
++from unittest.mock import patch
++import zipfile
++
++
++SCRIPT = Path(__file__).parents[1] / 'roles/cao/files/install_cao.py'
++SPEC = importlib.util.spec_from_file_location('install_cao', SCRIPT)
++installer = importlib.util.module_from_spec(SPEC)
++SPEC.loader.exec_module(installer)
++
++
++def wheel(directory, name, version, revision='release'):
++    path = directory / f'{name}-{version}-py3-none-any.whl'
++    metadata = f'{name}-{version}.dist-info'
++    with zipfile.ZipFile(path, 'w') as archive:
++        archive.writestr(f'{name}.py', f'REVISION = {revision!r}\ndef main(): pass\n')
++        archive.writestr(f'{metadata}/METADATA',
++                         f'Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n'
++                         'Provides-Extra: memory\nProvides-Extra: ui\n')
++        archive.writestr(f'{metadata}/WHEEL',
++                         'Wheel-Version: 1.0\nRoot-Is-Purelib: true\nTag: py3-none-any\n')
++        archive.writestr(f'{metadata}/entry_points.txt',
++                         f'[console_scripts]\n{name} = {name}:main\n')
++        archive.writestr(f'{metadata}/RECORD', '')
++    return path
++
++
++class ReceiptTests(unittest.TestCase):
++    def test_pinned_requirement_with_extra_and_marker(self):
++        self.assertEqual(installer.requirement_text({
++            'name': 'plugin', 'specifier': '==1.0', 'extras': ['local'],
++            'marker': 'python_version >= "3.11"',
++        }), 'plugin[local]==1.0; python_version >= "3.11"')
++
++    def test_direct_sources(self):
++        for key, source, expected in [
++            ('url', 'https://example.org/plugin.whl', 'https://example.org/plugin.whl'),
++            ('path', '/tmp/plugin dir', 'file:///tmp/plugin%20dir'),
++            ('git', 'https://example.org/plugin.git@main',
++             'git+https://example.org/plugin.git@main'),
++            ('git', 'https://example.org/plugin.git?rev=main',
++             'git+https://example.org/plugin.git@main'),
++        ]:
++            with self.subTest(key=key):
++                self.assertEqual(installer.requirement_text({'name': 'plugin', key: source}),
++                                 'plugin @ ' + expected)
++
++    def test_unknown_or_ambiguous_fields_fail(self):
++        for requirement in [
++            {'name': 'plugin', 'editable': True},
++            {'name': 'plugin', 'git': {'url': 'unsupported'}},
++            {'name': 'plugin', 'url': 'a', 'path': 'b'},
++            {'name': 'plugin', 'url': 'a', 'specifier': '==1.0'},
++        ]:
++            with self.subTest(requirement=requirement), self.assertRaises(ValueError):
++                installer.requirement_text(requirement)
++
++
++@unittest.skipUnless(shutil.which('uv') and shutil.which('git'), 'Requires uv and git')
++class IsolatedInstallTests(unittest.TestCase):
++    def test_install_repeat_pin_upgrade_and_git_source_preserve_extras(self):
++        with tempfile.TemporaryDirectory(prefix='ansible-cao-test-') as directory:
++            root = Path(directory)
++            wheels = root / 'wheels'
++            wheels.mkdir()
++            wheel(wheels, 'cli_agent_orchestrator', '0.1')
++            wheel(wheels, 'fixture_plugin', '1.0')
++            env = dict(os.environ, UV_TOOL_DIR=str(root / 'tools'),
++                       UV_TOOL_BIN_DIR=str(root / 'bin'), UV_CACHE_DIR=str(root / 'cache'),
++                       UV_PYTHON_DOWNLOADS='never', UV_OFFLINE='true',
++                       UV_FIND_LINKS=str(wheels), UV_NO_CONFIG='true')
++            uv = shutil.which('uv')
++            config = {'spec': 'cli-agent-orchestrator==0.1', 'python': shutil.which('python3'),
++                      'upgrade': False, 'extras': ['memory'],
++                      'with_packages': ['fixture-plugin==1.0']}
++            with patch.dict(os.environ, env, clear=True):
++                self.assertTrue(installer.install(uv, config)['changed'])
++                self.assertFalse(installer.install(uv, config)['changed'])
++                # Newly available versions are used only when upgrading latest.
++                wheel(wheels, 'cli_agent_orchestrator', '0.2')
++                config.update(extras=[], with_packages=[], upgrade=True)
++                self.assertFalse(installer.install(uv, config)['changed'])  # Pin holds.
++                config.update(spec='cli-agent-orchestrator', upgrade=False)
++                installer.install(uv, config)  # Remove the old constraint once.
++                wheel(wheels, 'cli_agent_orchestrator', '0.3')
++                self.assertFalse(installer.install(uv, config)['changed'])
++                config['upgrade'] = True
++                self.assertTrue(installer.install(uv, config)['changed'])
++                # A Git build may retain the same version across distinct commits.
++                repo = root / 'repo'
++                repo.mkdir()
++                (repo / 'pyproject.toml').write_text(
++                    '[build-system]\nrequires=[]\nbuild-backend="backend"\nbackend-path=["."]\n')
++                (repo / 'backend.py').write_text(
++                    'from pathlib import Path\nimport shutil\n'
++                    'def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):\n'
++                    '    wheel = next(Path(__file__).parent.glob("*.whl"))\n'
++                    '    shutil.copyfile(wheel, Path(wheel_directory)/wheel.name)\n'
++                    '    return wheel.name\n')
++                wheel(repo, 'cli_agent_orchestrator', '0.3', 'first')
++
++                def git(*args):
++                    return subprocess.check_output(['git', '-C', str(repo), *args],
++                                                   text=True, stderr=subprocess.DEVNULL).strip()
++
++                git('init', '-b', 'main')
++                git('add', '.')
++                git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@localhost',
++                    'commit', '-m', 'first')
++                first = git('rev-parse', 'HEAD')
++                config.update(spec=f'cli-agent-orchestrator @ git+{repo.as_uri()}@main',
++                              upgrade=False)
++                self.assertTrue(installer.install(uv, config)['changed'])
++                self.assertFalse(installer.install(uv, config)['changed'])
++                wheel(repo, 'cli_agent_orchestrator', '0.3', 'second')
++                git('add', '.')
++                git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@localhost',
++                    'commit', '-m', 'second')
++                self.assertFalse(installer.install(uv, config)['changed'])
++                config['upgrade'] = True
++                self.assertTrue(installer.install(uv, config)['changed'])
++                config['spec'] = f'cli-agent-orchestrator[ui] @ git+{repo.as_uri()}@{first}'
++                self.assertTrue(installer.install(uv, config)['changed'])
++                self.assertFalse(installer.install(uv, config)['changed'])
++                receipt_path = root / 'tools/cli-agent-orchestrator/uv-receipt.toml'
++                receipt = tomllib.loads(receipt_path.read_text())['tool']['requirements']
++                primary = next(r for r in receipt if r['name'] == 'cli-agent-orchestrator')
++                self.assertEqual(set(primary['extras']), {'memory', 'ui'})
++                plugin = next(r for r in receipt if r['name'] == 'fixture-plugin')
++                self.assertEqual(plugin['specifier'], '==1.0')
++                # Check the CLI boundary too; Ansible consumes only this JSON.
++                result = subprocess.run([
++                    shutil.which('python3'), str(SCRIPT), '--uv', uv,
++                    '--config', json.dumps(config),
++                ], check=True, capture_output=True, text=True)
++                self.assertFalse(json.loads(result.stdout)['changed'])
++
++                # Execute the actual Ansible script task, including its JSON
++                # quoting and uv-run interpreter. No role dependencies/services.
++                if shutil.which('ansible-playbook'):
++                    import yaml
++
++                    role = SCRIPT.parents[1]
++                    tasks = yaml.safe_load((role / 'tasks/main.yml').read_text())
++                    block = next(task['block'] for task in tasks if 'block' in task)
++                    install_task = block[0]
++                    playbook = root / 'isolated.yml'
++                    playbook.write_text(yaml.safe_dump([{
++                        'name': 'Test actual CAO installer task in isolation',
++                        'hosts': 'localhost', 'connection': 'local', 'gather_facts': False,
++                        'vars': {
++                            'role_path': str(role), 'ai_stack_bin_dir': str(Path(uv).parent),
++                            'cao_install_spec': config['spec'],
++                            'cao_python_version': config['python'], 'cao_upgrade': True,
++                            'cao_extras': [], 'cao_with_packages': [],
++                        },
++                        'tasks': [install_task],
++                        'handlers': [{'name': 'Reiniciar servidor CAO',
++                                      'ansible.builtin.debug': {'msg': 'fixture handler'}}],
++                    }], sort_keys=False))
++                    ansible_env = dict(os.environ, ANSIBLE_LOCAL_TEMP=str(root / 'ansible-local'),
++                                       ANSIBLE_REMOTE_TEMP=str(root / 'ansible-remote'),
++                                       ANSIBLE_NOCOLOR='1')
++                    for flags in [[], ['--check']]:
++                        before = receipt_path.read_bytes()
++                        result = subprocess.run([
++                            'ansible-playbook', '-i', 'localhost,', str(playbook), *flags,
++                        ], cwd=root, env=ansible_env, capture_output=True, text=True)
++                        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
++                        self.assertIn('changed=0', result.stdout)
++                        self.assertEqual(receipt_path.read_bytes(), before)
++
++
++if __name__ == '__main__':
++    unittest.main()

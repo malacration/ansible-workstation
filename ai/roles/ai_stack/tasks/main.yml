@@ -1,0 +1,63 @@
+---
+- name: Validar sistema e usuário de instalação da stack
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == 'Ubuntu'
+      - ansible_facts['distribution_version'] is version('22.04', '>=')
+      - ansible_facts['architecture'] in ['x86_64', 'aarch64']
+      - ai_stack_user != 'root'
+    fail_msg: >-
+      Use Ubuntu 22.04+ (x86_64 ou ARM64) e um usuário comum já existente.
+      Para conexão como root, informe -e ai_stack_user=ubuntu, por exemplo.
+
+- name: Consultar o diretório home do usuário de instalação
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ ai_stack_user }}"
+
+- name: Validar o diretório home
+  ansible.builtin.assert:
+    that:
+      - ai_stack_home.startswith('/')
+      - ai_stack_home != '/'
+      - ai_stack_home != '/root'
+    fail_msg: O usuário precisa ter um diretório home absoluto e próprio.
+
+- name: Instalar dependências do Ubuntu
+  become: true
+  become_user: root
+  ansible.builtin.apt:
+    name: "{{ ai_stack_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Preparar diretórios do usuário
+  become: "{{ ansible_facts['user_id'] != ai_stack_user }}"
+  become_user: "{{ ai_stack_user }}"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ ai_stack_bin_dir }}"
+    - "{{ ai_stack_cache_dir }}"
+    - "{{ ai_stack_home }}/.config/ai-stack"
+
+- name: Adicionar os executáveis ao PATH do Bash e Zsh
+  become: "{{ ansible_facts['user_id'] != ai_stack_user }}"
+  become_user: "{{ ai_stack_user }}"
+  ansible.builtin.blockinfile:
+    path: "{{ ai_stack_home }}/{{ item }}"
+    create: true
+    mode: '0644'
+    marker: '# {mark} ANSIBLE AI STACK'
+    block: |
+      case ":$PATH:" in
+        *":$HOME/.local/bin:"*) ;;
+        *) export PATH="$HOME/.local/bin:$PATH" ;;
+      esac
+  loop:
+    - .profile
+    - .bashrc
+    - .zshrc

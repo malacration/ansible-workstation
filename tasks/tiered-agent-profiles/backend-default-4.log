@@ -1,0 +1,46 @@
+
+PLAY [Validar backend de terminal do CAO] **************************************
+
+TASK [Gathering Facts] *********************************************************
+[WARNING]: Host 'localhost' is using the discovered Python interpreter at '/home/andrew/miniforge3/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.21/reference_appendices/interpreter_discovery.html for more information.
+ok: [localhost]
+
+TASK [ai_stack : Validar sistema e usuário de instalação da stack] *************
+skipping: [localhost]
+
+TASK [ai_stack : Consultar o diretório home do usuário de instalação] **********
+skipping: [localhost]
+
+TASK [ai_stack : Validar o diretório home] *************************************
+skipping: [localhost]
+
+TASK [ai_stack : Instalar dependências do Ubuntu] ******************************
+skipping: [localhost]
+
+TASK [ai_stack : Preparar diretórios do usuário] *******************************
+skipping: [localhost]
+
+TASK [ai_stack : Adicionar os executáveis ao PATH do Bash e Zsh] ***************
+skipping: [localhost] => (item=.profile) 
+skipping: [localhost] => (item=.bashrc) 
+skipping: [localhost] => (item=.zshrc) 
+skipping: [localhost]
+
+TASK [herdr : Validar backend de terminal do CAO] ******************************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [herdr : Consultar usuário dos agentes] ***********************************
+skipping: [localhost]
+
+TASK [herdr : Verificar comando herdr publicado] *******************************
+skipping: [localhost]
+
+TASK [herdr : Exigir herdr instalado, ou habilitado no check mode] *************
+skipping: [localhost]
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=2    changed=0    unreachable=0    failed=0    skipped=9    rescued=0    ignored=0   
+

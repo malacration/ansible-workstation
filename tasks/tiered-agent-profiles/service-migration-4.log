@@ -1,0 +1,14 @@
+test_active_approved_previews_without_mutating (test_cao_service_migration.ServiceMigrationTests.test_active_approved_previews_without_mutating) ... ok
+test_active_unit_refused_before_changes (test_cao_service_migration.ServiceMigrationTests.test_active_unit_refused_before_changes) ... ok
+test_disabled_service_does_not_inspect_units (test_cao_service_migration.ServiceMigrationTests.test_disabled_service_does_not_inspect_units) ... ok
+test_early_play_prevents_later_changes (test_cao_service_migration.ServiceMigrationTests.test_early_play_prevents_later_changes) ... ok
+test_foreign_unit_fails_before_state_query (test_cao_service_migration.ServiceMigrationTests.test_foreign_unit_fails_before_state_query) ... ok
+test_inactive_unit_previews_without_approval (test_cao_service_migration.ServiceMigrationTests.test_inactive_unit_previews_without_approval) ... ok
+test_preflight_ignores_backend_and_herdr_availability (test_cao_service_migration.ServiceMigrationTests.test_preflight_ignores_backend_and_herdr_availability) ... ok
+test_service_and_preflight_allow_undefined_backend (test_cao_service_migration.ServiceMigrationTests.test_service_and_preflight_allow_undefined_backend) ... ok
+test_symlink_is_refused_without_following (test_cao_service_migration.ServiceMigrationTests.test_symlink_is_refused_without_following) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 10.938s
+
+OK

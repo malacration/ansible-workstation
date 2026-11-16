@@ -1,0 +1,22 @@
+{
+  "round": 3,
+  "generated_at": "2026-11-16T14:16:30.558686+00:00",
+  "sha256": {
+    "/home/andrew/git/ansible-workstation/tasks/rtk-shared-integration/CHANGES.diff": "2e577e0fd94aff3a49c64ba898cad7459fa0468cbcf747b258c042060f45f8d2",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-shared-integration/INTEGRATION.md": "7dcc15b2587c98fdae3324251920702f60ea3f0308b70182869354a95ae28a2c",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-shared-integration/ISOLATED_ENTRYPOINT.json": "570ff89e80158948e06e0d64ec1e877844e44622cb4d70cb8eb5c596a65b0f38",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-shared-integration/REPORT.md": "aba92214d03655ae3af69d747dc3b1bdda6a01dcf8bd4e35c18432a73e7c9257",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-shared-integration/REVIEW_TASK.md": "cae517b44a864b3708721453e35bba185e31e2b989ba6aa92a2e66d952adc445",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-shared-integration/ROLE_BASELINE.json": "034be5f3dfd731b9d62ddd1378e91d290a1bcfec53db842778c5f3b645be691d",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-shared-integration/VALIDATION.json": "5fde56e19be61666ac4d0f82e225feeab3514a889c6431bf3585472319836f27",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-shared-integration/baseline/ai/README.md": "1a813a8308b4c3c3c15518d5772a669d426c2e460bdb49216de87cdab057a95c",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-shared-integration/baseline/ai/all.yml": "cec217dd489e3a2458ae7e536433f1e262414156b141aebb5c7ba169b088c74e",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-shared-integration/rtk.yml.example": "e96b9d2f40dc4a9db85688a46d2dabf84f2a5bf8ad659c993126f69701436732",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-shared-integration/specification.md": "77f6bb1a49556ff5e281773ebff6c48a83f84158403166569a58c4ca9ad038b8",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-shared-integration/validate_entrypoint_isolated.py": "5f5f76da7c92bbb50674521fef0e91dd0a93bb14e25b228281226d6a5e040b9f",
+    "/home/andrew/git/ansible-workstation/ai/rtk.yml": "267daf4a1e013358d992f537e5ddfcd969a6b561c12d515382589a997675ebd0",
+    "/home/andrew/git/ansible-workstation/ai/all.yml": "f88a097692cf6dd12f3c87ade02e389ca607ca617da4e810edd5d7b464557df3",
+    "/home/andrew/git/ansible-workstation/ai/README.md": "6f80b329e4b8078a00d60a7405caa13483970b6ae70b81bf2dc74813381a0239",
+    "/home/andrew/git/ansible-workstation/ai/tests/test_rtk_entrypoint.py": "7ab58ab1d2bfc03da9ef81a1ad5a26a06ee2f12a4d6c07e8484a745cfe000eac"
+  }
+}

@@ -34,4 +34,6 @@
   ansible.builtin.import_playbook: sdk/git-secrets.yml
 - name: Veleiro
   ansible.builtin.import_playbook: cli/veleiro.yml
-  
+- name: Stack de IA (Codex, Claude, uv, CAO e MCPs)
+  ansible.builtin.import_playbook: ai/all.yml
+  tags: [ai]

@@ -1,0 +1,1081 @@
+--- /home/andrew/git/ansible-workstation/ai/roles/rtk/README.md (round 1)
++++ /home/andrew/git/ansible-workstation/ai/roles/rtk/README.md (round 2)
+@@ -33,6 +33,17 @@
+ SHA256. A deliberate refresh may report changed temporary staging tasks even
+ when the remote release has not changed.
+ 
++Before an installed binary is executed, `installed_state.py` requires a regular
++nonsymlink receipt with the supported edition/version/asset/hash fields and a
++regular nonsymlink executable matching its recorded SHA256. Missing, malformed,
++unsupported or mismatched state skips `--version` and requires reconciliation,
++including in check mode. The role checks published integrity again before init.
++Unsafe directory ancestors fail before filesystem writes. Nonregular binary,
++receipt or wrapper destinations are preserved by rename to
++`FILE.rtk-invalid-UUID` before publication; symlink targets are not followed or
++changed. Regular overwritten files use Ansible backups. The downloaded candidate
++also must be a regular nonsymlink executable before its version is probed.
++
+ The public wrapper exports `RTK_TELEMETRY_DISABLED=1` and
+ `RTK_ONRAMP_DISABLED=1` on every call. Existing RTK configuration files remain
+ untouched, including an existing telemetry preference; the environment override
+@@ -56,8 +67,14 @@
+ The merger reads only selected `settings.json`/`hooks.json`, `CLAUDE.md`/
+ `AGENTS.md` and `RTK.md`. It retains unrelated JSON fields, hooks and instruction
+ text; its instruction text lives between `BEGIN/END ANSIBLE RTK` markers. A
+-native existing `rtk hook CLIENT` is updated to the public absolute wrapper
+-path. Legacy rewrite scripts, duplicate RTK hooks, custom RTK matchers, malformed
++native existing `rtk hook CLIENT` or `/previous/path/rtk hook CLIENT` is updated
++to the public absolute wrapper path, including quoted paths with spaces.
++Duplicate and matcher guards cover bare, previous absolute and current paths.
++A native-shaped hook at an unknown custom executable path (for example a
++previous arbitrarily named wrapper), or a native RTK command with extra flags,
++is rejected before any client configuration write for manual review. Unrelated
++commands/events/JSON values are retained. Legacy rewrite scripts, duplicate RTK
++hooks, custom RTK matchers, malformed
+ JSON/markers or symlinked paths fail before user configuration is changed.
+ Existing files are backed up as `FILE.rtk-backup.FULL_SHA256`, with mode 0600;
+ existing file modes are retained. JSON formatting can change on the first merge.
+--- /home/andrew/git/ansible-workstation/ai/roles/rtk/files/configure_rtk.py (round 1)
++++ /home/andrew/git/ansible-workstation/ai/roles/rtk/files/configure_rtk.py (round 2)
+@@ -50,12 +50,25 @@
+ 
+ 
+ def is_rtk_hook(command, client, binary):
++    """Adopt exact native commands; reject ambiguous path-shaped custom wrappers."""
+     try:
+         words = shlex.split(command)
+     except ValueError:
+         return False
+-    return (len(words) == 3 and words[1:] == ['hook', client]
+-            and words[0] in ['rtk', str(binary)])
++    if len(words) < 3 or words[1:3] != ['hook', client]:
++        return False
++    executable = Path(words[0])
++    # The native CLI spelling identifies RTK even when its installation moved.
++    # Arbitrarily named previous wrappers cannot be adopted unambiguously.
++    if words[0] in ['rtk', str(binary)] or (executable.is_absolute() and executable.name == 'rtk'):
++        if len(words) != 3:
++            raise ValueError('Customized native RTK hook command; review manually before migration')
++        return True
++    if len(words) != 3:
++        return False
++    if executable.is_absolute() or '/' in words[0]:
++        raise ValueError('Ambiguous native hook executable; review the previous RTK wrapper path')
++    return False
+ 
+ 
+ def merge_hooks(original, generated, client, binary):
+--- /home/andrew/git/ansible-workstation/ai/roles/rtk/files/installed_state.py (round 1)
++++ /home/andrew/git/ansible-workstation/ai/roles/rtk/files/installed_state.py (round 2)
+@@ -0,0 +1,125 @@
++#!/usr/bin/env python3
++"""Inspect managed RTK state without executing it or following file symlinks."""
++
++import argparse
++import hashlib
++import json
++import os
++from pathlib import Path
++import re
++import stat
++import sys
++import uuid
++
++
++HASH = re.compile(r'^[a-f0-9]{64}$')
++VERSION = re.compile(r'^[0-9]+\.[0-9]+\.[0-9]+$')
++
++
++def check_parents(paths):
++    """Do not traverse linked or non-directory ancestors, including dangling links."""
++    for path in paths:
++        for parent in path.parents:
++            try:
++                mode = parent.lstat().st_mode
++            except FileNotFoundError:
++                continue
++            if not stat.S_ISDIR(mode):
++                raise ValueError('RTK managed paths require nonsymlink directory ancestors')
++
++
++def regular_reader(path):
++    """Open only a regular nonsymlink file, avoiding FIFO reads and link targets."""
++    mode = path.lstat().st_mode
++    if not stat.S_ISREG(mode):
++        raise ValueError('Managed RTK file is not a regular nonsymlink file')
++    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
++    if not stat.S_ISREG(os.fstat(descriptor).st_mode):
++        os.close(descriptor)
++        raise ValueError('Managed RTK file changed type during inspection')
++    return os.fdopen(descriptor, 'rb')
++
++
++def inspect(install_dir, architecture, wrapper=None):
++    """Return a supported receipt only after its executable hash has matched."""
++    receipt_path = install_dir / 'release.json'
++    binary_path = install_dir / 'bin/rtk'
++    invalid = {'valid': False, 'receipt': {}}
++    try:
++        check_parents([receipt_path, binary_path] + ([wrapper] if wrapper is not None else []))
++    except ValueError:
++        return dict(invalid, reason='unsafe_parent', unsafe_parent=True)
++    try:
++        with regular_reader(receipt_path) as source:
++            # Receipts contain metadata only; reject oversized or unsupported data.
++            data = source.read(65537)
++        if len(data) > 65536:
++            return dict(invalid, reason='unsupported_receipt')
++        receipt = json.loads(data)
++        required = {'edition', 'version', 'asset', 'sha256', 'binary_sha256', 'source'}
++        if (not isinstance(receipt, dict) or not required.issubset(receipt)
++                or any(not isinstance(receipt[key], str) for key in required)
++                or receipt['edition'] != 'oss'
++                or not VERSION.fullmatch(receipt['version'])
++                or receipt['asset'] != 'rtk-oss-' + architecture + '-unknown-linux-musl.tar.gz'
++                or not HASH.fullmatch(receipt['sha256'])
++                or not HASH.fullmatch(receipt['binary_sha256'])
++                or not receipt['source'].startswith(('https://', 'http://'))):
++            return dict(invalid, reason='unsupported_receipt')
++        digest = hashlib.sha256()
++        with regular_reader(binary_path) as binary:
++            if not os.fstat(binary.fileno()).st_mode & 0o111 or not os.access(binary_path, os.X_OK):
++                return dict(invalid, reason='nonexecutable_binary')
++            for chunk in iter(lambda: binary.read(1024 * 1024), b''):
++                digest.update(chunk)
++        if digest.hexdigest() != receipt['binary_sha256']:
++            return dict(invalid, reason='binary_hash_mismatch')
++        return {'valid': True, 'receipt': receipt, 'reason': 'verified'}
++    except (OSError, ValueError):
++        # Do not expose receipt contents or open any symlink/nonregular target.
++        return dict(invalid, reason='missing_unreadable_or_invalid_file')
++
++
++def prepare_publication(install_dir, wrapper=None):
++    """Preserve nonregular destinations themselves before atomic publication.
++
++    Renaming a link/FIFO/directory does not read its content or follow its target.
++    Regular files are backed up by Ansible's copy/template modules instead.
++    """
++    paths = [install_dir / 'bin/rtk', install_dir / 'release.json']
++    if wrapper is not None:
++        paths.append(wrapper)
++    check_parents(paths)
++    preserved = []
++    for path in paths:
++        try:
++            mode = path.lstat().st_mode
++        except FileNotFoundError:
++            continue
++        if not stat.S_ISREG(mode):
++            backup = path.with_name(path.name + '.rtk-invalid-' + uuid.uuid4().hex)
++            path.rename(backup)
++            preserved.append(str(backup))
++    return {'changed': bool(preserved), 'preserved': preserved}
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('--install-dir', required=True, type=Path)
++    parser.add_argument('--architecture', choices=['x86_64', 'aarch64'], required=True)
++    parser.add_argument('--prepare-publication', action='store_true')
++    parser.add_argument('--wrapper', type=Path)
++    args = parser.parse_args()
++    try:
++        result = (prepare_publication(args.install_dir, args.wrapper)
++                  if args.prepare_publication else inspect(args.install_dir, args.architecture, args.wrapper))
++        print(json.dumps(result))
++    except (OSError, ValueError):
++        print('RTK managed paths cannot be prepared safely; review filesystem paths/permissions.',
++              file=sys.stderr)
++        return 1
++    return 0
++
++
++if __name__ == '__main__':
++    sys.exit(main())
+--- /home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/main.yml (round 1)
++++ /home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/main.yml (round 2)
+@@ -17,30 +17,26 @@
+   environment: >-
+     {{ ai_stack_environment | combine({'RTK_TELEMETRY_DISABLED': '1', 'RTK_ONRAMP_DISABLED': '1'}) }}
+   block:
+-    - name: Inspecionar recibo do release gerenciado
+-      ansible.builtin.stat:
+-        path: "{{ rtk_install_dir }}/release.json"
+-      register: rtk_receipt_stat
++    - name: Inspect receipt and executable without running installed RTK
++      ansible.builtin.script:
++        cmd: >-
++          {{ (role_path ~ '/files/installed_state.py') | quote }}
++          --install-dir {{ rtk_install_dir | quote }}
++          --architecture {{ ansible_facts['architecture'] | quote }}
++          --wrapper {{ rtk_binary | quote }}
++        executable: python3
++      register: rtk_inspection
++      changed_when: false
++      check_mode: false
+ 
+-    - name: Recusar recibo simbólico
++    - name: Establish installed executable integrity before any version probe
++      ansible.builtin.set_fact:
++        rtk_verified_state: "{{ rtk_inspection.stdout | from_json }}"
++
++    - name: Refuse unsafe managed directory ancestors before writes
+       ansible.builtin.assert:
+-        that: not rtk_receipt_stat.stat.islnk | default(false)
+-
+-    - name: Ler somente recibo público de proveniência RTK
+-      ansible.builtin.slurp:
+-        src: "{{ rtk_install_dir }}/release.json"
+-      register: rtk_receipt_content
+-      when: rtk_receipt_stat.stat.exists
+-
+-    - name: Carregar proveniência instalada
+-      ansible.builtin.set_fact:
+-        rtk_receipt: "{{ rtk_receipt_content.content | default('e30=') | b64decode | from_json }}"
+-
+-    - name: Conferir integridade atual do executável gerenciado
+-      ansible.builtin.stat:
+-        path: "{{ rtk_install_dir }}/bin/rtk"
+-        checksum_algorithm: sha256
+-      register: rtk_installed_stat
++        that: not rtk_verified_state.unsafe_parent | default(false)
++        fail_msg: RTK managed directories must not contain symlink or non-directory ancestors.
+ 
+     - name: Verificar versão do binário gerenciado
+       ansible.builtin.command:
+@@ -49,16 +45,16 @@
+       changed_when: false
+       failed_when: false
+       check_mode: false
++      when: rtk_verified_state.valid | bool
+ 
+     - name: Definir necessidade de consultar release
+       ansible.builtin.set_fact:
+         rtk_needs_release: >-
+-          {{ rtk_current.rc != 0 or rtk_upgrade | bool or
+-             rtk_receipt.get('edition') != 'oss' or
+-             rtk_receipt.get('binary_sha256', '') != rtk_installed_stat.stat.checksum | default('missing') or
+-             rtk_current.stdout | trim != 'rtk ' ~ rtk_receipt.get('version', '') or
+-             (rtk_checksum != '' and rtk_checksum | lower != 'sha256:' ~ rtk_receipt.get('sha256', '')) or
+-             (rtk_version != 'latest' and rtk_current.stdout | trim != 'rtk ' ~ rtk_version) }}
++          {{ not rtk_verified_state.valid or rtk_upgrade | bool or
++             rtk_current.rc | default(1) != 0 or
++             rtk_current.stdout | default('') | trim != 'rtk ' ~ rtk_verified_state.receipt.get('version', '') or
++             (rtk_checksum != '' and rtk_checksum | lower != 'sha256:' ~ rtk_verified_state.receipt.get('sha256', '')) or
++             (rtk_version != 'latest' and rtk_current.stdout | default('') | trim != 'rtk ' ~ rtk_version) }}
+         rtk_asset_name: "rtk-oss-{{ ansible_facts['architecture'] }}-unknown-linux-musl.tar.gz"
+ 
+     - name: Preparar diretórios RTK
+@@ -67,7 +63,7 @@
+         state: directory
+         mode: '0755'
+       loop:
+-        - "{{ ai_stack_bin_dir }}"
++        - "{{ rtk_binary | dirname }}"
+         - "{{ ai_stack_cache_dir }}/rtk"
+         - "{{ rtk_install_dir }}"
+         - "{{ rtk_install_dir }}/bin"
+@@ -82,6 +78,18 @@
+       changed_when: true
+       when: rtk_needs_release | bool and ansible_check_mode
+ 
++    - name: Preserve nonregular wrapper destinations without following them
++      ansible.builtin.script:
++        cmd: >-
++          {{ (role_path ~ '/files/installed_state.py') | quote }}
++          --install-dir {{ rtk_install_dir | quote }}
++          --architecture {{ ansible_facts['architecture'] | quote }}
++          --prepare-publication --wrapper {{ rtk_binary | quote }}
++        executable: python3
++      register: rtk_publication_paths
++      changed_when: (rtk_publication_paths.stdout | from_json).changed
++      when: not ansible_check_mode
++
+     - name: Instalar comando RTK com telemetria bloqueada
+       ansible.builtin.template:
+         src: rtk.j2
+@@ -94,6 +102,19 @@
+         src: configure_rtk.py
+         dest: "{{ rtk_install_dir }}/configure_rtk.py"
+         mode: '0755'
++
++    - name: Revalidate published executable before running init through wrapper
++      ansible.builtin.script:
++        cmd: >-
++          {{ (role_path ~ '/files/installed_state.py') | quote }}
++          --install-dir {{ rtk_install_dir | quote }}
++          --architecture {{ ansible_facts['architecture'] | quote }}
++          --wrapper {{ rtk_binary | quote }}
++        executable: python3
++      register: rtk_published_state
++      changed_when: false
++      failed_when: not (rtk_published_state.stdout | from_json).valid
++      when: not ansible_check_mode
+ 
+     - name: Mesclar hooks e instruções sem alterar permissões ou MCPs
+       ansible.builtin.command:
+--- /home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/release.yml (round 1)
++++ /home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/release.yml (round 2)
+@@ -67,6 +67,21 @@
+         remote_src: true
+         include: [rtk]
+ 
++    - name: Validate candidate regular file and calculate SHA256 before execution
++      ansible.builtin.stat:
++        path: "{{ rtk_candidate.path }}/rtk"
++        checksum_algorithm: sha256
++        follow: false
++        get_mime: false
++      register: rtk_candidate_stat
++
++    - name: Require a regular nonsymlink executable candidate
++      ansible.builtin.assert:
++        that:
++          - rtk_candidate_stat.stat.isreg | default(false)
++          - not rtk_candidate_stat.stat.islnk | default(false)
++          - rtk_candidate_stat.stat.executable | default(false)
++
+     - name: Conferir versão declarada pelo executável
+       ansible.builtin.command:
+         argv: ["{{ rtk_candidate.path }}/rtk", --version]
+@@ -74,11 +89,16 @@
+       register: rtk_candidate_version
+       failed_when: rtk_candidate_version.stdout | trim != 'rtk ' ~ rtk_resolved_version
+ 
+-    - name: Calcular SHA256 do executável validado
+-      ansible.builtin.stat:
+-        path: "{{ rtk_candidate.path }}/rtk"
+-        checksum_algorithm: sha256
+-      register: rtk_candidate_stat
++    - name: Preserve invalid installed destinations before publication
++      ansible.builtin.script:
++        cmd: >-
++          {{ (role_path ~ '/files/installed_state.py') | quote }}
++          --install-dir {{ rtk_install_dir | quote }}
++          --architecture {{ ansible_facts['architecture'] | quote }}
++          --prepare-publication
++        executable: python3
++      register: rtk_invalid_paths
++      changed_when: (rtk_invalid_paths.stdout | from_json).changed
+ 
+     - name: Publicar binário validado atomicamente
+       ansible.builtin.copy:
+@@ -97,6 +117,7 @@
+               'source': rtk_release_download_url ~ '/v' ~ rtk_resolved_version} | to_nice_json }}
+         dest: "{{ rtk_install_dir }}/release.json"
+         mode: '0600'
++        backup: true
+   always:
+     - name: Remover somente diretório temporário do candidato
+       ansible.builtin.file:
+--- /home/andrew/git/ansible-workstation/tasks/rtk-install/test_configure_rtk.py (round 1)
++++ /home/andrew/git/ansible-workstation/tasks/rtk-install/test_configure_rtk.py (round 2)
+@@ -2,6 +2,7 @@
+ import importlib.util
+ import json
+ import os
++import shlex
+ from pathlib import Path
+ import subprocess
+ import tempfile
+@@ -36,6 +37,54 @@
+         result = MODULE.merge_hooks(original, self.generated(), 'claude', Path('/test path/rtk'))
+         self.assertEqual(len(result['hooks']['PreToolUse']), 1)
+         self.assertEqual(result['hooks']['PreToolUse'][0]['hooks'][0]['command'], "'/test path/rtk' hook claude")
++
++    def test_old_absolute_native_hook_is_migrated_for_both_clients(self):
++        for client in ['claude', 'codex']:
++            with self.subTest(client=client):
++                original = self.generated(client)
++                original['hooks']['PreToolUse'][0]['hooks'][0]['command'] = "'/old install/bin/rtk' hook " + client
++                original['hooks']['PreToolUse'][0]['hooks'].append({'type': 'command', 'command': 'echo hook ' + client})
++                result = MODULE.merge_hooks(original, self.generated(client), client, Path('/new install/bin/rtk'))
++                commands = [h['command'] for h in result['hooks']['PreToolUse'][0]['hooks']]
++                self.assertEqual(commands, ["'/new install/bin/rtk' hook " + client, 'echo hook ' + client])
++                self.assertEqual(original['hooks']['PreToolUse'][0]['hooks'][0]['command'],
++                                 "'/old install/bin/rtk' hook " + client)
++
++    def test_duplicates_across_old_current_and_bare_paths_are_rejected(self):
++        for client in ['claude', 'codex']:
++            for commands in [
++                ['/old/bin/rtk', '/new/bin/rtk'],
++                ['/old/bin/rtk', 'rtk'],
++                ['/old/bin/rtk', '/other-old/bin/rtk'],
++            ]:
++                with self.subTest(client=client, commands=commands):
++                    original = self.generated(client)
++                    original['hooks']['PreToolUse'][0]['hooks'] = [
++                        {'type': 'command', 'command': command + ' hook ' + client} for command in commands]
++                    before = json.dumps(original)
++                    with self.assertRaises(ValueError):
++                        MODULE.merge_hooks(original, self.generated(client), client, Path('/new/bin/rtk'))
++                    self.assertEqual(json.dumps(original), before)
++
++    def test_old_absolute_hook_uses_matcher_guard_and_ambiguous_wrappers_are_rejected(self):
++        for client in ['claude', 'codex']:
++            for executable, matcher in [('/old/bin/rtk', 'Write'), ('/old/bin/custom-wrapper', 'Bash')]:
++                with self.subTest(client=client, executable=executable):
++                    original = self.generated(client)
++                    original['hooks']['PreToolUse'][0]['matcher'] = matcher
++                    original['hooks']['PreToolUse'][0]['hooks'][0]['command'] = executable + ' hook ' + client
++                    before = json.dumps(original)
++                    with self.assertRaises(ValueError):
++                        MODULE.merge_hooks(original, self.generated(client), client, Path('/new/bin/rtk'))
++                    self.assertEqual(json.dumps(original), before)
++
++    def test_customized_native_hook_flags_are_rejected_before_migration(self):
++        original = self.generated('codex')
++        original['hooks']['PreToolUse'][0]['hooks'][0]['command'] = '/old/bin/rtk hook codex --skip-env'
++        before = json.dumps(original)
++        with self.assertRaises(ValueError):
++            MODULE.merge_hooks(original, self.generated('codex'), 'codex', Path('/new/bin/rtk'))
++        self.assertEqual(json.dumps(original), before)
+ 
+     def test_malformed_or_legacy_hooks_fail_without_changing_input(self):
+         for original in [[], {'hooks': []}, {'hooks': {'PreToolUse': {}}},
+@@ -164,6 +213,36 @@
+                 else:
+                     self.assertEqual(result.stdout.strip(), '')
+ 
++    def test_wrapper_relocation_migrates_existing_hooks_without_duplicate(self):
++        self.configure()
++        moved = self.home / 'relocated bin/rtk'
++        moved.parent.mkdir()
++        moved.write_bytes(self.binary.read_bytes())
++        moved.chmod(0o755)
++        result = MODULE.configure(self.home, moved, self.claude, self.codex, ['claude_code', 'codex'])
++        self.assertEqual(len(result['files']), 2)
++        for directory, filename, client in [(self.claude, 'settings.json', 'claude'),
++                                             (self.codex, 'hooks.json', 'codex')]:
++            root = json.loads((directory / filename).read_text())
++            commands = [hook['command'] for group in root['hooks']['PreToolUse'] for hook in group['hooks']]
++            self.assertEqual(commands, ['echo existing', shlex.quote(str(moved)) + ' hook ' + client])
++        self.assertFalse(MODULE.configure(self.home, moved, self.claude, self.codex,
++                                         ['claude_code', 'codex'])['changed'])
++
++    def test_ambiguous_old_codex_hook_rejects_before_any_client_write(self):
++        self.configure()
++        hooks = json.loads((self.codex / 'hooks.json').read_text())
++        hooks['hooks']['PreToolUse'][1]['hooks'][0]['command'] = '/previous/custom-wrapper hook codex'
++        (self.codex / 'hooks.json').write_text(json.dumps(hooks))
++        moved = self.home / 'other/rtk'
++        moved.parent.mkdir()
++        moved.write_bytes(self.binary.read_bytes())
++        moved.chmod(0o755)
++        before = {str(p): p.read_bytes() for p in self.home.rglob('*') if p.is_file()}
++        with self.assertRaises(ValueError):
++            MODULE.configure(self.home, moved, self.claude, self.codex, ['claude_code', 'codex'])
++        self.assertEqual(before, {str(p): p.read_bytes() for p in self.home.rglob('*') if p.is_file()})
++
+     def test_wrapper_blocks_telemetry_even_with_enabled_config(self):
+         self.configs[1].write_text('[telemetry]\nenabled = true\nconsent_given = true\n')
+         environment = dict(os.environ, HOME=str(self.home), XDG_CONFIG_HOME=str(self.home / '.config'),
+--- /home/andrew/git/ansible-workstation/tasks/rtk-install/test_installed_state.py (round 1)
++++ /home/andrew/git/ansible-workstation/tasks/rtk-install/test_installed_state.py (round 2)
+@@ -0,0 +1,194 @@
++"""Offline regressions for receipt/hash gates, including the actual Ansible tasks."""
++import copy
++import hashlib
++import importlib.util
++import json
++import os
++from pathlib import Path
++import shlex
++import shutil
++import subprocess
++import tempfile
++import unittest
++
++import yaml
++
++ROOT = Path(__file__).resolve().parents[2]
++ROLE = ROOT / 'ai/roles/rtk'
++SPEC = importlib.util.spec_from_file_location('installed_state', ROLE / 'files/installed_state.py')
++STATE = importlib.util.module_from_spec(SPEC)
++SPEC.loader.exec_module(STATE)
++
++
++class StateTests(unittest.TestCase):
++    def setUp(self):
++        self.temporary = tempfile.TemporaryDirectory(prefix='rtk-state-test-')
++        self.addCleanup(self.temporary.cleanup)
++        self.root = Path(self.temporary.name)
++        self.install = self.root / 'install'
++        self.binary = self.install / 'bin/rtk'
++        self.binary.parent.mkdir(parents=True)
++        self.marker = self.root / 'unexpected-execution'
++        self.binary.write_text('#!/bin/sh\nprintf executed > ' + shlex.quote(str(self.marker))
++                               + '\nprintf "rtk 1.2.0\\n"\n')
++        self.binary.chmod(0o755)
++        self.receipt = {'edition': 'oss', 'version': '1.2.0',
++                        'asset': 'rtk-oss-x86_64-unknown-linux-musl.tar.gz',
++                        'sha256': '1' * 64, 'source': 'https://example.invalid/v1.2.0',
++                        'binary_sha256': hashlib.sha256(self.binary.read_bytes()).hexdigest()}
++        self.receipt_path = self.install / 'release.json'
++        self.receipt_path.write_text(json.dumps(self.receipt))
++
++    def inspect(self):
++        result = STATE.inspect(self.install, 'x86_64')
++        self.assertFalse(self.marker.exists(), 'The inspection must never execute the binary')
++        return result
++
++    def test_matching_supported_receipt_is_valid_without_executing(self):
++        self.assertEqual(self.inspect(), {'valid': True, 'receipt': self.receipt, 'reason': 'verified'})
++
++    def test_mismatch_is_invalid_without_executing(self):
++        self.binary.write_text(self.binary.read_text() + '# changed\n')
++        self.assertFalse(self.inspect()['valid'])
++        self.assertEqual(self.inspect()['reason'], 'binary_hash_mismatch')
++
++    def test_malformed_and_unsupported_receipts_are_reconciliation_states(self):
++        for data in [b'not json', b'\xff', b'[]', b'{}', b'x' * 65537,
++                     json.dumps(dict(self.receipt, edition='full')).encode(),
++                     json.dumps(dict(self.receipt, binary_sha256='bad')).encode(),
++                     json.dumps(dict(self.receipt, version='latest')).encode(),
++                     json.dumps(dict(self.receipt, asset='rtk-oss-aarch64-unknown-linux-musl.tar.gz')).encode()]:
++            with self.subTest(data=data[:30]):
++                self.receipt_path.write_bytes(data)
++                self.assertFalse(self.inspect()['valid'])
++
++    def test_symlink_binary_is_rejected_even_when_target_hash_matches(self):
++        target = self.root / 'original'
++        self.binary.rename(target)
++        self.binary.symlink_to(target)
++        self.assertFalse(self.inspect()['valid'])
++        self.assertEqual(target.read_bytes(), self.binary.read_bytes())
++
++    def test_symlink_receipt_is_rejected(self):
++        target = self.root / 'original-receipt'
++        self.receipt_path.rename(target)
++        self.receipt_path.symlink_to(target)
++        self.assertFalse(self.inspect()['valid'])
++
++    def test_nonexecutable_or_missing_binary_is_invalid(self):
++        self.binary.chmod(0o644)
++        self.assertFalse(self.inspect()['valid'])
++        self.binary.unlink()
++        self.assertFalse(self.inspect()['valid'])
++
++    def test_directory_and_fifo_are_not_read(self):
++        for path in [self.binary, self.receipt_path]:
++            old = path.read_bytes()
++            path.unlink()
++            path.mkdir()
++            self.assertFalse(self.inspect()['valid'])
++            path.rmdir()
++            os.mkfifo(path)
++            self.assertFalse(self.inspect()['valid'])
++            path.unlink()
++            path.write_bytes(old)
++            path.chmod(0o755 if path == self.binary else 0o600)
++
++    def test_publication_preserves_nonregular_objects_without_following_targets(self):
++        self.binary.unlink()
++        self.binary.symlink_to(self.root / 'missing-target')
++        self.receipt_path.unlink()
++        self.receipt_path.mkdir()
++        (self.receipt_path / 'keep.txt').write_text('retained')
++        result = STATE.prepare_publication(self.install)
++        self.assertTrue(result['changed'])
++        self.assertEqual(len(result['preserved']), 2)
++        self.assertTrue(any(Path(p).is_symlink() for p in result['preserved']))
++        self.assertTrue(any((Path(p) / 'keep.txt').is_file() for p in result['preserved'] if Path(p).is_dir()))
++        self.assertFalse(self.binary.exists())
++        self.assertFalse(STATE.prepare_publication(self.install)['changed'])
++
++    def test_linked_parent_is_refused_before_read_or_publication(self):
++        old = self.root / 'moved-bin'
++        self.binary.parent.rename(old)
++        (self.install / 'bin').symlink_to(old, target_is_directory=True)
++        self.assertEqual(self.inspect()['reason'], 'unsafe_parent')
++        with self.assertRaises(ValueError):
++            STATE.prepare_publication(self.install)
++        self.assertTrue((old / 'rtk').is_file())
++
++
++@unittest.skipUnless(shutil.which('ansible-playbook'), 'ansible-playbook is required')
++class AnsibleExecutionGateTests(unittest.TestCase):
++    def test_actual_role_tasks_skip_invalid_binary_in_normal_and_check_modes(self):
++        source = yaml.safe_load((ROLE / 'tasks/main.yml').read_text())
++        block = next(task['block'] for task in source if 'block' in task)
++        # Use the exact product tasks through the release decision; no downloads,
++        # publication or client configuration is included in this offline probe.
++        tasks = block[:next(i for i, task in enumerate(block) if task['name'] == 'Preparar diretórios RTK')]
++        evidence = []
++        for mode in ['normal', 'check']:
++            for kind in ['hash_mismatch', 'missing_receipt', 'malformed_receipt', 'unsupported_receipt',
++                         'symlink_receipt', 'symlink_binary', 'fifo_binary', 'nonexecutable_binary',
++                         'missing_binary', 'valid']:
++                with self.subTest(mode=mode, state=kind), tempfile.TemporaryDirectory(prefix='rtk-gate-') as temporary:
++                    root = Path(temporary)
++                    install = root / 'install'
++                    (install / 'bin').mkdir(parents=True)
++                    binary = install / 'bin/rtk'
++                    marker = root / 'executed'
++                    binary.write_text('#!/bin/sh\nprintf executed > ' + shlex.quote(str(marker))
++                                      + '\nprintf "rtk 1.2.0\\n"\n')
++                    binary.chmod(0o755)
++                    receipt = {'edition': 'oss', 'version': '1.2.0',
++                               'asset': 'rtk-oss-x86_64-unknown-linux-musl.tar.gz',
++                               'sha256': '1' * 64, 'source': 'https://example.invalid/v1.2.0',
++                               'binary_sha256': hashlib.sha256(binary.read_bytes()).hexdigest()}
++                    receipt_path = install / 'release.json'
++                    receipt_path.write_text(json.dumps(receipt))
++                    if kind == 'hash_mismatch':
++                        receipt['binary_sha256'] = '0' * 64
++                        receipt_path.write_text(json.dumps(receipt))
++                    elif kind == 'missing_receipt':
++                        receipt_path.unlink()
++                    elif kind == 'malformed_receipt':
++                        receipt_path.write_text('not json')
++                    elif kind == 'unsupported_receipt':
++                        receipt_path.write_text('[]')
++                    elif kind in ['symlink_receipt', 'symlink_binary']:
++                        path = receipt_path if kind == 'symlink_receipt' else binary
++                        target = root / 'original-target'
++                        path.rename(target)
++                        path.symlink_to(target)
++                    elif kind in ['fifo_binary', 'missing_binary']:
++                        binary.unlink()
++                        if kind == 'fifo_binary':
++                            os.mkfifo(binary)
++                    elif kind == 'nonexecutable_binary':
++                        binary.chmod(0o644)
++                    play = [{'hosts': 'localhost', 'connection': 'local', 'gather_facts': False,
++                             'vars': {'role_path': str(ROLE), 'rtk_install_dir': str(install),
++                                      'rtk_binary': str(root / 'bin/rtk'),
++                                      'rtk_version': 'latest', 'rtk_upgrade': False, 'rtk_checksum': '',
++                                      'ansible_facts': {'architecture': 'x86_64'}},
++                             'tasks': copy.deepcopy(tasks) + [{'name': 'Verify release decision',
++                                 'ansible.builtin.assert': {'that': [
++                                     'rtk_verified_state.valid == ' + str(kind == 'valid'),
++                                     'rtk_needs_release == ' + str(kind != 'valid')]}}]}]
++                    # yaml.safe_dump retains the actual role's Jinja expressions.
++                    play_path = root / 'probe.yml'
++                    play_path.write_text(yaml.safe_dump(play, sort_keys=False))
++                    command = ['ansible-playbook', '-i', 'localhost,', str(play_path)]
++                    if mode == 'check':
++                        command.append('--check')
++                    result = subprocess.run(command, capture_output=True, text=True, cwd=root,
++                                            env=dict(os.environ, ANSIBLE_NOCOLOR='1'), timeout=30)
++                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
++                    self.assertEqual(marker.exists(), kind == 'valid', result.stdout + result.stderr)
++                    evidence.append({'mode': mode, 'state': kind, 'marker_written': marker.exists(),
++                                     'returncode': result.returncode})
++        (Path(__file__).parent / 'EXECUTION_GATE_RESULTS.json').write_text(json.dumps(evidence, indent=2) + '\n')
++
++
++if __name__ == '__main__':
++    unittest.main(verbosity=2)
+--- /home/andrew/git/ansible-workstation/tasks/rtk-install/validate_recovery.py (round 1)
++++ /home/andrew/git/ansible-workstation/tasks/rtk-install/validate_recovery.py (round 2)
+@@ -0,0 +1,145 @@
++#!/usr/bin/env python3
++"""Exercise full-role recovery only inside the existing guarded fixture HOME."""
++from contextlib import contextmanager
++import hashlib
++from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
++import importlib.util
++import json
++from pathlib import Path
++import shlex
++import stat
++import threading
++
++import validate_ansible as validation
++
++ROLE = Path(__file__).resolve().parents[2] / 'ai/roles/rtk'
++SPEC = importlib.util.spec_from_file_location('installed_state', ROLE / 'files/installed_state.py')
++STATE = importlib.util.module_from_spec(SPEC)
++SPEC.loader.exec_module(STATE)
++EVIDENCE = []
++
++
++def verified():
++    state = STATE.inspect(validation.BINARY.parents[1], 'x86_64')
++    assert state['valid'], state
++    return state
++
++
++@contextmanager
++def cached_release_server():
++    """Serve retained, digest-verified official artifacts only on localhost.
++
++    This is an isolated download fixture, not a proxy for any agent traffic.
++    Recovery tests need no live GitHub API quota or authentication.
++    """
++    task = Path(__file__).resolve().parent
++    release_bytes = (task / 'UPSTREAM_RELEASE.json').read_bytes()
++    release = json.loads(release_bytes)
++    routes = {'/releases/tags/v1.2.0': release_bytes, '/releases/latest': release_bytes}
++    for filename in ['checksums.txt', 'rtk-oss-x86_64-unknown-linux-musl.tar.gz']:
++        data = (task / filename).read_bytes()
++        asset = next(asset for asset in release['assets'] if asset['name'] == filename)
++        assert asset['digest'] == 'sha256:' + hashlib.sha256(data).hexdigest()
++        routes['/download/v1.2.0/' + filename] = data
++    requests = []
++
++    class Handler(BaseHTTPRequestHandler):
++        def do_GET(self):
++            requests.append(self.path)
++            data = routes.get(self.path)
++            self.send_response(200 if data is not None else 404)
++            self.send_header('Content-Type', 'application/json' if self.path.startswith('/releases/') else 'application/octet-stream')
++            self.end_headers()
++            if data is not None:
++                self.wfile.write(data)
++
++        def log_message(self, *_args):
++            pass
++
++    server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
++    thread = threading.Thread(target=server.serve_forever, daemon=True)
++    thread.start()
++    try:
++        base = 'http://127.0.0.1:' + str(server.server_port)
++        yield {'rtk_release_api': base + '/releases',
++               'rtk_release_download_url': base + '/download'}, requests
++    finally:
++        server.shutdown()
++        thread.join()
++        server.server_close()
++
++
++def main(variables, requests):
++    def run(name, **kwargs):
++        validation.run(name, variables=variables, **kwargs)
++
++    home = validation.HOME
++    assert home == Path(__file__).resolve().parent / 'ansible-home'
++    assert home != Path.home()
++    run('recovery-bootstrap')
++    verified()
++    run('recovery-initial-idempotence', unchanged=True)
++    binary = validation.BINARY
++    receipt = binary.parents[1] / 'release.json'
++    marker = home / 'unexpected-round2-execution'
++    assert not marker.exists()
++    altered = ('#!/bin/sh\nprintf executed > ' + shlex.quote(str(marker))
++               + '\nprintf "rtk 1.2.0\\n"\n').encode()
++    expected_hash = hashlib.sha256(binary.read_bytes()).hexdigest()
++
++    # An altered executable must neither run nor be replaced during check mode;
++    # the ordinary run must replace it from the verified archive before any init.
++    binary.write_bytes(altered)
++    run('recovery-mismatch-check', options=['--check'])
++    assert binary.read_bytes() == altered and not marker.exists()
++    EVIDENCE.append({'case': 'mismatch-check', 'marker_written': marker.exists(), 'original_preserved': True})
++    run('recovery-mismatch-normal')
++    assert verified()['receipt']['binary_sha256'] == expected_hash and not marker.exists()
++    EVIDENCE.append({'case': 'mismatch-normal', 'marker_written': marker.exists(), 'verified_replacement': True})
++
++    # A same-version symlink target is never executed or changed. The link itself
++    # is renamed out of the publication path without following or reading it.
++    target = home / 'previous-round2-binary'
++    target.write_bytes(altered)
++    target.chmod(0o755)
++    binary.unlink()
++    binary.symlink_to(target)
++    run('recovery-symlink-check', options=['--check'])
++    assert binary.is_symlink() and target.read_bytes() == altered and not marker.exists()
++    EVIDENCE.append({'case': 'symlink-check', 'marker_written': marker.exists(), 'target_unchanged': True})
++    run('recovery-symlink-normal')
++    assert verified()['valid'] and not binary.is_symlink() and not marker.exists()
++    assert target.read_bytes() == altered
++    assert any(p.is_symlink() for p in binary.parent.glob('rtk.rtk-invalid-*'))
++    EVIDENCE.append({'case': 'symlink-normal', 'marker_written': marker.exists(),
++                     'target_unchanged': True, 'link_preserved': True})
++
++    # Nonregular destinations are preserved as objects rather than recursively
++    # removed, read by backup, or used as copy's directory destination.
++    binary.unlink()
++    binary.mkdir()
++    (binary / 'retained.txt').write_text('preserve fixture content')
++    run('recovery-directory-check', options=['--check'])
++    assert binary.is_dir()
++    run('recovery-directory-normal')
++    assert stat.S_ISREG(binary.lstat().st_mode) and verified()['valid']
++    assert any((p / 'retained.txt').exists() for p in binary.parent.glob('rtk.rtk-invalid-*') if p.is_dir())
++    EVIDENCE.append({'case': 'directory-normal', 'verified_replacement': True, 'directory_preserved': True})
++
++    receipt.write_text('not valid JSON')
++    run('recovery-malformed-receipt-check', options=['--check'])
++    assert receipt.read_text() == 'not valid JSON'
++    run('recovery-malformed-receipt-normal')
++    assert verified()['valid'] and not marker.exists()
++    EVIDENCE.append({'case': 'malformed-receipt-normal', 'verified_replacement': True})
++    run('recovery-final-idempotence', unchanged=True)
++    run('recovery-final-check', options=['--check'], unchanged=True)
++    (validation.TASK / 'RECOVERY_RESULTS.json').write_text(
++        json.dumps({'assertions': EVIDENCE, 'ansible': validation.RESULTS,
++                    'cached_official_fixture_requests': requests}, indent=2) + '\n')
++    print('Full-role recovery checks passed without executing an invalid binary.', flush=True)
++
++
++if __name__ == '__main__':
++    with cached_release_server() as (fixture_variables, fixture_requests):
++        main(fixture_variables, fixture_requests)
+--- /home/andrew/git/ansible-workstation/tasks/rtk-install/REPORT.md (round 1)
++++ /home/andrew/git/ansible-workstation/tasks/rtk-install/REPORT.md (round 2)
+@@ -1,6 +1,6 @@
+ # RTK implementation and isolated validation
+ 
+-Status: complete for independent review. No real-HOME installation was applied.
++Status: round-two corrections complete for independent re-review. No real-HOME installation was applied.
+ Only `ai/roles/rtk/` and `tasks/rtk-install/` were written by this worker. No shared
+ playbook, README, ai_stack role, CAO code, index entry or pre-existing user edit
+ was modified by this worker. No client/server/session was restarted.
+@@ -32,6 +32,38 @@
+ Source snapshots from the v1.2.0 tag and actual CLI output are retained in this
+ task directory. Master-only behavior was not assumed.
+ 
++## Round-two corrections
++
++The written correction task is
++`/home/andrew/git/ansible-workstation/tasks/rtk-install/REVIEW.md`.
++Both P2 findings are addressed; the original review has been preserved.
++
++1. Installed execution is now gated by `installed_state.py`, a trusted source
++   utility that never executes RTK. It requires a supported regular nonsymlink
++   receipt and a regular nonsymlink executable with matching SHA256 and executable
++   permissions. Missing/malformed/unsupported receipts, invalid file types,
++   missing binaries and mismatches skip --version and require reconciliation.
++   This gate also runs in check mode. Skipped version results use safe defaults.
++   A verified installation still gets a version probe and can stay offline.
++   The role validates published integrity again immediately before running init.
++   Downloaded candidates must be regular nonsymlink executables before probing.
++   Nonregular publication destinations are preserved by rename; regular files
++   use Ansible backups. Symlink targets are not changed. Unsafe parent paths
++   fail before filesystem writes rather than being followed.
++2. Native RTK hook recognition now covers bare/current commands and exact
++   commands at previous absolute paths ending in `rtk`, including quoted paths.
++   One hook migrates in place to the new wrapper. Duplicate and matcher guards
++   cover all those spellings. Unknown path-shaped native commands, including
++   arbitrarily named previous wrappers, and native commands with extra flags
++   are rejected before any client config write for manual review. Unrelated
++   commands/events/settings remain intact. Full configure tests verify relocation,
++   repeat idempotence and no partial writes across clients on ambiguous input.
++
++No runtime/update variable defaults or shared integration files were changed.
++The wrapper's parent directory is now created from `rtk_binary`, so relocation
++can use a newly selected bin directory. Existing source/preference behavior,
++telemetry opt-out and noninteractive init flags are retained.
++
+ ## Implemented behavior
+ 
+ The role installs a checksum-validated candidate and verifies its declared
+@@ -57,12 +89,13 @@
+ All commands below use absolute task paths or the supplied guarded fixture:
+ 
+ ```bash
+-python3 -m unittest discover -s /home/andrew/git/ansible-workstation/tasks/rtk-install -p test_configure_rtk.py -v
++PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s /home/andrew/git/ansible-workstation/tasks/rtk-install -p 'test_*.py' -v
+ python3 /home/andrew/git/ansible-workstation/tasks/rtk-install/validate_ansible.py
++PYTHONDONTWRITEBYTECODE=1 python3 /home/andrew/git/ansible-workstation/tasks/rtk-install/validate_recovery.py
+ ansible-playbook /home/andrew/git/ansible-workstation/tasks/rtk-install/isolated-empty.yml --check --diff
+ ```
+ 
+-- 13 unit/integration tests passed. They cover preserving existing hooks,
++- 29 unit/integration tests passed in round two. They cover preserving existing hooks,
+   permissions, configs/instructions and backups; idempotence; invalid schemas,
+   duplicate/legacy hooks, malformed markers, symlinks, dry-run/no partial changes;
+   actual Claude/Codex hook rewrites and telemetry opt-out even with consent enabled.
+@@ -78,7 +111,38 @@
+   in a disposable repository. Telemetry status reported the environment block.
+ - ARM64 archive checksum/ELF validation passed, without cross-architecture execution.
+ 
+-Full recaps are in `VALIDATION_RESULTS.json`; command output is in the named logs.
++Round-two evidence:
++
++- `all-tests-round2.log`: 29 passing tests (19 hook/config, 10 state/gate tests).
++- `EXECUTION_GATE_RESULTS.json`: 20 offline runs of the actual role inspection,
++  version and release-decision tasks: normal/check modes, each with nine invalid
++  states and one verified positive control. Invalid states never wrote an
++  execution marker; only the matching supported positive control executed.
++- `ansible-validation-round2.log` and `VALIDATION_RESULTS.json`: existing syntax,
++  version/upgrade/offline/idempotence/checksum checks rerun successfully against
++  official releases before the public GitHub API quota was exhausted.
++- `recovery-validation-round2.log` and `RECOVERY_RESULTS.json`: full guarded role
++  checks for mismatched binary, symlink binary, directory binary and malformed
++  receipt. Check mode preserves invalid state without executing it; normal mode
++  publishes a verified replacement. Symlink targets and directory content are
++  retained. Final ordinary/check runs report changed=0.
++- `ansible-final-round2-idempotence.log` / `ansible-final-round2-check.log`:
++  idempotence of the final helper source, with no release refresh required.
++- `ansible-check-empty-round2.log`: clean-install check mode rerun.
++
++The initial networked symlink-recovery attempt reached GitHub's public API rate
++limit (403) after correctly skipping the invalid executable. That failure log
++is retained as `recovery-symlink-normal-github-rate-limit.log`. Recovery validation
++then completed using a temporary localhost download fixture serving only the
++retained official metadata/manifest/archive after verifying their recorded
++SHA256 digests. It forwards no agent traffic, changes no production endpoint and
++is shut down at test completion. The final fixture receipt source is consequently
++a localhost URL; this belongs only to the guarded test HOME.
++
++`IMPLEMENTATION.diff` contains the current deliverables; `IMPLEMENTATION.round1.diff`
++preserves the original review baseline, and `ROUND2.diff` isolates corrections
++against that baseline. `ROUND2_EVIDENCE.json` records final checks and fingerprints.
++Existing-check recaps are in `VALIDATION_RESULTS.json`; output is in the named logs.
+ Ansible-lint is not installed in this environment. Syntax, real isolated runs and
+ negative checksum validation were used. The role and tests require only the
+ existing stack prerequisites and Python standard library.
+@@ -101,7 +165,7 @@
+ RTK local usage/recovery storage policy is retained. The managed public command,
+ not direct invocation of the private binary, enforces the telemetry opt-out.
+ 
+-No blocker remains for the requested implementation/review handoff. Shared-file
++No blocker remains for the round-two implementation/re-review handoff. Shared-file
+ integration and real-HOME application remain assigned to the supervisor/CAO
+ owner after review. Follow `INTEGRATION.md`; do not apply the whole workstation
+ playbook or restart active sessions as part of this RTK task.
+--- /home/andrew/git/ansible-workstation/tasks/rtk-install/REVIEW_TASK.md (round 1)
++++ /home/andrew/git/ansible-workstation/tasks/rtk-install/REVIEW_TASK.md (round 2)
+@@ -1,69 +1,87 @@
+-# Independent review: RTK Ansible role
++# Final independent re-review: RTK corrections, round two
+ 
+-Review the completed RTK change in `/home/andrew/git/ansible-workstation`.
+-The worker was authorized to write only these directories:
++Status: implementation and focused validation complete; ready for independent
++review. The original written correction task is preserved unchanged at:
++`/home/andrew/git/ansible-workstation/tasks/rtk-install/REVIEW.md`.
++
++Review only the RTK changes under these authorized directories:
+ 
+ - `/home/andrew/git/ansible-workstation/ai/roles/rtk/`
+ - `/home/andrew/git/ansible-workstation/tasks/rtk-install/`
+ 
+-Do not apply the role to the real HOME, change shared files, run the workstation
+-playbook or restart sessions during review. Another developer (`ff025942`) owns
+-CAO/shared-file integration; coordinate findings through supervisor `14a03d1f`.
+-Existing repository changes predated this task and must be preserved.
++Do not apply anything to the real HOME, alter shared files, run the workstation
++playbook or restart sessions. The next step is final independent review;
++bounded live RTK installation belongs to the supervisor only after that review.
++Supervisor: terminal `14a03d1f`; shared integration owner: `ff025942`.
+ 
+-## Files to inspect
++## Corrections to verify
+ 
+-- `/home/andrew/git/ansible-workstation/ai/roles/rtk/defaults/main.yml`
+-- `/home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/main.yml`
+-- `/home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/release.yml`
+-- `/home/andrew/git/ansible-workstation/ai/roles/rtk/templates/rtk.j2`
+-- `/home/andrew/git/ansible-workstation/ai/roles/rtk/files/configure_rtk.py`
+-- `/home/andrew/git/ansible-workstation/ai/roles/rtk/meta/main.yml`
+-- `/home/andrew/git/ansible-workstation/ai/roles/rtk/README.md`
++1. **Execution gate:** inspect
++   `/home/andrew/git/ansible-workstation/ai/roles/rtk/files/installed_state.py`,
++   `/home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/main.yml` and
++   `/home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/release.yml`.
++   The installed --version probe requires a supported regular nonsymlink receipt
++   and regular nonsymlink executable matching its SHA256, including in check
++   mode. Invalid state skips execution and requires reconciliation; skipped
++   command results use safe defaults. Published integrity is checked again before
++   init. Candidates must be regular nonsymlink executables after archive validation.
++   Nonregular destinations are preserved by rename without following targets;
++   unsafe directory ancestors fail before filesystem writes. Valid installed
++   releases still support offline retention and version probing.
++2. **Prior native hook paths:** inspect
++   `/home/andrew/git/ansible-workstation/ai/roles/rtk/files/configure_rtk.py`.
++   Exact bare/current/native absolute */rtk hook commands migrate to the current
++   wrapper. Duplicate and matcher guards span those paths. Arbitrarily named
++   old path-shaped wrappers and customized native commands are explicitly
++   rejected before client configuration writes. Unrelated hooks/events/settings
++   remain intact. Relocation is idempotent and ambiguous second-client input
++   prevents partial writes to either client.
++
++## Current evidence
++
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/REPORT.md`
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/ROUND2_EVIDENCE.json`
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/IMPLEMENTATION.diff`
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/ROUND2.diff`
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/IMPLEMENTATION.round1.diff`
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/DELIVERABLES.txt`
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/ALL_PATHS.txt`
++
++Focused checks are sufficient per the supervisor's latest direction; no broader
++testing or features are requested before review. Completed evidence:
++
++- 29 passing unit/integration tests:
++  `/home/andrew/git/ansible-workstation/tasks/rtk-install/all-tests-round2.log`.
++- 20 offline runs of the actual inspection/probe/release-decision tasks in
++  normal/check modes (18 invalid cases never execute; two verified controls do):
++  `/home/andrew/git/ansible-workstation/tasks/rtk-install/EXECUTION_GATE_RESULTS.json`.
++- Existing official-release syntax, upgrade, offline retention, idempotence and
++  checksum-rejection checks rerun successfully:
++  `/home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-validation-round2.log`
++  and `/home/andrew/git/ansible-workstation/tasks/rtk-install/VALIDATION_RESULTS.json`.
++- Full-role invalid-state recovery and final changed=0:
++  `/home/andrew/git/ansible-workstation/tasks/rtk-install/recovery-validation-round2.log`
++  and `/home/andrew/git/ansible-workstation/tasks/rtk-install/RECOVERY_RESULTS.json`.
++- Final source idempotence/check mode:
++  `/home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-final-round2-idempotence.log`
++  and `/home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-final-round2-check.log`.
++- Clean-install check mode:
++  `/home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-check-empty-round2.log`.
++
++The first networked symlink recovery attempt hit GitHub's public API quota after
++skipping the invalid executable. Its failure log is retained. Recovery checks
++then passed using a temporary localhost fixture serving the previously retained,
++digest-verified official artifacts; no production endpoints were changed.
++No authenticated agent session, ARM64 execution or live installation was added.
++Ansible-lint remains unavailable. These limits are separate from the two fixes.
++
++Reviewable test sources:
++
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/test_installed_state.py`
+ - `/home/andrew/git/ansible-workstation/tasks/rtk-install/test_configure_rtk.py`
+-- `/home/andrew/git/ansible-workstation/tasks/rtk-install/isolated.yml`
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/validate_recovery.py`
+ - `/home/andrew/git/ansible-workstation/tasks/rtk-install/validate_ansible.py`
+-- `/home/andrew/git/ansible-workstation/tasks/rtk-install/REPORT.md`
+-- `/home/andrew/git/ansible-workstation/tasks/rtk-install/INTEGRATION.md`
+-- `/home/andrew/git/ansible-workstation/tasks/rtk-install/rtk.yml.example`
+ 
+-## Review priorities
+-
+-1. Verify the official v1.2.0 OSS source, architecture selection and mandatory
+-   checksum validation; wrong/missing checksum must not replace the installed
+-   executable. Check receipt-based binary integrity, version pin behavior and
+-   explicit latest refresh (`rtk_upgrade`/`ai_stack_upgrade`).
+-2. Check that init runs only in an empty temporary HOME with all relevant home
+-   overrides, telemetry disabled, no custom-filter trust and no proxy onboarding.
+-   Codex must not receive the unsupported --auto-patch flag.
+-3. Verify preservation of unrelated hooks/JSON fields/instruction text/modes,
+-   private backups, idempotence, symlink/legacy/duplicate handling, and absence
+-   of edits to auth, MCPs, permissions, client config.toml or RTK configs.
+-4. Confirm the integration handoff follows the existing common.yml/all.yml
+-   stack structure and leaves shared integration/application to the owner.
+-
+-## Verification already completed
+-
+-13 tests passed. Ansible syntax, initial installation, second-run/final
+-idempotence, existing/empty check mode, real 1.1.0 -> 1.2.0 explicit upgrade,
+-offline latest retention, expected checksum rejection, native hook payloads,
+-telemetry blocking and local Git filtering/bypass passed in isolation. See:
+-
+-- `/home/andrew/git/ansible-workstation/tasks/rtk-install/unit-tests.log`
+-- `/home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-validation.log`
+-- `/home/andrew/git/ansible-workstation/tasks/rtk-install/VALIDATION_RESULTS.json`
+-- `/home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-check-empty.log`
+-- `/home/andrew/git/ansible-workstation/tasks/rtk-install/ARCHITECTURE_VERIFICATION.json`
+-- `/home/andrew/git/ansible-workstation/tasks/rtk-install/UPSTREAM_RELEASE.json`
+-- `/home/andrew/git/ansible-workstation/tasks/rtk-install/checksums.txt`
+-- `/home/andrew/git/ansible-workstation/tasks/rtk-install/telemetry-status.txt`
+-
+-Rerun unit tests with the command in REPORT.md. The validation runner installs
+-only into its guarded task-local HOME and downloads official OSS releases.
+-ARM64 content/ELF was verified but not executed; no authenticated agent session
+-was launched. Ansible-lint was unavailable. No real-HOME changes were applied.
+-
+-Return findings by severity with absolute file/line references, distinguishing
+-code defects from deferred shared integration or explicitly documented limits.
+-Technical review records and agent instructions should be written in English;
+-user-facing communication should be Portuguese.
++Return the final verdict and any remaining findings with absolute file/line
++references. Keep technical records and agent instructions in English; communicate
++with the user in Portuguese. Do not install live as part of the review.

@@ -1,0 +1,130 @@
+
+PLAY [localhost] ***************************************************************
+
+TASK [Gathering Facts] *********************************************************
+[WARNING]: Host 'localhost' is using the discovered Python interpreter at '/home/andrew/miniforge3/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.21/reference_appendices/interpreter_discovery.html for more information.
+ok: [localhost]
+
+TASK [herdr : Validar parâmetros do herdr] *************************************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [herdr : Informar arquitetura sem binário oficial do herdr] ***************
+skipping: [localhost]
+
+TASK [herdr : Gerenciar herdr como usuário dos agentes] ************************
+included: /home/andrew/git/ansible-workstation/ai/roles/herdr/tasks/install.yml for localhost
+
+TASK [herdr : Inspecionar recibo e executável sem executar o herdr instalado] ***
+ok: [localhost]
+
+TASK [herdr : Registrar integridade do executável antes de consultar a versão] ***
+ok: [localhost]
+
+TASK [herdr : Recusar ancestrais inseguros antes de qualquer escrita] **********
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [herdr : Verificar versão do binário gerenciado] **************************
+skipping: [localhost]
+
+TASK [herdr : Definir necessidade de consultar o release] **********************
+ok: [localhost]
+
+TASK [herdr : Preparar diretórios do herdr] ************************************
+changed: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/herdr-dev-real-6/.local/bin)
+changed: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/herdr-dev-real-6/.cache/ai-stack/herdr)
+changed: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/herdr-dev-real-6/.local/share/ai-stack/herdr)
+changed: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/herdr-dev-real-6/.local/share/ai-stack/herdr/bin)
+
+TASK [herdr : Instalar release oficial verificado] *****************************
+included: /home/andrew/git/ansible-workstation/ai/roles/herdr/tasks/release.yml for localhost
+
+TASK [herdr : Consultar metadados oficiais do release solicitado] **************
+ok: [localhost]
+
+TASK [herdr : Validar release estável e binário Linux da arquitetura] **********
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [herdr : Definir versão e metadados resolvidos] ***************************
+ok: [localhost]
+
+TASK [herdr : Baixar manifesto oficial de checksums] ***************************
+ok: [localhost]
+
+TASK [herdr : Localizar checksum oficial exato do binário] *********************
+ok: [localhost]
+
+TASK [herdr : Exigir checksum oficial e validar digest e pins disponíveis] *****
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [herdr : Baixar binário oficial conferindo SHA256 antes de executar] ******
+changed: [localhost]
+
+TASK [herdr : Criar diretório temporário do candidato] *************************
+changed: [localhost]
+
+TASK [herdr : Copiar binário verificado para o candidato executável] ***********
+changed: [localhost]
+
+TASK [herdr : Calcular SHA256 do candidato sem seguir links] *******************
+ok: [localhost]
+
+TASK [herdr : Exigir candidato regular, executável e íntegro] ******************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [herdr : Conferir versão declarada pelo executável] ***********************
+ok: [localhost]
+
+TASK [herdr : Preservar destinos instalados inválidos antes da publicação] *****
+ok: [localhost]
+
+TASK [herdr : Publicar binário validado atomicamente] **************************
+changed: [localhost]
+
+TASK [herdr : Registrar proveniência e integridade do release] *****************
+changed: [localhost]
+
+TASK [herdr : Remover somente diretório temporário do candidato] ***************
+changed: [localhost]
+
+TASK [herdr : Localizar downloads de outras versões no cache] ******************
+ok: [localhost]
+
+TASK [herdr : Remover downloads de outras versões do cache] ********************
+skipping: [localhost]
+
+TASK [herdr : Informar instalação prevista no check mode] **********************
+skipping: [localhost]
+
+TASK [herdr : Preservar destino não regular do comando sem segui-lo] ***********
+ok: [localhost]
+
+TASK [herdr : Instalar comando herdr no PATH da stack] *************************
+changed: [localhost]
+
+TASK [herdr : Revalidar executável publicado] **********************************
+ok: [localhost]
+
+TASK [herdr : Localizar backups do binário e do recibo já revalidados] *********
+ok: [localhost]
+
+TASK [herdr : Remover backups do binário e do recibo] **************************
+skipping: [localhost]
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=30   changed=8    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   
+

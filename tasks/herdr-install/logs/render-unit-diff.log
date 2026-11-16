@@ -1,0 +1,18 @@
+baseline vs tmux      IDENTICAL
+baseline vs undefined IDENTICAL
+baseline vs screen    IDENTICAL
+caf1538f61f01785f416853c0659699cab437d9eee33b173f7954468cbdc04e0  render/baseline.service
+f55094d1ee607557a02557ae0be5901c1fcf794e627a59395b9d832b92d38c2f  render/herdr.service
+caf1538f61f01785f416853c0659699cab437d9eee33b173f7954468cbdc04e0  render/screen.service
+caf1538f61f01785f416853c0659699cab437d9eee33b173f7954468cbdc04e0  render/tmux.service
+caf1538f61f01785f416853c0659699cab437d9eee33b173f7954468cbdc04e0  render/undefined.service
+## diff baseline vs herdr
+@@ -13,7 +13,7 @@
+ Environment="XDG_DATA_HOME=/home/fixture-user/.local/share"
+ Environment="XDG_CACHE_HOME=/home/fixture-user/.cache"
+ EnvironmentFile=-/home/fixture-user/.config/ai-stack/environment
+-ExecStart=/home/fixture-user/.local/bin/cao-server --host 127.0.0.1 --port 9889
++ExecStart=/home/fixture-user/.local/bin/cao-server --host 127.0.0.1 --port 9889 --terminal herdr
+ Restart=on-failure
+ RestartSec=5
+ UMask=0077

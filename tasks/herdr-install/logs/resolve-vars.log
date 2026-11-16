@@ -1,0 +1,5 @@
+Verificar antecipadamente a migração do serviço CAO -> {"cao_terminal_backend": "<undefined>", "herdr_version": "<undefined>", "herdr_install_dir": "<undefined>", "herdr_binary": "<undefined>", "herdr_upgrade": "<undefined>"}
+Configurar serviço opcional do CAO -> {"cao_terminal_backend": "tmux", "herdr_version": "<undefined>", "herdr_install_dir": "<undefined>", "herdr_binary": "<undefined>", "herdr_upgrade": "<undefined>"}
+Preparar Ubuntu para a stack de IA -> {"cao_terminal_backend": "tmux", "herdr_version": "<undefined>", "herdr_install_dir": "<undefined>", "herdr_binary": "<undefined>", "herdr_upgrade": "<undefined>"}
+Instalar herdr (backend experimental de terminal do CAO) -> {"cao_terminal_backend": "tmux", "herdr_version": "0.9.5", "herdr_install_dir": "/home/fixture-user/.local/share/ai-stack/herdr", "herdr_binary": "/home/fixture-user/.local/bin/herdr", "herdr_upgrade": false}
+Verificar antecipadamente a migração do serviço CAO -> {"cao_terminal_backend": "<undefined>", "herdr_version": "<undefined>", "herdr_install_dir": "<undefined>", "herdr_binary": "<undefined>", "herdr_upgrade": "<undefined>"}

@@ -1,0 +1,9 @@
+test_actual_entrypoints_preserve_extra_variable_overrides (test_rtk_entrypoint.RtkEntrypointTests.test_actual_entrypoints_preserve_extra_variable_overrides) ... ok
+test_actual_entrypoints_preserve_inventory_overrides (test_rtk_entrypoint.RtkEntrypointTests.test_actual_entrypoints_preserve_inventory_overrides) ... ok
+test_actual_entrypoints_resolve_shared_defaults (test_rtk_entrypoint.RtkEntrypointTests.test_actual_entrypoints_resolve_shared_defaults) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 2.176s
+
+OK
+rc=0

@@ -1,0 +1,4 @@
+absent ~/.local/bin/herdr
+absent ~/.local/share/ai-stack/herdr
+absent ~/.cache/ai-stack/herdr
+absent ~/.config/herdr

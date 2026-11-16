@@ -1,0 +1,98 @@
+[
+  {
+    "argv": [
+      "ansible-playbook",
+      "/home/andrew/git/ansible-workstation/ai/cao.yml",
+      "--syntax-check"
+    ],
+    "returncode": 0,
+    "stdout": "\nplaybook: /home/andrew/git/ansible-workstation/ai/cao.yml\n",
+    "stderr": "[WARNING]: provided hosts list is empty, only localhost is available. Note that the implicit localhost does not match 'all'\n"
+  },
+  {
+    "argv": [
+      "ansible-playbook",
+      "/home/andrew/git/ansible-workstation/ai/cao-update.yml",
+      "--syntax-check"
+    ],
+    "returncode": 0,
+    "stdout": "\nplaybook: /home/andrew/git/ansible-workstation/ai/cao-update.yml\n",
+    "stderr": "[WARNING]: provided hosts list is empty, only localhost is available. Note that the implicit localhost does not match 'all'\n"
+  },
+  {
+    "argv": [
+      "ansible-playbook",
+      "/home/andrew/git/ansible-workstation/ai/all.yml",
+      "--syntax-check"
+    ],
+    "returncode": 0,
+    "stdout": "\nplaybook: /home/andrew/git/ansible-workstation/ai/all.yml\n",
+    "stderr": "[WARNING]: provided hosts list is empty, only localhost is available. Note that the implicit localhost does not match 'all'\n[WARNING]: Deprecation warnings can be disabled by setting `deprecation_warnings=False` in ansible.cfg.\n[DEPRECATION WARNING]: apt_key has been deprecated. Use deb822_repository instead. This feature will be removed from ansible-core version 2.25.\nOrigin: /home/andrew/git/ansible-workstation/browser/chrome.yml:14:7\n\n12\n13     - name: Add Google Chrome signing key\n14       apt_key:\n         ^ column 7\n\n[DEPRECATION WARNING]: apt_repository has been deprecated. Use deb822_repository instead. This feature will be removed from ansible-core version 2.25.\nOrigin: /home/andrew/git/ansible-workstation/browser/chrome.yml:19:7\n\n17\n18     - name: Add Google Chrome repository\n19       apt_repository:\n         ^ column 7\n\n"
+  },
+  {
+    "argv": [
+      "ansible-playbook",
+      "/home/andrew/git/ansible-workstation/ai/cao-update.yml",
+      "--list-tasks"
+    ],
+    "returncode": 0,
+    "stdout": "\nplaybook: /home/andrew/git/ansible-workstation/ai/cao-update.yml\n\n  play #1 (localhost): Instalar CLI Agent Orchestrator no Ubuntu\tTAGS: []\n    tasks:\n      ai_stack : Validar sistema e usu\u00e1rio de instala\u00e7\u00e3o da stack\tTAGS: []\n      ai_stack : Consultar o diret\u00f3rio home do usu\u00e1rio de instala\u00e7\u00e3o\tTAGS: []\n      ai_stack : Validar o diret\u00f3rio home\tTAGS: []\n      ai_stack : Instalar depend\u00eancias do Ubuntu\tTAGS: []\n      ai_stack : Preparar diret\u00f3rios do usu\u00e1rio\tTAGS: []\n      ai_stack : Adicionar os execut\u00e1veis ao PATH do Bash e Zsh\tTAGS: []\n      cao : Validar vers\u00f5es solicitadas para CAO e Python\tTAGS: []\n      cao : Validar vers\u00e3o solicitada do uv\tTAGS: []\n      cao : Consultar vers\u00e3o atual do uv\tTAGS: []\n      cao : Baixar instalador oficial do uv\tTAGS: []\n      cao : Executar instalador do uv\tTAGS: []\n      cao : Instalar CAO em ambiente Python isolado\tTAGS: []\n      cao : Verificar execut\u00e1veis do CAO\tTAGS: []\n",
+    "stderr": "[WARNING]: provided hosts list is empty, only localhost is available. Note that the implicit localhost does not match 'all'\n"
+  },
+  {
+    "argv": [
+      "/home/andrew/.local/share/uv/tools/cli-agent-orchestrator/bin/python",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "/home/andrew/git/ansible-workstation/ai/tests",
+      "-v"
+    ],
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "test_install_repeat_pin_upgrade_and_git_source_preserve_extras (test_install_cao.IsolatedInstallTests.test_install_repeat_pin_upgrade_and_git_source_preserve_extras) ... ok\ntest_direct_sources (test_install_cao.ReceiptTests.test_direct_sources) ... ok\ntest_pinned_requirement_with_extra_and_marker (test_install_cao.ReceiptTests.test_pinned_requirement_with_extra_and_marker) ... ok\ntest_unknown_or_ambiguous_fields_fail (test_install_cao.ReceiptTests.test_unknown_or_ambiguous_fields_fail) ... ok\ntest_real_profile_loader_and_provider_delivery (test_sync_mcps.CaoCompatibilityTests.test_real_profile_loader_and_provider_delivery) ... ok\ntest_check_mode_writes_nothing (test_sync_mcps.SyncMcpsTests.test_check_mode_writes_nothing) ... ok\ntest_codex_http_grants_are_preserved_for_explicit_delegation (test_sync_mcps.SyncMcpsTests.test_codex_http_grants_are_preserved_for_explicit_delegation) ... ok\ntest_codex_http_inherits_global_config_and_preserves_role_grants (test_sync_mcps.SyncMcpsTests.test_codex_http_inherits_global_config_and_preserves_role_grants) ... ok\ntest_codex_profile_http_missing_from_global_config_is_rejected (test_sync_mcps.SyncMcpsTests.test_codex_profile_http_missing_from_global_config_is_rejected) ... ok\ntest_disabled_claude_servers_are_not_imported (test_sync_mcps.SyncMcpsTests.test_disabled_claude_servers_are_not_imported) ... ok\ntest_existing_custom_profile_is_not_overwritten (test_sync_mcps.SyncMcpsTests.test_existing_custom_profile_is_not_overwritten) ... ok\ntest_idempotence_and_removal_after_client_configuration_changes (test_sync_mcps.SyncMcpsTests.test_idempotence_and_removal_after_client_configuration_changes) ... ok\ntest_invalid_source_fails_before_any_profile_is_written (test_sync_mcps.SyncMcpsTests.test_invalid_source_fails_before_any_profile_is_written) ... ok\ntest_missing_configs_still_provide_internal_coordination (test_sync_mcps.SyncMcpsTests.test_missing_configs_still_provide_internal_coordination) ... ok\ntest_provider_isolation_originals_and_coordinator_are_preserved (test_sync_mcps.SyncMcpsTests.test_provider_isolation_originals_and_coordinator_are_preserved) ... ok\n\n----------------------------------------------------------------------\nRan 15 tests in 2.159s\n\nOK\n"
+  },
+  {
+    "argv": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "returncode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "uv",
+      "tool",
+      "list"
+    ],
+    "returncode": 0,
+    "stdout": "cli-agent-orchestrator v2.5.4\n- cao\n- cao-mcp-server\n- cao-ops-mcp-server\n- cao-server\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "ps",
+      "-p",
+      "240075",
+      "-o",
+      "pid=,lstart=,args="
+    ],
+    "returncode": 0,
+    "stdout": " 240075 Fri Nov 13 13:42:29 2026 /home/andrew/.local/share/uv/tools/cli-agent-orchestrator/bin/python /home/andrew/.local/bin/cao-server --host 127.0.0.1 --port 9889\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "status",
+      "--short"
+    ],
+    "returncode": 0,
+    "stdout": " M README.md\n M all.yml\n M browser/chrome.yml\n M sdk/git-secrets.yml\n M sdk/sdkman.yml\n M sdk/vim.yml\n M sdk/zsh.yml\n?? .gitignore\n?? ai/\n?? tasks/\n",
+    "stderr": ""
+  }
+]

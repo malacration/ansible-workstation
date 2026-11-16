@@ -1,0 +1,10 @@
+#!/bin/sh
+exec /home/andrew/.local/share/uv/tools/cli-agent-orchestrator/bin/python \
+  /home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/role-home/.local/share/ai-stack/sync_mcps.py \
+  --home /home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/role-home \
+  --definitions-only \
+  --base-dir /home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/role-home/.local/share/ai-stack/profiles \
+  --prefix mala \
+  --clients codex claude_code \
+  --profiles supervisor developer_low developer_medium developer_high reviewer_basic reviewer_advanced \
+  "$@"

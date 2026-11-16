@@ -1,0 +1,8 @@
+---
+- name: Instalar CLI Agent Orchestrator no Ubuntu
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: true
+  roles:
+    - cao

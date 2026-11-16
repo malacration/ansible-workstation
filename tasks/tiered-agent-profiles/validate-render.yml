@@ -1,0 +1,24 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - ../../ai/roles/cao/defaults/main.yml
+  vars:
+    base_dir: /home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/isolated-home/profiles
+  tasks:
+    - ansible.builtin.file:
+        path: "{{ base_dir }}"
+        state: directory
+        mode: '0700'
+    - ansible.builtin.template:
+        src: "../../ai/roles/cao/templates/profiles/{{ item.template }}.md.j2"
+        dest: "{{ base_dir }}/{{ item.name }}.md"
+        mode: '0600'
+      loop:
+        - {name: code_supervisor, template: code_supervisor}
+        - {name: developer_low, template: developer}
+        - {name: developer_medium, template: developer}
+        - {name: developer_high, template: developer}
+        - {name: reviewer_basic, template: reviewer}
+        - {name: reviewer_advanced, template: reviewer}

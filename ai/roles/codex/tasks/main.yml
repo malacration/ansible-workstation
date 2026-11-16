@@ -1,0 +1,49 @@
+---
+- name: Instalar e validar Codex como usuário comum
+  become: "{{ ansible_facts['user_id'] != ai_stack_user }}"
+  become_user: "{{ ai_stack_user }}"
+  environment: "{{ ai_stack_environment }}"
+  block:
+    - name: Consultar versão atual do Codex
+      ansible.builtin.command:
+        argv: ["{{ ai_stack_bin_dir }}/codex", --version]
+      register: codex_current
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Validar versão solicitada do Codex
+      ansible.builtin.assert:
+        that:
+          - codex_version | string is match('^(latest|[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?)$')
+
+    - name: Baixar e executar instalador oficial do Codex
+      when: >-
+        codex_current.rc != 0 or ai_stack_upgrade | bool or
+        (codex_version | string != 'latest' and
+         codex_version | string not in (codex_current.stdout | default('')).split())
+      block:
+        - name: Baixar instalador do Codex
+          ansible.builtin.get_url:
+            url: "{{ codex_installer_url }}"
+            dest: "{{ ai_stack_cache_dir }}/codex-install.sh"
+            checksum: "{{ codex_installer_checksum | default(omit, true) }}"
+            mode: '0700'
+            force: true
+          when: not ansible_check_mode
+
+        - name: Executar instalador do Codex
+          ansible.builtin.command:
+            argv: [/bin/sh, "{{ ai_stack_cache_dir }}/codex-install.sh", --release, "{{ codex_version | string }}"]
+          environment:
+            CODEX_INSTALL_DIR: "{{ ai_stack_bin_dir }}"
+            CODEX_HOME: "{{ ai_stack_home }}/.codex"
+            CODEX_NON_INTERACTIVE: '1'
+          changed_when: true
+          when: not ansible_check_mode
+
+    - name: Verificar instalação do Codex
+      ansible.builtin.command:
+        argv: ["{{ ai_stack_bin_dir }}/codex", --version]
+      changed_when: false
+      when: not ansible_check_mode

@@ -1,0 +1,126 @@
+---
+- name: Consultar metadados oficiais do release solicitado
+  ansible.builtin.uri:
+    url: "{{ rtk_release_api }}/{{ 'latest' if rtk_version == 'latest' else 'tags/v' ~ rtk_version }}"
+    return_content: true
+  register: rtk_release
+
+- name: Validar release estável e artefato OSS da arquitetura
+  ansible.builtin.assert:
+    that:
+      - rtk_release.json.tag_name is match('^v[0-9]+[.][0-9]+[.][0-9]+$')
+      - not rtk_release.json.draft
+      - not rtk_release.json.prerelease
+      - rtk_version == 'latest' or rtk_release.json.tag_name == 'v' ~ rtk_version
+      - rtk_release.json.assets | selectattr('name', 'equalto', rtk_asset_name) | list | length == 1
+      - rtk_release.json.assets | selectattr('name', 'equalto', 'checksums.txt') | list | length == 1
+
+- name: Definir versão e metadados resolvidos
+  ansible.builtin.set_fact:
+    rtk_resolved_version: "{{ rtk_release.json.tag_name[1:] }}"
+    rtk_asset: "{{ rtk_release.json.assets | selectattr('name', 'equalto', rtk_asset_name) | first }}"
+
+- name: Baixar manifesto oficial SHA256
+  ansible.builtin.uri:
+    url: "{{ rtk_release_download_url }}/v{{ rtk_resolved_version }}/checksums.txt"
+    return_content: true
+  register: rtk_manifest
+
+- name: Localizar checksum exato do artefato
+  ansible.builtin.set_fact:
+    rtk_matching_hashes: >-
+      {{ rtk_manifest.content | regex_findall('(?m)^([a-fA-F0-9]{64})[ \t]+[*]?' ~
+         (rtk_asset_name | regex_escape) ~ '\r?$') }}
+
+- name: Exigir checksum oficial único e validar pins disponíveis
+  ansible.builtin.assert:
+    that:
+      - rtk_matching_hashes | length == 1
+      - rtk_checksum == '' or rtk_checksum | lower == 'sha256:' ~ rtk_matching_hashes[0] | lower
+      - >-
+        rtk_audited_checksums.get(rtk_resolved_version, {}).get(ansible_facts['architecture'], rtk_matching_hashes[0])
+        == rtk_matching_hashes[0]
+      - rtk_asset.digest | default('sha256:' ~ rtk_matching_hashes[0], true) == 'sha256:' ~ rtk_matching_hashes[0]
+    fail_msg: Manifesto/digest/pin RTK divergente ou checksum ausente; instalação interrompida.
+
+- name: Baixar arquivo OSS e conferir conteúdo antes de executar
+  ansible.builtin.get_url:
+    url: "{{ rtk_release_download_url }}/v{{ rtk_resolved_version }}/{{ rtk_asset_name }}"
+    dest: "{{ ai_stack_cache_dir }}/rtk/{{ rtk_resolved_version }}-{{ rtk_asset_name }}"
+    checksum: "sha256:{{ rtk_matching_hashes[0] }}"
+    mode: '0600'
+  register: rtk_archive
+
+- name: Extrair e validar candidato antes de substituir o binário
+  block:
+    - name: Criar diretório temporário do candidato
+      ansible.builtin.tempfile:
+        state: directory
+        path: "{{ ai_stack_cache_dir }}/rtk"
+        prefix: candidate-
+      register: rtk_candidate
+
+    - name: Extrair apenas o executável RTK
+      ansible.builtin.unarchive:
+        src: "{{ rtk_archive.dest }}"
+        dest: "{{ rtk_candidate.path }}"
+        remote_src: true
+        include: [rtk]
+
+    - name: Validate candidate regular file and calculate SHA256 before execution
+      ansible.builtin.stat:
+        path: "{{ rtk_candidate.path }}/rtk"
+        checksum_algorithm: sha256
+        follow: false
+        get_mime: false
+      register: rtk_candidate_stat
+
+    - name: Require a regular nonsymlink executable candidate
+      ansible.builtin.assert:
+        that:
+          - rtk_candidate_stat.stat.isreg | default(false)
+          - not rtk_candidate_stat.stat.islnk | default(false)
+          - rtk_candidate_stat.stat.executable | default(false)
+
+    - name: Conferir versão declarada pelo executável
+      ansible.builtin.command:
+        argv: ["{{ rtk_candidate.path }}/rtk", --version]
+      changed_when: false
+      register: rtk_candidate_version
+      failed_when: rtk_candidate_version.stdout | trim != 'rtk ' ~ rtk_resolved_version
+
+    - name: Preserve invalid installed destinations before publication
+      ansible.builtin.script:
+        cmd: >-
+          {{ (role_path ~ '/files/installed_state.py') | quote }}
+          --install-dir {{ rtk_install_dir | quote }}
+          --architecture {{ ansible_facts['architecture'] | quote }}
+          --prepare-publication
+        executable: python3
+      register: rtk_invalid_paths
+      changed_when: (rtk_invalid_paths.stdout | from_json).changed
+
+    - name: Publicar binário validado atomicamente
+      ansible.builtin.copy:
+        src: "{{ rtk_candidate.path }}/rtk"
+        dest: "{{ rtk_install_dir }}/bin/rtk"
+        remote_src: true
+        mode: '0755'
+        backup: true
+
+    - name: Registrar proveniência e integridade do release
+      ansible.builtin.copy:
+        content: >-
+          {{ {'edition': 'oss', 'version': rtk_resolved_version,
+              'asset': rtk_asset_name, 'sha256': rtk_matching_hashes[0],
+              'binary_sha256': rtk_candidate_stat.stat.checksum,
+              'source': rtk_release_download_url ~ '/v' ~ rtk_resolved_version} | to_nice_json }}
+        dest: "{{ rtk_install_dir }}/release.json"
+        mode: '0600'
+        backup: true
+  always:
+    - name: Remover somente diretório temporário do candidato
+      ansible.builtin.file:
+        path: "{{ rtk_candidate.path }}"
+        state: absent
+      when: rtk_candidate.path is defined

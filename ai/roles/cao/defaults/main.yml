@@ -1,0 +1,52 @@
+---
+cao_uv_version: latest
+cao_uv_installer_url: "https://astral.sh/uv/{{ '' if cao_uv_version == 'latest' else cao_uv_version ~ '/' }}install.sh"
+cao_uv_installer_checksum: ''
+# PyPI latest (2.5.4) não contém os consumidores de effort:auto deste commit.
+# Pin upstream auditável; use main + cao_upgrade=true para acompanhar a branch.
+cao_source: git
+cao_git_url: https://github.com/awslabs/cli-agent-orchestrator.git
+cao_git_ref: 3e30ea3ed6e7fb607b13358d81123afff5a8e69f
+cao_version: latest  # Somente para cao_source=pypi.
+cao_upgrade: "{{ ai_stack_upgrade }}"
+cao_extras: []
+cao_with_packages: []
+# uv baixa este Python quando ele não existe; o Python do Ubuntu não é substituído.
+cao_python_version: '3.12'
+cao_install_spec: >-
+  {{ 'cli-agent-orchestrator @ git+' ~ cao_git_url ~ '@' ~ cao_git_ref
+     if cao_source == 'git' else
+     'cli-agent-orchestrator' ~ ('' if cao_version == 'latest' else '==' ~ cao_version) }}
+# Reinício após instalação exige opt-in e janela de manutenção.
+cao_restart_on_change: false
+# O servidor pode ser iniciado manualmente com cao-server ou pelo systemd.
+cao_service_enabled: false
+cao_service_name: cao-server
+cao_service_legacy_names: ["cao-server-{{ ai_stack_user }}"]
+# Gera perfis CAO separados a partir dos MCPs globais de cada cliente.
+cao_mcp_sync_enabled: true
+cao_mcp_clients: [codex, claude_code]
+cao_mcp_profiles: [supervisor, developer_low, developer_medium, developer_high, reviewer_basic, reviewer_advanced]
+cao_profile_efforts:
+  supervisor: {codex: medium, claude: medium}
+  developer_low: {codex: low, claude: low}
+  developer_medium: {codex: medium, claude: medium}
+  developer_high: {codex: high, claude: high}
+  reviewer_basic: {codex: low, claude: low}
+  reviewer_advanced: {codex: high, claude: high}
+cao_profile_models:
+  supervisor: {codex: null, claude: null}
+  developer_low: {codex: null, claude: opus}
+  developer_medium: {codex: null, claude: opus}
+  developer_high: {codex: null, claude: opus}
+  reviewer_basic: {codex: null, claude: null}
+  reviewer_advanced: {codex: null, claude: null}
+cao_mcp_profile_prefix: mala
+cao_mcp_prune_prefixes: [ai_stack]
+cao_profile_definitions:
+  - {name: supervisor, template: supervisor, description: 'Coding supervisor coordinating development and review', tags: [supervisor, coordination, effort-medium]}
+  - {name: developer_low, template: developer, description: 'Generalist developer for simple mechanical or single-file changes', tags: [coding, developer, effort-low, simple-tasks]}
+  - {name: developer_medium, template: developer, description: 'Generalist developer for features and fixes requiring tests', tags: [coding, developer, effort-medium, feature]}
+  - {name: developer_high, template: developer, description: 'Generalist developer for complex or high-risk work', tags: [coding, developer, effort-high, complex]}
+  - {name: reviewer_basic, template: reviewer, description: 'Code reviewer for simple and medium complexity work', tags: [review, reviewer, effort-low, simple-tasks]}
+  - {name: reviewer_advanced, template: reviewer, description: 'Code reviewer for complex or high-risk work', tags: [review, reviewer, effort-high, complex]}

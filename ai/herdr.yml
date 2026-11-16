@@ -1,0 +1,17 @@
+---
+- name: Preparar dependências da stack de IA para o herdr
+  ansible.builtin.import_playbook: common.yml
+  tags: [herdr, ai_common]
+
+- name: Instalar herdr (backend experimental de terminal do CAO)
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: true
+  roles:
+    # Defaults de role têm escopo de play. Expõe os defaults compartilhados aqui,
+    # enquanto common.yml continua responsável por executar os pré-requisitos.
+    - role: ai_stack
+      when: false
+    - role: herdr
+      tags: [herdr]

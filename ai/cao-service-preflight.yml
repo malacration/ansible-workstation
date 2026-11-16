@@ -1,0 +1,19 @@
+---
+- name: Verificar antecipadamente a migração do serviço CAO
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: true
+  roles:
+    - role: cao
+      when: false
+  tasks:
+    - name: Consultar usuário de instalação
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ ai_stack_user }}"
+      when: cao_service_enabled | bool and ai_stack_user not in (ansible_facts['getent_passwd'] | default({}))
+
+    - name: Validar unidades legadas antes de mudanças
+      ansible.builtin.import_tasks: roles/cao/tasks/service-preflight.yml
+      when: cao_service_enabled | bool

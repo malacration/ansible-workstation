@@ -1,0 +1,230 @@
+diff --git a/home/andrew/git/ansible-workstation/tasks/rtk-shared-integration/baseline/ai/README.md b/home/andrew/git/ansible-workstation/ai/README.md
+index 8cdef50..dee9c6c 100644
+--- a/home/andrew/git/ansible-workstation/tasks/rtk-shared-integration/baseline/ai/README.md
++++ b/home/andrew/git/ansible-workstation/ai/README.md
+@@ -71,6 +71,7 @@ ansible-playbook all.yml --tags ai -K
+ | `ai/common.yml` | Dependências do Ubuntu e diretórios do usuário |
+ | `ai/codex.yml` | Codex CLI |
+ | `ai/claude.yml` | Claude Code |
++| `ai/rtk.yml` | RTK OSS local shell filtering and native Codex/Claude hooks |
+ | `ai/node.yml` | Reaproveitar Node.js compatível ou instalar uma cópia local LTS |
+ | `ai/chrome-devtools.yml` | Dependências, pacote e registro do Chrome DevTools MCP |
+ | `browser/chrome.yml` | Navegador Chrome, reutilizado pelo componente Chrome DevTools |
+@@ -112,6 +113,38 @@ O subplaybook do CAO instala o orquestrador. O de MCPs também garante o CAO
+ antes de configurar os perfis; instale pelo menos um dos clientes para lançar
+ agentes. O serviço é configurado separadamente e permanece opcional.
+ 
++## RTK OSS shell filtering
++
++RTK is an optional component of `ai/all.yml`, enabled by default. Its standalone
++entry point imports `ai/common.yml` for stack prerequisites and PATH setup.
++The release source is [rtk-ai/rtk](https://github.com/rtk-ai/rtk), pinned to the
++audited OSS release `1.2.0`, with mandatory official checksum verification.
++Clients default to `[claude_code, codex]`. Native hooks filter shell-tool output;
++RTK does not change provider URLs, MCP configuration or sandbox permissions.
++Unselected hooks and instructions are preserved. New client/CAO sessions load
++the merged hooks; their launch environment must include the stack bin directory.
++Live authenticated agent behavior has not been tested by this integration.
++
++Commands for validation, followed by optional application after review:
++
++```bash
++ansible-playbook /home/andrew/git/ansible-workstation/ai/rtk.yml --syntax-check
++ansible-playbook /home/andrew/git/ansible-workstation/ai/all.yml --list-tasks --tags rtk
++# Review predicted changes before applying in a maintenance window:
++ansible-playbook /home/andrew/git/ansible-workstation/ai/rtk.yml --check --diff -K
++ansible-playbook /home/andrew/git/ansible-workstation/ai/rtk.yml -K
++# Apply another reviewed release pin:
++ansible-playbook /home/andrew/git/ansible-workstation/ai/rtk.yml -K -e rtk_version=VERSION
++# Explicitly resolve and refresh the latest release:
++ansible-playbook /home/andrew/git/ansible-workstation/ai/rtk.yml -K -e rtk_version=latest -e rtk_upgrade=true
++```
++
++`latest` resolves on installation or explicit upgrade; ordinary runs keep the
++installed release. `rtk_upgrade` inherits `ai_stack_upgrade`; a fixed version
++remains fixed. Use `-e rtk_enabled=false` to skip RTK in `ai/all.yml` and use
++`--tags rtk` to select its import with prerequisites. No RTK installation or
++session restart was performed while adding these entry points.
++
+ ## Instalar Chrome DevTools MCP e suas dependências
+ 
+ `ai/all.yml` instala o Chrome DevTools MCP antes de sincronizar os perfis do
+@@ -403,6 +436,15 @@ suportados falham antes da instalação, sem descartar silenciosamente requisito
+ Plugins de decisões só devem ser declarados com fonte conhecida; este playbook
+ não inclui nem instala decider hospedado.
+ 
++The CAO helper uses `packaging>=24.2,<27` in its separate `uv run` environment
++to compare normalized PEP 508 requirements, including distribution/extra aliases
++and equivalent version specifiers. This parser is not added to CAO's tool
++requirements. Receipt-level constraints, overrides and unsupported nonempty
++resolution options cause refusal before `uv tool install`, rather than losing
++operator pins. The supported `find-links` option is replayed explicitly. Review
++unsupported receipt state before planning a replacement environment; the helper
++does not remove it automatically.
++
+ `cao_restart_on_change=false` impede o handler de reinício, inclusive quando
+ `cao_service_enabled=true`. A atualização do venv compartilhado deve acontecer
+ quando não houver sessões em uso: processos existentes podem manter código
+diff --git a/home/andrew/git/ansible-workstation/tasks/rtk-shared-integration/baseline/ai/all.yml b/home/andrew/git/ansible-workstation/ai/all.yml
+index 5ff42f1..dad08ce 100644
+--- a/home/andrew/git/ansible-workstation/tasks/rtk-shared-integration/baseline/ai/all.yml
++++ b/home/andrew/git/ansible-workstation/ai/all.yml
+@@ -11,6 +11,11 @@
+   ansible.builtin.import_playbook: claude.yml
+   tags: [claude]
+ 
++- name: Install RTK OSS local shell filtering
++  ansible.builtin.import_playbook: rtk.yml
++  tags: [rtk]
++  when: rtk_enabled | default(true) | bool
++
+ - name: Instalar Chrome DevTools MCP e suas dependências
+   ansible.builtin.import_playbook: chrome-devtools.yml
+   tags: [chrome_devtools]
+diff --git a/home/andrew/git/ansible-workstation/ai/rtk.yml b/home/andrew/git/ansible-workstation/ai/rtk.yml
+new file mode 100644
+index 0000000..d58e8ed
+--- /dev/null
++++ b/home/andrew/git/ansible-workstation/ai/rtk.yml
+@@ -0,0 +1,17 @@
++---
++- name: Prepare shared AI stack prerequisites for RTK
++  ansible.builtin.import_playbook: common.yml
++  tags: [rtk, ai_common]
++
++- name: Install RTK OSS local shell filtering
++  hosts: localhost
++  connection: local
++  become: false
++  gather_facts: true
++  roles:
++    # Role defaults are scoped to a play. Expose them here at default precedence
++    # while common.yml remains responsible for actually running prerequisites.
++    - role: ai_stack
++      when: false
++    - role: rtk
++      tags: [rtk]
+diff --git a/home/andrew/git/ansible-workstation/ai/tests/test_rtk_entrypoint.py b/home/andrew/git/ansible-workstation/ai/tests/test_rtk_entrypoint.py
+new file mode 100644
+index 0000000..cd3b8e4
+--- /dev/null
++++ b/home/andrew/git/ansible-workstation/ai/tests/test_rtk_entrypoint.py
+@@ -0,0 +1,118 @@
++"""Resolve actual RTK entrypoint variables without running any Ansible tasks."""
++
++import json
++import os
++from pathlib import Path
++import subprocess
++import sys
++import unittest
++
++
++ROOT = Path(__file__).resolve().parents[2]
++ANSIBLE_PYTHON = os.environ.get('ANSIBLE_TEST_PYTHON', '/usr/bin/python3')
++
++
++def resolve_variables(entrypoint, scope):
++    # Import only in the Ansible interpreter, which may differ from the test
++    # suite interpreter. Playbook loading/get_vars/templating execute no tasks.
++    from ansible.plugins.loader import init_plugin_loader
++    init_plugin_loader()
++    from ansible.inventory.manager import InventoryManager
++    from ansible.parsing.dataloader import DataLoader
++    from ansible.playbook import Playbook
++    from ansible.template import Templar
++    from ansible.vars.manager import VariableManager
++
++    loader = DataLoader()
++    inventory = InventoryManager(loader=loader, sources=['localhost,'])
++    manager = VariableManager(loader=loader, inventory=inventory)
++    host = inventory.get_host('localhost')
++    manager.set_host_facts('localhost', {
++        'user_id': 'fixture-user', 'env': {},
++        'getent_passwd': {'fixture-user': ['x', '1000', '1000', 'Fixture',
++                                         '/tmp/rtk-default-home', '/bin/sh']},
++    })
++    overrides = {}
++    if scope != 'defaults':
++        prefix = '/tmp/rtk-' + scope
++        overrides = {
++            'ai_stack_user': scope + '-user', 'ai_stack_home': prefix,
++            'ai_stack_bin_dir': prefix + '/custom-bin',
++            'ai_stack_cache_dir': prefix + '/custom-cache',
++            'ai_stack_environment': {'HOME': prefix, 'PATH': prefix + '/custom-bin:/usr/bin'},
++            'ai_stack_upgrade': True,
++        }
++        for key, value in overrides.items():
++            host.set_variable(key, value)
++        if scope == 'extra':
++            # Competing inventory values verify that -e retains its precedence.
++            host.set_variable('ai_stack_home', '/tmp/rtk-inventory-lower-priority')
++            manager._extra_vars = overrides
++    book = Playbook.load(str(ROOT / 'ai' / entrypoint), loader=loader, variable_manager=manager)
++    matches = [play for play in book.get_plays()
++               if any(role.get_name() == 'rtk' for role in play.get_roles())]
++    if len(matches) != 1:
++        raise AssertionError('Expected exactly one RTK play')
++    play = matches[0]
++    variables = manager.get_vars(play=play, host=host)
++    templar = Templar(loader=loader, variables=variables)
++    names = ['ai_stack_user', 'ai_stack_home', 'ai_stack_bin_dir', 'ai_stack_cache_dir',
++             'ai_stack_environment', 'ai_stack_upgrade', 'rtk_install_dir',
++             'rtk_binary', 'rtk_upgrade']
++    result = {name: templar.template(variables[name]) for name in names}
++    shared = [role for role in play.get_roles() if role.get_name() == 'ai_stack']
++    result['shared_tasks_disabled'] = (len(shared) == 1
++                                       and any(condition is False for condition in shared[0].when))
++    return result
++
++
++class RtkEntrypointTests(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        try:
++            probe = subprocess.run([ANSIBLE_PYTHON, '-c', 'import ansible'],
++                                   capture_output=True, text=True)
++        except OSError as error:
++            raise unittest.SkipTest('Ansible interpreter unavailable') from error
++        if probe.returncode:
++            raise unittest.SkipTest('Set ANSIBLE_TEST_PYTHON to an interpreter with Ansible')
++
++    def check_scope(self, scope):
++        for entrypoint in ['rtk.yml', 'all.yml']:
++            with self.subTest(entrypoint=entrypoint, scope=scope):
++                result = subprocess.run([
++                    ANSIBLE_PYTHON, str(Path(__file__).resolve()), '--resolve', entrypoint, scope,
++                ], capture_output=True, text=True, env=dict(os.environ, PYTHONDONTWRITEBYTECODE='1'))
++                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
++                values = json.loads(result.stdout)
++                home = '/tmp/rtk-default-home' if scope == 'defaults' else '/tmp/rtk-' + scope
++                user = 'fixture-user' if scope == 'defaults' else scope + '-user'
++                binary_dir = home + ('/.local/bin' if scope == 'defaults' else '/custom-bin')
++                cache = home + ('/.cache/ai-stack' if scope == 'defaults' else '/custom-cache')
++                self.assertEqual(values['ai_stack_user'], user)
++                self.assertEqual(values['ai_stack_home'], home)
++                self.assertEqual(values['ai_stack_bin_dir'], binary_dir)
++                self.assertEqual(values['ai_stack_cache_dir'], cache)
++                self.assertEqual(values['ai_stack_environment']['HOME'], home)
++                self.assertTrue(values['ai_stack_environment']['PATH'].startswith(binary_dir + ':'))
++                self.assertEqual(values['rtk_install_dir'], home + '/.local/share/ai-stack/rtk')
++                self.assertEqual(values['rtk_binary'], binary_dir + '/rtk')
++                self.assertEqual(values['ai_stack_upgrade'], scope != 'defaults')
++                self.assertEqual(values['rtk_upgrade'], scope != 'defaults')
++                self.assertTrue(values['shared_tasks_disabled'])
++
++    def test_actual_entrypoints_resolve_shared_defaults(self):
++        self.check_scope('defaults')
++
++    def test_actual_entrypoints_preserve_inventory_overrides(self):
++        self.check_scope('inventory')
++
++    def test_actual_entrypoints_preserve_extra_variable_overrides(self):
++        self.check_scope('extra')
++
++
++if __name__ == '__main__':
++    if len(sys.argv) > 1 and sys.argv[1] == '--resolve':
++        print(json.dumps(resolve_variables(sys.argv[2], sys.argv[3])))
++    else:
++        unittest.main()

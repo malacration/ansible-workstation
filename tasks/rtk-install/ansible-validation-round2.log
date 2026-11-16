@@ -1,0 +1,10 @@
+ansible-syntax: no recap
+ansible-reconcile: localhost                  : ok=14   changed=1    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   
+ansible-second: localhost                  : ok=14   changed=0    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   
+ansible-check: localhost                  : ok=12   changed=0    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   
+ansible-pin-1.1.0: localhost                  : ok=31   changed=5    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0   
+ansible-latest-offline: localhost                  : ok=14   changed=0    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   
+ansible-explicit-upgrade: localhost                  : ok=31   changed=5    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0   
+ansible-bad-checksum: localhost                  : ok=15   changed=0    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0   
+ansible-final-idempotence: localhost                  : ok=14   changed=0    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   
+All isolated Ansible checks passed.

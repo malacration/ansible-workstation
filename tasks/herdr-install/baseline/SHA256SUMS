@@ -1,0 +1,4 @@
+c8f1b8d57c5ac211488d52446b5d629eec9568ee69f908a55341e6575fc82ee5  tasks/herdr-install/baseline/ai_stack-defaults-main.yml
+eca9ba2e9ab1df79b4915c5e096f7ca5871dfb9e073d837440724a337aa13466  tasks/herdr-install/baseline/all.yml
+ca436a0d764e05a41de4fa1fedd564ccfb6459fc77d69fbd1c911913ee9c2bc9  tasks/herdr-install/baseline/cao-server.service.j2
+fa2260939dffb31104293c9732d555586440b3e394439bc5b923fa41c6fa0a4b  tasks/herdr-install/baseline/service.yml

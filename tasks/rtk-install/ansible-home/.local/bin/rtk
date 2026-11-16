@@ -1,0 +1,5 @@
+#!/bin/sh
+# Managed by Ansible RTK. Telemetry/proxy onboarding remain disabled in all calls.
+export RTK_TELEMETRY_DISABLED=1
+export RTK_ONRAMP_DISABLED=1
+exec /home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-home/.local/share/ai-stack/rtk/bin/rtk "$@"

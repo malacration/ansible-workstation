@@ -1,0 +1,28 @@
+---
+# Copie para um arquivo local e use: -e @minhas-variaveis.yml
+# ai_stack_user: andrew  # Opcional: por padrão usa o usuário da workstation.
+ai_stack_upgrade: false
+codex_version: latest
+claude_version: stable
+cao_uv_version: latest
+cao_source: git  # pypi para releases publicadas; latest não significa main.
+cao_git_url: https://github.com/awslabs/cli-agent-orchestrator.git
+cao_git_ref: 3e30ea3ed6e7fb607b13358d81123afff5a8e69f  # main para branch móvel.
+cao_version: latest  # Aplicável apenas a cao_source=pypi.
+cao_upgrade: false  # Atualização apenas do CAO; não atualiza uv/outros CLIs.
+cao_extras: []  # Acrescenta aos extras já declarados no recibo uv.
+cao_with_packages: []  # Acrescenta aos --with já declarados no recibo uv.
+cao_restart_on_change: false
+cao_python_version: '3.12'
+cao_service_enabled: false
+cao_mcp_sync_enabled: true
+cao_mcp_clients: [codex, claude_code]
+cao_mcp_profiles: [code_supervisor, developer, reviewer]
+cao_mcp_profile_prefix: ai_stack
+
+# Chrome DevTools MCP chama os subplaybooks de Node.js e Chrome.
+chrome_devtools_enabled: true
+chrome_devtools_install_browser: true
+chrome_devtools_version: latest
+chrome_devtools_clients: [codex, claude_code]
+chrome_devtools_args: []  # Ex.: [--headless] em uma máquina sem interface gráfica.

@@ -1,0 +1,59 @@
+{
+  "changed_preexisting_files": [
+    "ai/README.md",
+    "ai/vars.example.yml",
+    "ai/roles/cao/defaults/main.yml",
+    "ai/roles/cao/handlers/main.yml",
+    "ai/roles/cao/tasks/main.yml",
+    "ai/all.yml"
+  ],
+  "new_code_files": [
+    "ai/cao-update.yml",
+    "ai/roles/cao/files/install_cao.py",
+    "ai/tests/test_install_cao.py",
+    "ai/rtk.yml",
+    "ai/tests/test_rtk_entrypoint.py"
+  ],
+  "unchanged_baseline_files": 55,
+  "original_source_checks": {
+    "ai/roles/cao/tasks/main.yml": {
+      "sha256": "bca564c9b51f67c8222e8954385f7e44f159f7e1f6d1bcbcac705b16ac02e97b",
+      "verified_initial_hash": false,
+      "source": "initial read captured in tool transcript"
+    },
+    "ai/roles/cao/handlers/main.yml": {
+      "sha256": "5b437a4ea9ebd874bd3d3d7b95e6533a98312c3a9fa1a15afeeb1984405f8532",
+      "verified_initial_hash": true,
+      "source": "initial read captured in tool transcript"
+    },
+    "ai/vars.example.yml": {
+      "sha256": "262de1b87fb8aa8e7a33478ae03f76f462705708e30e6b1f1039522555e37dfa",
+      "verified_initial_hash": true,
+      "source": "initial read captured in tool transcript"
+    },
+    "ai/README.md": {
+      "sha256": "91858830d8292299c8d4fbbbae98b115d268011a0c7fa6e8979ce8dc16a7b6b1",
+      "verified_initial_hash": true,
+      "source": "initial read captured in tool transcript"
+    }
+  },
+  "limitation": "Initial BASELINE.json excluded any path segment named tasks, including role task files. The original cao/tasks/main.yml is reconstructed from the initial complete read in the tool transcript, not verified against an initial hash.",
+  "round": 3,
+  "round2_scope": [
+    "ai/roles/cao/files/install_cao.py",
+    "ai/roles/cao/tasks/main.yml",
+    "ai/tests/test_install_cao.py",
+    "ai/README.md",
+    "ai/all.yml",
+    "ai/rtk.yml"
+  ],
+  "round3_scope": [
+    "ai/rtk.yml",
+    "ai/tests/test_rtk_entrypoint.py"
+  ],
+  "rtk_role_not_edited_by_this_task": true,
+  "rtk_role_changed_concurrently": [
+    "/home/andrew/git/ansible-workstation/ai/roles/rtk/README.md",
+    "/home/andrew/git/ansible-workstation/ai/roles/rtk/files/configure_rtk.py"
+  ]
+}

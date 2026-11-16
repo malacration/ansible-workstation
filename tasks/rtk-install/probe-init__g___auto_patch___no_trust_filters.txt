@@ -1,0 +1,12 @@
+
+RTK hook registered (global).
+
+  Command:   rtk hook claude
+  RTK.md:    /home/andrew/git/ansible-workstation/tasks/rtk-install/probe-home/.claude/RTK.md (awareness: default)
+  CLAUDE.md: @RTK.md reference added
+
+  /home/andrew/git/ansible-workstation/tasks/rtk-install/probe-home/.claude/settings.json: hook added
+  Restart Claude Code. Test with: git status
+  filters:   /home/andrew/git/ansible-workstation/tasks/rtk-install/probe-home/.config/rtk/filters.toml (template, edit to add user-global filters)
+
+

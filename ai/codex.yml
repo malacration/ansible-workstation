@@ -1,0 +1,8 @@
+---
+- name: Instalar Codex CLI no Ubuntu
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: true
+  roles:
+    - codex

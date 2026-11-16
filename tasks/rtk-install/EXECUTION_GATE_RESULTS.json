@@ -1,0 +1,122 @@
+[
+  {
+    "mode": "normal",
+    "state": "hash_mismatch",
+    "marker_written": false,
+    "returncode": 0
+  },
+  {
+    "mode": "normal",
+    "state": "missing_receipt",
+    "marker_written": false,
+    "returncode": 0
+  },
+  {
+    "mode": "normal",
+    "state": "malformed_receipt",
+    "marker_written": false,
+    "returncode": 0
+  },
+  {
+    "mode": "normal",
+    "state": "unsupported_receipt",
+    "marker_written": false,
+    "returncode": 0
+  },
+  {
+    "mode": "normal",
+    "state": "symlink_receipt",
+    "marker_written": false,
+    "returncode": 0
+  },
+  {
+    "mode": "normal",
+    "state": "symlink_binary",
+    "marker_written": false,
+    "returncode": 0
+  },
+  {
+    "mode": "normal",
+    "state": "fifo_binary",
+    "marker_written": false,
+    "returncode": 0
+  },
+  {
+    "mode": "normal",
+    "state": "nonexecutable_binary",
+    "marker_written": false,
+    "returncode": 0
+  },
+  {
+    "mode": "normal",
+    "state": "missing_binary",
+    "marker_written": false,
+    "returncode": 0
+  },
+  {
+    "mode": "normal",
+    "state": "valid",
+    "marker_written": true,
+    "returncode": 0
+  },
+  {
+    "mode": "check",
+    "state": "hash_mismatch",
+    "marker_written": false,
+    "returncode": 0
+  },
+  {
+    "mode": "check",
+    "state": "missing_receipt",
+    "marker_written": false,
+    "returncode": 0
+  },
+  {
+    "mode": "check",
+    "state": "malformed_receipt",
+    "marker_written": false,
+    "returncode": 0
+  },
+  {
+    "mode": "check",
+    "state": "unsupported_receipt",
+    "marker_written": false,
+    "returncode": 0
+  },
+  {
+    "mode": "check",
+    "state": "symlink_receipt",
+    "marker_written": false,
+    "returncode": 0
+  },
+  {
+    "mode": "check",
+    "state": "symlink_binary",
+    "marker_written": false,
+    "returncode": 0
+  },
+  {
+    "mode": "check",
+    "state": "fifo_binary",
+    "marker_written": false,
+    "returncode": 0
+  },
+  {
+    "mode": "check",
+    "state": "nonexecutable_binary",
+    "marker_written": false,
+    "returncode": 0
+  },
+  {
+    "mode": "check",
+    "state": "missing_binary",
+    "marker_written": false,
+    "returncode": 0
+  },
+  {
+    "mode": "check",
+    "state": "valid",
+    "marker_written": true,
+    "returncode": 0
+  }
+]

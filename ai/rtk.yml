@@ -1,0 +1,17 @@
+---
+- name: Prepare shared AI stack prerequisites for RTK
+  ansible.builtin.import_playbook: common.yml
+  tags: [rtk, ai_common]
+
+- name: Install RTK OSS local shell filtering
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: true
+  roles:
+    # Role defaults are scoped to a play. Expose them here at default precedence
+    # while common.yml remains responsible for actually running prerequisites.
+    - role: ai_stack
+      when: false
+    - role: rtk
+      tags: [rtk]

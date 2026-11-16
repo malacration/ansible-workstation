@@ -1,13 +1,13 @@
 - hosts: localhost
   vars:
-    - zsh_dependencies: []
-    - zsh_plugins:
-        - git
-        - python
-        - docker
-        - pip
-        - lein
-        - command-not-found
+    zsh_dependencies: []
+    zsh_plugins:
+      - git
+      - python
+      - docker
+      - pip
+      - lein
+      - command-not-found
 
   tasks:
   - name: Ensure Zsh with dependencies are installed

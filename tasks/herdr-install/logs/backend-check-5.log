@@ -1,0 +1,363 @@
+### typo herdrr, service disabled :: -e cao_terminal_backend=herdrr
+
+PLAY [Validar backend de terminal do CAO] **************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [localhost]
+
+TASK [ai_stack : Validar sistema e usuário de instalação da stack] *************
+skipping: [localhost]
+
+TASK [ai_stack : Consultar o diretório home do usuário de instalação] **********
+skipping: [localhost]
+
+TASK [ai_stack : Validar o diretório home] *************************************
+skipping: [localhost]
+
+TASK [ai_stack : Instalar dependências do Ubuntu] ******************************
+skipping: [localhost]
+
+TASK [ai_stack : Preparar diretórios do usuário] *******************************
+skipping: [localhost]
+
+TASK [ai_stack : Adicionar os executáveis ao PATH do Bash e Zsh] ***************
+skipping: [localhost] => (item=.profile) 
+skipping: [localhost] => (item=.bashrc) 
+skipping: [localhost] => (item=.zshrc) 
+skipping: [localhost]
+
+TASK [herdr : Validar backend de terminal do CAO] ******************************
+[ERROR]: Task failed: Action failed: cao_terminal_backend deve ser tmux ou herdr (experimental), não 'herdrr'.
+Origin: ~/git/ansible-workstation/ai/roles/herdr/tasks/backend.yml:5:3
+
+3 # Executada por ai/cao-terminal-backend.yml, que ai/all.yml importa depois de
+4 # ai/herdr.yml e antes de ai/cao-service.yml. Somente leitura: não altera nada.
+5 - name: Validar backend de terminal do CAO
+    ^ column 3
+
+fatal: [localhost]: FAILED! => {
+    "assertion": "cao_terminal_backend | default('tmux') in ['tmux', 'herdr']",
+    "changed": false,
+    "evaluated_to": false,
+    "msg": "cao_terminal_backend deve ser tmux ou herdr (experimental), não 'herdrr'."
+}
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=1    changed=0    unreachable=0    failed=1    skipped=6    rescued=0    ignored=0   
+
+rc=2
+### typo herdrr, service enabled :: -e cao_terminal_backend=herdrr -e cao_service_enabled=true
+
+PLAY [Validar backend de terminal do CAO] **************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [localhost]
+
+TASK [ai_stack : Validar sistema e usuário de instalação da stack] *************
+skipping: [localhost]
+
+TASK [ai_stack : Consultar o diretório home do usuário de instalação] **********
+skipping: [localhost]
+
+TASK [ai_stack : Validar o diretório home] *************************************
+skipping: [localhost]
+
+TASK [ai_stack : Instalar dependências do Ubuntu] ******************************
+skipping: [localhost]
+
+TASK [ai_stack : Preparar diretórios do usuário] *******************************
+skipping: [localhost]
+
+TASK [ai_stack : Adicionar os executáveis ao PATH do Bash e Zsh] ***************
+skipping: [localhost] => (item=.profile) 
+skipping: [localhost] => (item=.bashrc) 
+skipping: [localhost] => (item=.zshrc) 
+skipping: [localhost]
+
+TASK [herdr : Validar backend de terminal do CAO] ******************************
+[ERROR]: Task failed: Action failed: cao_terminal_backend deve ser tmux ou herdr (experimental), não 'herdrr'.
+Origin: ~/git/ansible-workstation/ai/roles/herdr/tasks/backend.yml:5:3
+
+3 # Executada por ai/cao-terminal-backend.yml, que ai/all.yml importa depois de
+4 # ai/herdr.yml e antes de ai/cao-service.yml. Somente leitura: não altera nada.
+5 - name: Validar backend de terminal do CAO
+    ^ column 3
+
+fatal: [localhost]: FAILED! => {
+    "assertion": "cao_terminal_backend | default('tmux') in ['tmux', 'herdr']",
+    "changed": false,
+    "evaluated_to": false,
+    "msg": "cao_terminal_backend deve ser tmux ou herdr (experimental), não 'herdrr'."
+}
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=1    changed=0    unreachable=0    failed=1    skipped=6    rescued=0    ignored=0   
+
+rc=2
+### herdr absent, service enabled, real mode :: -e cao_terminal_backend=herdr -e cao_service_enabled=true
+
+PLAY [Validar backend de terminal do CAO] **************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [localhost]
+
+TASK [ai_stack : Validar sistema e usuário de instalação da stack] *************
+skipping: [localhost]
+
+TASK [ai_stack : Consultar o diretório home do usuário de instalação] **********
+skipping: [localhost]
+
+TASK [ai_stack : Validar o diretório home] *************************************
+skipping: [localhost]
+
+TASK [ai_stack : Instalar dependências do Ubuntu] ******************************
+skipping: [localhost]
+
+TASK [ai_stack : Preparar diretórios do usuário] *******************************
+skipping: [localhost]
+
+TASK [ai_stack : Adicionar os executáveis ao PATH do Bash e Zsh] ***************
+skipping: [localhost] => (item=.profile) 
+skipping: [localhost] => (item=.bashrc) 
+skipping: [localhost] => (item=.zshrc) 
+skipping: [localhost]
+
+TASK [herdr : Validar backend de terminal do CAO] ******************************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [herdr : Consultar usuário dos agentes] ***********************************
+ok: [localhost]
+
+TASK [herdr : Verificar comando herdr publicado] *******************************
+ok: [localhost]
+
+TASK [herdr : Exigir herdr instalado, ou habilitado no check mode] *************
+[ERROR]: Task failed: Action failed: cao_terminal_backend=herdr exige ~/.local/bin/herdr. Execute ai/herdr.yml (herdr_enabled=true) antes, ou use cao_terminal_backend=tmux.
+Origin: ~/git/ansible-workstation/ai/roles/herdr/tasks/backend.yml:32:7
+
+30
+31     # Em ai/all.yml o herdr.yml já rodou; no check mode a instalação é só prevista.
+32     - name: Exigir herdr instalado, ou habilitado no check mode
+         ^ column 7
+
+fatal: [localhost]: FAILED! => {
+    "assertion": "(herdr_backend_command.stat.executable | default(false)) or (ansible_check_mode and herdr_enabled | default(true) | bool)",
+    "changed": false,
+    "evaluated_to": false,
+    "msg": "cao_terminal_backend=herdr exige ~/.local/bin/herdr. Execute ai/herdr.yml (herdr_enabled=true) antes, ou use cao_terminal_backend=tmux."
+}
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=4    changed=0    unreachable=0    failed=1    skipped=6    rescued=0    ignored=0   
+
+rc=2
+### herdr absent, service enabled, real mode, herdr_enabled=true explicit :: -e cao_terminal_backend=herdr -e cao_service_enabled=true -e herdr_enabled=true
+
+PLAY [Validar backend de terminal do CAO] **************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [localhost]
+
+TASK [ai_stack : Validar sistema e usuário de instalação da stack] *************
+skipping: [localhost]
+
+TASK [ai_stack : Consultar o diretório home do usuário de instalação] **********
+skipping: [localhost]
+
+TASK [ai_stack : Validar o diretório home] *************************************
+skipping: [localhost]
+
+TASK [ai_stack : Instalar dependências do Ubuntu] ******************************
+skipping: [localhost]
+
+TASK [ai_stack : Preparar diretórios do usuário] *******************************
+skipping: [localhost]
+
+TASK [ai_stack : Adicionar os executáveis ao PATH do Bash e Zsh] ***************
+skipping: [localhost] => (item=.profile) 
+skipping: [localhost] => (item=.bashrc) 
+skipping: [localhost] => (item=.zshrc) 
+skipping: [localhost]
+
+TASK [herdr : Validar backend de terminal do CAO] ******************************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [herdr : Consultar usuário dos agentes] ***********************************
+ok: [localhost]
+
+TASK [herdr : Verificar comando herdr publicado] *******************************
+ok: [localhost]
+
+TASK [herdr : Exigir herdr instalado, ou habilitado no check mode] *************
+[ERROR]: Task failed: Action failed: cao_terminal_backend=herdr exige ~/.local/bin/herdr. Execute ai/herdr.yml (herdr_enabled=true) antes, ou use cao_terminal_backend=tmux.
+Origin: ~/git/ansible-workstation/ai/roles/herdr/tasks/backend.yml:32:7
+
+30
+31     # Em ai/all.yml o herdr.yml já rodou; no check mode a instalação é só prevista.
+32     - name: Exigir herdr instalado, ou habilitado no check mode
+         ^ column 7
+
+fatal: [localhost]: FAILED! => {
+    "assertion": "(herdr_backend_command.stat.executable | default(false)) or (ansible_check_mode and herdr_enabled | default(true) | bool)",
+    "changed": false,
+    "evaluated_to": false,
+    "msg": "cao_terminal_backend=herdr exige ~/.local/bin/herdr. Execute ai/herdr.yml (herdr_enabled=true) antes, ou use cao_terminal_backend=tmux."
+}
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=4    changed=0    unreachable=0    failed=1    skipped=6    rescued=0    ignored=0   
+
+rc=2
+### herdr absent, service disabled (backend unused) :: -e cao_terminal_backend=herdr
+
+PLAY [Validar backend de terminal do CAO] **************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [localhost]
+
+TASK [ai_stack : Validar sistema e usuário de instalação da stack] *************
+skipping: [localhost]
+
+TASK [ai_stack : Consultar o diretório home do usuário de instalação] **********
+skipping: [localhost]
+
+TASK [ai_stack : Validar o diretório home] *************************************
+skipping: [localhost]
+
+TASK [ai_stack : Instalar dependências do Ubuntu] ******************************
+skipping: [localhost]
+
+TASK [ai_stack : Preparar diretórios do usuário] *******************************
+skipping: [localhost]
+
+TASK [ai_stack : Adicionar os executáveis ao PATH do Bash e Zsh] ***************
+skipping: [localhost] => (item=.profile) 
+skipping: [localhost] => (item=.bashrc) 
+skipping: [localhost] => (item=.zshrc) 
+skipping: [localhost]
+
+TASK [herdr : Validar backend de terminal do CAO] ******************************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [herdr : Consultar usuário dos agentes] ***********************************
+skipping: [localhost]
+
+TASK [herdr : Verificar comando herdr publicado] *******************************
+skipping: [localhost]
+
+TASK [herdr : Exigir herdr instalado, ou habilitado no check mode] *************
+skipping: [localhost]
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=2    changed=0    unreachable=0    failed=0    skipped=9    rescued=0    ignored=0   
+
+rc=0
+### herdr installed (isolated), service enabled, real mode :: -e cao_terminal_backend=herdr -e cao_service_enabled=true -e ai_stack_home=ISOLATED -e ai_stack_bin_dir=ISOLATED/.local/bin
+
+PLAY [Validar backend de terminal do CAO] **************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [localhost]
+
+TASK [ai_stack : Validar sistema e usuário de instalação da stack] *************
+skipping: [localhost]
+
+TASK [ai_stack : Consultar o diretório home do usuário de instalação] **********
+skipping: [localhost]
+
+TASK [ai_stack : Validar o diretório home] *************************************
+skipping: [localhost]
+
+TASK [ai_stack : Instalar dependências do Ubuntu] ******************************
+skipping: [localhost]
+
+TASK [ai_stack : Preparar diretórios do usuário] *******************************
+skipping: [localhost] => (item=ISOLATED/.local/bin) 
+skipping: [localhost] => (item=ISOLATED/.cache/ai-stack) 
+skipping: [localhost] => (item=ISOLATED/.config/ai-stack) 
+skipping: [localhost]
+
+TASK [ai_stack : Adicionar os executáveis ao PATH do Bash e Zsh] ***************
+skipping: [localhost] => (item=.profile) 
+skipping: [localhost] => (item=.bashrc) 
+skipping: [localhost] => (item=.zshrc) 
+skipping: [localhost]
+
+TASK [herdr : Validar backend de terminal do CAO] ******************************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [herdr : Consultar usuário dos agentes] ***********************************
+ok: [localhost]
+
+TASK [herdr : Verificar comando herdr publicado] *******************************
+ok: [localhost]
+
+TASK [herdr : Exigir herdr instalado, ou habilitado no check mode] *************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=5    changed=0    unreachable=0    failed=0    skipped=6    rescued=0    ignored=0   
+
+rc=0
+### default tmux :: 
+
+PLAY [Validar backend de terminal do CAO] **************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [localhost]
+
+TASK [ai_stack : Validar sistema e usuário de instalação da stack] *************
+skipping: [localhost]
+
+TASK [ai_stack : Consultar o diretório home do usuário de instalação] **********
+skipping: [localhost]
+
+TASK [ai_stack : Validar o diretório home] *************************************
+skipping: [localhost]
+
+TASK [ai_stack : Instalar dependências do Ubuntu] ******************************
+skipping: [localhost]
+
+TASK [ai_stack : Preparar diretórios do usuário] *******************************
+skipping: [localhost]
+
+TASK [ai_stack : Adicionar os executáveis ao PATH do Bash e Zsh] ***************
+skipping: [localhost] => (item=.profile) 
+skipping: [localhost] => (item=.bashrc) 
+skipping: [localhost] => (item=.zshrc) 
+skipping: [localhost]
+
+TASK [herdr : Validar backend de terminal do CAO] ******************************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [herdr : Consultar usuário dos agentes] ***********************************
+skipping: [localhost]
+
+TASK [herdr : Verificar comando herdr publicado] *******************************
+skipping: [localhost]
+
+TASK [herdr : Exigir herdr instalado, ou habilitado no check mode] *************
+skipping: [localhost]
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=2    changed=0    unreachable=0    failed=0    skipped=9    rescued=0    ignored=0   
+
+rc=0

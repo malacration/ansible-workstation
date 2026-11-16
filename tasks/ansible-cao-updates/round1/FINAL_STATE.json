@@ -1,0 +1,14 @@
+{
+  "uv_receipt_sha256": "17425ecb3fc005de46f6b7a986d6f94c193f67638fec96f22ef64289a50d7ab3",
+  "code_files_sha256": {
+    "/home/andrew/git/ansible-workstation/ai/README.md": "1a813a8308b4c3c3c15518d5772a669d426c2e460bdb49216de87cdab057a95c",
+    "/home/andrew/git/ansible-workstation/ai/vars.example.yml": "243b6cc582e90f4a8dc6bfd1ec79b75282a4b47da832f23912a55ce406a94359",
+    "/home/andrew/git/ansible-workstation/ai/roles/cao/defaults/main.yml": "adf8f13111cdd56441c7c01ab4c6d4d9ac9f340cfd332729b2b34844df3282c7",
+    "/home/andrew/git/ansible-workstation/ai/roles/cao/handlers/main.yml": "fce68b9103858898d4aeca8f45a2404f0950b62f2966ad6c162cdc52dcb0d877",
+    "/home/andrew/git/ansible-workstation/ai/roles/cao/tasks/main.yml": "6fc981c2a8012629420bda2e0793eda9e48a4328829c67e4e88601d724509f49",
+    "/home/andrew/git/ansible-workstation/ai/cao-update.yml": "e6c8916399d8059793fbe9e784fac3c7014daad09c68ecef4049e0b711e6f9e8",
+    "/home/andrew/git/ansible-workstation/ai/roles/cao/files/install_cao.py": "846124108bd8ab1a767c5df12b95dddf07c8f2e10347395506224e17f54d1db9",
+    "/home/andrew/git/ansible-workstation/ai/tests/test_install_cao.py": "f86abe7790e6eafea5dd87b29d2894543da1375f2234afade6c7c843c869b301"
+  },
+  "validation": "all commands succeeded; both Python files parsed; eight file diffs passed whitespace checks"
+}

@@ -1,0 +1,67 @@
+---
+- name: Validar clientes para Playwright MCP
+  ansible.builtin.assert:
+    that:
+      - playwright_mcp_clients | difference(['codex', 'claude_code']) | length == 0
+      - playwright_mcp_clients | length > 0
+      - ai_node_resolved_binary is defined
+      - not playwright_mcp_install_browser | bool or ansible_facts['architecture'] == 'x86_64'
+    fail_msg: >-
+      A instalação automática do Chrome requer x86_64. Em ARM64, configure
+      playwright_mcp_install_browser=false e escolha um navegador disponível em playwright_mcp_args.
+
+- name: Instalar Playwright MCP como usuário dos agentes
+  become: "{{ ansible_facts['user_id'] != ai_stack_user }}"
+  become_user: "{{ ai_stack_user }}"
+  environment: >-
+    {{ ai_stack_environment | combine({'PATH': (ai_node_resolved_binary | dirname) ~ ':' ~ ai_stack_environment.PATH}) }}
+  block:
+    - name: Consultar versão instalada do Playwright MCP
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_node_resolved_binary }}"
+          - -e
+          - 'console.log(JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8")).version)'
+          - "{{ playwright_mcp_install_dir }}/node_modules/@playwright/mcp/package.json"
+      register: playwright_mcp_current
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      when: not ansible_check_mode
+
+    - name: Instalar pacote npm do Playwright MCP
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_node_resolved_binary | dirname }}/npm"
+          - install
+          - --prefix
+          - "{{ playwright_mcp_install_dir }}"
+          - --no-audit
+          - --no-fund
+          - "@playwright/mcp@{{ playwright_mcp_version }}"
+      changed_when: true
+      when:
+        - not ansible_check_mode
+        - >-
+          playwright_mcp_current.rc != 0 or ai_stack_upgrade | bool or
+          (playwright_mcp_version != 'latest' and playwright_mcp_current.stdout | trim != playwright_mcp_version)
+
+    - name: Instalar comando estável com o Node.js selecionado
+      ansible.builtin.template:
+        src: playwright-mcp.j2
+        dest: "{{ playwright_mcp_command }}"
+        mode: '0700'
+
+    - name: Verificar executável do Playwright MCP
+      ansible.builtin.command:
+        argv: ["{{ playwright_mcp_command }}", --version]
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Registrar Playwright MCP no Codex
+      ansible.builtin.import_tasks: codex.yml
+      when: "'codex' in playwright_mcp_clients"
+
+    - name: Registrar Playwright MCP no Claude Code
+      ansible.builtin.import_tasks: claude.yml
+      when: "'claude_code' in playwright_mcp_clients"

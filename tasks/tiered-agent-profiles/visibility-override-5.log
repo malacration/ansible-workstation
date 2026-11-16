@@ -1,0 +1,180 @@
+
+PLAY [Visibilidade no play herdr] **********************************************
+
+TASK [ai_stack : Validar sistema e usuário de instalação da stack] *************
+skipping: [localhost]
+
+TASK [ai_stack : Consultar o diretório home do usuário de instalação] **********
+skipping: [localhost]
+
+TASK [ai_stack : Validar o diretório home] *************************************
+skipping: [localhost]
+
+TASK [ai_stack : Instalar dependências do Ubuntu] ******************************
+skipping: [localhost]
+
+TASK [ai_stack : Preparar diretórios do usuário] *******************************
+skipping: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/visibility-home-5/.local/bin) 
+skipping: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/visibility-home-5/.cache/ai-stack) 
+skipping: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/visibility-home-5/.config/ai-stack) 
+skipping: [localhost]
+
+TASK [ai_stack : Adicionar os executáveis ao PATH do Bash e Zsh] ***************
+skipping: [localhost] => (item=.profile) 
+skipping: [localhost] => (item=.bashrc) 
+skipping: [localhost] => (item=.zshrc) 
+skipping: [localhost]
+
+TASK [herdr : Validar parâmetros do herdr] *************************************
+skipping: [localhost]
+
+TASK [herdr : Informar arquitetura sem binário oficial do herdr] ***************
+skipping: [localhost]
+
+TASK [herdr : Gerenciar herdr como usuário dos agentes] ************************
+skipping: [localhost]
+
+TASK [ansible.builtin.debug] ***************************************************
+ok: [localhost] => {
+    "cao_terminal_backend": "herdr"
+}
+
+PLAY [Visibilidade no play de backend] *****************************************
+
+TASK [ai_stack : Validar sistema e usuário de instalação da stack] *************
+skipping: [localhost]
+
+TASK [ai_stack : Consultar o diretório home do usuário de instalação] **********
+skipping: [localhost]
+
+TASK [ai_stack : Validar o diretório home] *************************************
+skipping: [localhost]
+
+TASK [ai_stack : Instalar dependências do Ubuntu] ******************************
+skipping: [localhost]
+
+TASK [ai_stack : Preparar diretórios do usuário] *******************************
+skipping: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/visibility-home-5/.local/bin) 
+skipping: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/visibility-home-5/.cache/ai-stack) 
+skipping: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/visibility-home-5/.config/ai-stack) 
+skipping: [localhost]
+
+TASK [ai_stack : Adicionar os executáveis ao PATH do Bash e Zsh] ***************
+skipping: [localhost] => (item=.profile) 
+skipping: [localhost] => (item=.bashrc) 
+skipping: [localhost] => (item=.zshrc) 
+skipping: [localhost]
+
+TASK [herdr : Validar backend de terminal do CAO] ******************************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [herdr : Consultar usuário dos agentes] ***********************************
+skipping: [localhost]
+
+TASK [herdr : Verificar comando herdr publicado] *******************************
+skipping: [localhost]
+
+TASK [herdr : Exigir herdr instalado, ou habilitado no check mode] *************
+skipping: [localhost]
+
+TASK [ansible.builtin.debug] ***************************************************
+ok: [localhost] => {
+    "cao_terminal_backend": "herdr"
+}
+
+PLAY [Visibilidade no play do serviço] *****************************************
+
+TASK [ai_stack : Validar sistema e usuário de instalação da stack] *************
+skipping: [localhost]
+
+TASK [ai_stack : Consultar o diretório home do usuário de instalação] **********
+skipping: [localhost]
+
+TASK [ai_stack : Validar o diretório home] *************************************
+skipping: [localhost]
+
+TASK [ai_stack : Instalar dependências do Ubuntu] ******************************
+skipping: [localhost]
+
+TASK [ai_stack : Preparar diretórios do usuário] *******************************
+skipping: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/visibility-home-5/.local/bin) 
+skipping: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/visibility-home-5/.cache/ai-stack) 
+skipping: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/visibility-home-5/.config/ai-stack) 
+skipping: [localhost]
+
+TASK [ai_stack : Adicionar os executáveis ao PATH do Bash e Zsh] ***************
+skipping: [localhost] => (item=.profile) 
+skipping: [localhost] => (item=.bashrc) 
+skipping: [localhost] => (item=.zshrc) 
+skipping: [localhost]
+
+TASK [cao : Validar versões solicitadas para CAO e Python] *********************
+skipping: [localhost]
+
+TASK [cao : Validar versão solicitada do uv] ***********************************
+skipping: [localhost]
+
+TASK [cao : Consultar versão atual do uv] **************************************
+skipping: [localhost]
+
+TASK [cao : Baixar instalador oficial do uv] ***********************************
+skipping: [localhost]
+
+TASK [cao : Executar instalador do uv] *****************************************
+skipping: [localhost]
+
+TASK [cao : Instalar CAO em ambiente Python isolado] ***************************
+skipping: [localhost]
+
+TASK [cao : Verificar executáveis do CAO] **************************************
+skipping: [localhost] => (item=cao) 
+skipping: [localhost] => (item=cao-server) 
+skipping: [localhost]
+
+TASK [Preparar Node.js para compilar a Web UI do CAO] **************************
+skipping: [localhost]
+
+TASK [cao : Consultar diretório dos ambientes uv] ******************************
+skipping: [localhost]
+
+TASK [cao : Identificar pacote e commit do CAO instalado] **********************
+skipping: [localhost]
+
+TASK [cao : Definir caminhos da Web UI do CAO] *********************************
+skipping: [localhost]
+
+TASK [cao : Validar commit do CAO instalado] ***********************************
+skipping: [localhost]
+
+TASK [cao : Ler commit da Web UI instalada] ************************************
+skipping: [localhost]
+
+TASK [cao : Obter fonte do CAO no commit instalado] ****************************
+skipping: [localhost]
+
+TASK [cao : Instalar dependências da Web UI] ***********************************
+skipping: [localhost]
+
+TASK [cao : Compilar Web UI] ***************************************************
+skipping: [localhost]
+
+TASK [cao : Remover Web UI anterior] *******************************************
+skipping: [localhost]
+
+TASK [cao : Copiar Web UI para o pacote instalado] *****************************
+skipping: [localhost]
+
+TASK [cao : Registrar commit da Web UI instalada] ******************************
+skipping: [localhost]
+
+TASK [ansible.builtin.debug] ***************************************************
+ok: [localhost] => {
+    "cao_terminal_backend": "herdr"
+}
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=4    changed=0    unreachable=0    failed=0    skipped=43   rescued=0    ignored=0   
+

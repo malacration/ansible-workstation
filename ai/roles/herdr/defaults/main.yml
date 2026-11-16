@@ -1,0 +1,21 @@
+---
+# Pin auditado e compatível com o CAO instalado (constants.py cita herdr v0.9.5).
+# latest resolve somente na instalação ou em atualização explícita.
+herdr_version: '0.9.5'
+herdr_upgrade: "{{ ai_stack_upgrade | default(false) }}"
+# Payload privado (binário + recibo) e comando público estável.
+herdr_install_dir: "{{ ai_stack_home }}/.local/share/ai-stack/herdr"
+herdr_binary: "{{ ai_stack_bin_dir }}/herdr"
+# Canal oficial: releases GitHub de herdrdev/herdr (antigo ogulcancelik/herdr).
+herdr_release_api: https://api.github.com/repos/herdrdev/herdr/releases
+herdr_release_download_url: https://github.com/herdrdev/herdr/releases/download
+# Manifesto oficial de checksums usado por install.sh e `herdr update`.
+# Gerado pelo workflow release.yml (distribution/latest.json) e publicado em herdr.dev.
+herdr_manifest_url: https://herdr.dev/latest.json
+# Pin adicional opcional, sha256:HEX. O checksum oficial é sempre obrigatório.
+herdr_checksum: ''
+# Pins revisados; precisam coincidir com o manifesto oficial e o digest do GitHub.
+herdr_audited_checksums:
+  '0.9.5':
+    x86_64: 14d9e8bc8b4a9e0118d77c32266f76d461f09b40342eb23752960bd89f59929d
+    aarch64: 17d7536f2da50859523680ef279dffcac8e4a235f4e46fe8da6c2ec44141897c

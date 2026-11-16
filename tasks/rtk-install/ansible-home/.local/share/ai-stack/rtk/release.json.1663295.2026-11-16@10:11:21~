@@ -1,0 +1,8 @@
+{
+    "asset": "rtk-oss-x86_64-unknown-linux-musl.tar.gz",
+    "binary_sha256": "4625c86e6eab82911e25a340657450e9d45a3e992871580946e25e7a3f20bca7",
+    "edition": "oss",
+    "sha256": "a28407dc13038bdc9c2a1f5a047b0c636e0c1d495b15523576e2adb992a06a17",
+    "source": "https://github.com/rtk-ai/rtk/releases/download/v1.2.0",
+    "version": "1.2.0"
+}

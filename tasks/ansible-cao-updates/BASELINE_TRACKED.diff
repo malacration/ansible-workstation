@@ -1,0 +1,178 @@
+diff --git a/README.md b/README.md
+index a601139..b00a061 100644
+--- a/README.md
++++ b/README.md
+@@ -1,19 +1,45 @@
+-# Instruções para execução
++# Ansible Workstation
+ 
+-## conseda permissão ao script de intalação do ansible
+-```
++Playbooks para configurar uma workstation Ubuntu, organizados por categoria.
++O `all.yml` reúne os componentes de `sdk`, `ide`, `browser`, `cli`, `util`,
++`media-editor` e `ai`.
++
++## Preparar e executar
++
++```bash
+ chmod +x install.sh
+-```
+-## Faça login ao sudo com sua sessao do terminal atual
+-```
+-sudo ls
+-```
+-## Execute a instalação
+-```
+ ./install.sh
++ansible-playbook all.yml --ask-become-pass
+ ```
+ 
+-## Agora execute o playbook all
++O script instala o Ansible e as roles de `requirements.yml`. Use Ansible Core
++2.16 ou superior para os novos playbooks de IA. Execute como o usuário da
++workstation; as tarefas que precisam de root usam sudo.
++
++## Stack de IA
++
++Cada componente possui seu próprio YAML em `ai/`. Para instalar apenas a stack:
++
++```bash
++ansible-playbook ai/all.yml --ask-become-pass
++# Ou pelo playbook principal:
++ansible-playbook all.yml --tags ai --ask-become-pass
+ ```
+-ansible-playbook all.yml
++
++Também é possível executar um componente separadamente:
++
++```bash
++ansible-playbook ai/codex.yml --ask-become-pass
++ansible-playbook ai/claude.yml --ask-become-pass
++ansible-playbook ai/chrome-devtools.yml --ask-become-pass
++ansible-playbook ai/cao.yml --ask-become-pass
++ansible-playbook ai/mcp.yml --ask-become-pass
+ ```
++
++A stack inclui Codex CLI, Claude Code, Chrome DevTools MCP, uv, CAO e
++compartilhamento dos MCPs dos clientes com os perfis do CAO. O instalador do
++Chrome DevTools chama os subplaybooks de Node.js e Chrome. O serviço systemd é opcional e fica em
++`ai/cao-service.yml`.
++
++Veja [a documentação da stack de IA](ai/README.md) para versões, autenticação,
++MCPs, serviço e testes.
+diff --git a/all.yml b/all.yml
+index 8f16b23..5da1c34 100644
+--- a/all.yml
++++ b/all.yml
+@@ -34,4 +34,6 @@
+   ansible.builtin.import_playbook: sdk/git-secrets.yml
+ - name: Veleiro
+   ansible.builtin.import_playbook: cli/veleiro.yml
+-  
+\ No newline at end of file
++- name: Stack de IA (Codex, Claude, uv, CAO e MCPs)
++  ansible.builtin.import_playbook: ai/all.yml
++  tags: [ai]
+diff --git a/browser/chrome.yml b/browser/chrome.yml
+index 9f85b18..bba0644 100644
+--- a/browser/chrome.yml
++++ b/browser/chrome.yml
+@@ -3,6 +3,13 @@
+   hosts: localhost
+   become: yes
+   tasks:
++    - name: Instalar dependências do repositório do Chrome
++      ansible.builtin.apt:
++        name: [ca-certificates, gnupg]
++        state: present
++        update_cache: true
++        cache_valid_time: 3600
++
+     - name: Add Google Chrome signing key
+       apt_key:
+         url: https://dl.google.com/linux/linux_signing_key.pub
+@@ -23,7 +30,8 @@
+     - name: Ensure Google Chrome is installed
+       command: google-chrome --version
+       register: chrome_version
++      changed_when: false
+ 
+     - name: Display installed Google Chrome version
+       debug:
+-        msg: "Google Chrome version installed: {{ chrome_version.stdout }}"
+\ No newline at end of file
++        msg: "Google Chrome version installed: {{ chrome_version.stdout }}"
+diff --git a/sdk/git-secrets.yml b/sdk/git-secrets.yml
+index 5eaaadb..ac04162 100644
+--- a/sdk/git-secrets.yml
++++ b/sdk/git-secrets.yml
+@@ -52,8 +52,8 @@
+ 
+     - name: Clean up temporary files
+       file:
+-        path: /tmp/git-secrets.zip
+-        state: absent
+-      file:
+-        path: /tmp/git-secrets-master
++        path: "{{ item }}"
+         state: absent
++      loop:
++        - /tmp/git-secrets.zip
++        - /tmp/git-secrets-master
+diff --git a/sdk/sdkman.yml b/sdk/sdkman.yml
+index d5fa222..7903515 100644
+--- a/sdk/sdkman.yml
++++ b/sdk/sdkman.yml
+@@ -1,7 +1,7 @@
+ ---
+ - hosts: localhost
+   vars:
+-    - home: /home/"{{ ansible_env.USER.split('@')[0] }}"
++    home: "{{ ansible_env.HOME }}"
+ 
+   pre_tasks:
+     - name: Installing SDKMAn dependencies
+diff --git a/sdk/vim.yml b/sdk/vim.yml
+index 3156d10..66eafa2 100644
+--- a/sdk/vim.yml
++++ b/sdk/vim.yml
+@@ -1,5 +1,4 @@
+-- hosts: localhost
+-  name: Playbook para instalar o Vim
++- name: Playbook para instalar o Vim
+   hosts: localhost
+   become: yes  # Para garantir que as tarefas sejam executadas com permissões de superusuário
+   tasks:
+@@ -10,4 +9,4 @@
+     - name: Instalar Vim
+       apt:
+         name: vim
+-        state: present
+\ No newline at end of file
++        state: present
+diff --git a/sdk/zsh.yml b/sdk/zsh.yml
+index 9c70df4..718f675 100644
+--- a/sdk/zsh.yml
++++ b/sdk/zsh.yml
+@@ -1,13 +1,13 @@
+ - hosts: localhost
+   vars:
+-    - zsh_dependencies: []
+-    - zsh_plugins:
+-        - git
+-        - python
+-        - docker
+-        - pip
+-        - lein
+-        - command-not-found
++    zsh_dependencies: []
++    zsh_plugins:
++      - git
++      - python
++      - docker
++      - pip
++      - lein
++      - command-not-found
+ 
+   tasks:
+   - name: Ensure Zsh with dependencies are installed

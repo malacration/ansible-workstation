@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-home/.local/bin/rtk hook codex"
+          }
+        ]
+      }
+    ]
+  }
+}

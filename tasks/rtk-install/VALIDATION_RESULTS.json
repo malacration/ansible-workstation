@@ -1,0 +1,47 @@
+[
+  {
+    "case": "ansible-syntax",
+    "returncode": 0,
+    "recap": null
+  },
+  {
+    "case": "ansible-reconcile",
+    "returncode": 0,
+    "recap": "localhost                  : ok=14   changed=1    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   "
+  },
+  {
+    "case": "ansible-second",
+    "returncode": 0,
+    "recap": "localhost                  : ok=14   changed=0    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   "
+  },
+  {
+    "case": "ansible-check",
+    "returncode": 0,
+    "recap": "localhost                  : ok=12   changed=0    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   "
+  },
+  {
+    "case": "ansible-pin-1.1.0",
+    "returncode": 0,
+    "recap": "localhost                  : ok=31   changed=5    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0   "
+  },
+  {
+    "case": "ansible-latest-offline",
+    "returncode": 0,
+    "recap": "localhost                  : ok=14   changed=0    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   "
+  },
+  {
+    "case": "ansible-explicit-upgrade",
+    "returncode": 0,
+    "recap": "localhost                  : ok=31   changed=5    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0   "
+  },
+  {
+    "case": "ansible-bad-checksum",
+    "returncode": 2,
+    "recap": "localhost                  : ok=15   changed=0    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0   "
+  },
+  {
+    "case": "ansible-final-idempotence",
+    "returncode": 0,
+    "recap": "localhost                  : ok=14   changed=0    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   "
+  }
+]

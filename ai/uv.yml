@@ -1,0 +1,11 @@
+---
+- name: Instalar uv no Ubuntu
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: true
+  tasks:
+    - name: Preparar apenas o gerenciador uv
+      ansible.builtin.import_role:
+        name: cao
+        tasks_from: uv

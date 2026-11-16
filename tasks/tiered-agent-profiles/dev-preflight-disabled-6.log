@@ -1,0 +1,131 @@
+
+PLAY [Verificar antecipadamente a migração do serviço CAO] *********************
+
+TASK [Gathering Facts] *********************************************************
+[WARNING]: Host 'localhost' is using the discovered Python interpreter at '/home/andrew/miniforge3/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.21/reference_appendices/interpreter_discovery.html for more information.
+ok: [localhost]
+
+TASK [ai_stack : Validar sistema e usuário de instalação da stack] *************
+skipping: [localhost]
+
+TASK [ai_stack : Consultar o diretório home do usuário de instalação] **********
+skipping: [localhost]
+
+TASK [ai_stack : Validar o diretório home] *************************************
+skipping: [localhost]
+
+TASK [ai_stack : Instalar dependências do Ubuntu] ******************************
+skipping: [localhost]
+
+TASK [ai_stack : Preparar diretórios do usuário] *******************************
+skipping: [localhost]
+
+TASK [ai_stack : Adicionar os executáveis ao PATH do Bash e Zsh] ***************
+skipping: [localhost] => (item=.profile) 
+skipping: [localhost] => (item=.bashrc) 
+skipping: [localhost] => (item=.zshrc) 
+skipping: [localhost]
+
+TASK [cao : Validar versões solicitadas para CAO e Python] *********************
+skipping: [localhost]
+
+TASK [cao : Validar versão solicitada do uv] ***********************************
+skipping: [localhost]
+
+TASK [cao : Consultar versão atual do uv] **************************************
+skipping: [localhost]
+
+TASK [cao : Baixar instalador oficial do uv] ***********************************
+skipping: [localhost]
+
+TASK [cao : Executar instalador do uv] *****************************************
+skipping: [localhost]
+
+TASK [cao : Instalar CAO em ambiente Python isolado] ***************************
+skipping: [localhost]
+
+TASK [cao : Verificar executáveis do CAO] **************************************
+skipping: [localhost] => (item=cao) 
+skipping: [localhost] => (item=cao-server) 
+skipping: [localhost]
+
+TASK [Preparar Node.js para compilar a Web UI do CAO] **************************
+skipping: [localhost]
+
+TASK [cao : Consultar diretório dos ambientes uv] ******************************
+skipping: [localhost]
+
+TASK [cao : Identificar pacote e commit do CAO instalado] **********************
+skipping: [localhost]
+
+TASK [cao : Definir caminhos da Web UI do CAO] *********************************
+skipping: [localhost]
+
+TASK [cao : Validar commit do CAO instalado] ***********************************
+skipping: [localhost]
+
+TASK [cao : Ler commit da Web UI instalada] ************************************
+skipping: [localhost]
+
+TASK [cao : Obter fonte do CAO no commit instalado] ****************************
+skipping: [localhost]
+
+TASK [cao : Instalar dependências da Web UI] ***********************************
+skipping: [localhost]
+
+TASK [cao : Compilar Web UI] ***************************************************
+skipping: [localhost]
+
+TASK [cao : Remover Web UI anterior] *******************************************
+skipping: [localhost]
+
+TASK [cao : Copiar Web UI para o pacote instalado] *****************************
+skipping: [localhost]
+
+TASK [cao : Registrar commit da Web UI instalada] ******************************
+skipping: [localhost]
+
+TASK [Consultar usuário de instalação] *****************************************
+skipping: [localhost]
+
+TASK [Validar disponibilidade do systemd para o serviço opcional] **************
+skipping: [localhost]
+
+TASK [Validar nomes das unidades] **********************************************
+skipping: [localhost] => (item=cao-server) 
+skipping: [localhost] => (item=cao-server-andrew) 
+skipping: [localhost]
+
+TASK [Inspecionar unidades legadas sem seguir links] ***************************
+skipping: [localhost] => (item=cao-server-andrew) 
+skipping: [localhost]
+
+TASK [Recusar arquivos legados que não sejam regulares] ************************
+skipping: [localhost] => (item=cao-server-andrew) 
+skipping: [localhost]
+
+TASK [Ler unidades legadas regulares] ******************************************
+skipping: [localhost] => (item=cao-server-andrew) 
+skipping: [localhost]
+
+TASK [Confirmar identidade das unidades legadas] *******************************
+skipping: [localhost] => (item=cao-server-andrew) 
+skipping: [localhost]
+
+TASK [Consultar estado das unidades legadas] ***********************************
+skipping: [localhost] => (item=cao-server-andrew) 
+skipping: [localhost]
+
+TASK [Consultar cgroup da sessão tmux] *****************************************
+skipping: [localhost]
+
+TASK [Impedir interrupção da própria sessão CAO] *******************************
+skipping: [localhost]
+
+TASK [Exigir janela de manutenção para unidades legadas ativas] ****************
+skipping: [localhost] => (item=cao-server-andrew) 
+skipping: [localhost]
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=1    changed=0    unreachable=0    failed=0    skipped=36   rescued=0    ignored=0   
+

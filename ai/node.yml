@@ -1,0 +1,8 @@
+---
+- name: Preparar Node.js para os MCPs
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: true
+  roles:
+    - ai_node

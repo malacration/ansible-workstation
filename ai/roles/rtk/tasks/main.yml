@@ -1,0 +1,135 @@
+---
+- name: Validar plataforma e parâmetros RTK
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['system'] == 'Linux'
+      - ansible_facts['architecture'] in ['x86_64', 'aarch64']
+      - rtk_version == 'latest' or rtk_version is match('^[0-9]+[.][0-9]+[.][0-9]+$')
+      - rtk_clients | difference(['claude_code', 'codex']) | length == 0
+      - ai_stack_home.startswith('/') and ai_stack_home != '/'
+      - rtk_install_dir.startswith(ai_stack_home ~ '/')
+      - rtk_binary.startswith(ai_stack_home ~ '/')
+      - rtk_checksum == '' or rtk_checksum is match('^sha256:[a-fA-F0-9]{64}$')
+
+- name: Gerenciar RTK como usuário dos agentes
+  become: "{{ ansible_facts['user_id'] != ai_stack_user }}"
+  become_user: "{{ ai_stack_user }}"
+  environment: >-
+    {{ ai_stack_environment | combine({'RTK_TELEMETRY_DISABLED': '1', 'RTK_ONRAMP_DISABLED': '1'}) }}
+  block:
+    - name: Inspect receipt and executable without running installed RTK
+      ansible.builtin.script:
+        cmd: >-
+          {{ (role_path ~ '/files/installed_state.py') | quote }}
+          --install-dir {{ rtk_install_dir | quote }}
+          --architecture {{ ansible_facts['architecture'] | quote }}
+          --wrapper {{ rtk_binary | quote }}
+        executable: python3
+      register: rtk_inspection
+      changed_when: false
+      check_mode: false
+
+    - name: Establish installed executable integrity before any version probe
+      ansible.builtin.set_fact:
+        rtk_verified_state: "{{ rtk_inspection.stdout | from_json }}"
+
+    - name: Refuse unsafe managed directory ancestors before writes
+      ansible.builtin.assert:
+        that: not rtk_verified_state.unsafe_parent | default(false)
+        fail_msg: RTK managed directories must not contain symlink or non-directory ancestors.
+
+    - name: Verificar versão do binário gerenciado
+      ansible.builtin.command:
+        argv: ["{{ rtk_install_dir }}/bin/rtk", --version]
+      register: rtk_current
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      when: rtk_verified_state.valid | bool
+
+    - name: Definir necessidade de consultar release
+      ansible.builtin.set_fact:
+        rtk_needs_release: >-
+          {{ not rtk_verified_state.valid or rtk_upgrade | bool or
+             rtk_current.rc | default(1) != 0 or
+             rtk_current.stdout | default('') | trim != 'rtk ' ~ rtk_verified_state.receipt.get('version', '') or
+             (rtk_checksum != '' and rtk_checksum | lower != 'sha256:' ~ rtk_verified_state.receipt.get('sha256', '')) or
+             (rtk_version != 'latest' and rtk_current.stdout | default('') | trim != 'rtk ' ~ rtk_version) }}
+        rtk_asset_name: "rtk-oss-{{ ansible_facts['architecture'] }}-unknown-linux-musl.tar.gz"
+
+    - name: Preparar diretórios RTK
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ rtk_binary | dirname }}"
+        - "{{ ai_stack_cache_dir }}/rtk"
+        - "{{ rtk_install_dir }}"
+        - "{{ rtk_install_dir }}/bin"
+
+    - name: Instalar release oficial verificado
+      ansible.builtin.include_tasks: release.yml
+      when: rtk_needs_release | bool and not ansible_check_mode
+
+    - name: Informar instalação prevista no check mode
+      ansible.builtin.debug:
+        msg: "RTK OSS {{ rtk_version }} será resolvido, verificado e instalado na aplicação real."
+      changed_when: true
+      when: rtk_needs_release | bool and ansible_check_mode
+
+    - name: Preserve nonregular wrapper destinations without following them
+      ansible.builtin.script:
+        cmd: >-
+          {{ (role_path ~ '/files/installed_state.py') | quote }}
+          --install-dir {{ rtk_install_dir | quote }}
+          --architecture {{ ansible_facts['architecture'] | quote }}
+          --prepare-publication --wrapper {{ rtk_binary | quote }}
+        executable: python3
+      register: rtk_publication_paths
+      changed_when: (rtk_publication_paths.stdout | from_json).changed
+      when: not ansible_check_mode
+
+    - name: Instalar comando RTK com telemetria bloqueada
+      ansible.builtin.template:
+        src: rtk.j2
+        dest: "{{ rtk_binary }}"
+        mode: '0755'
+        backup: true
+
+    - name: Instalar mesclador das integrações RTK
+      ansible.builtin.copy:
+        src: configure_rtk.py
+        dest: "{{ rtk_install_dir }}/configure_rtk.py"
+        mode: '0755'
+
+    - name: Revalidate published executable before running init through wrapper
+      ansible.builtin.script:
+        cmd: >-
+          {{ (role_path ~ '/files/installed_state.py') | quote }}
+          --install-dir {{ rtk_install_dir | quote }}
+          --architecture {{ ansible_facts['architecture'] | quote }}
+          --wrapper {{ rtk_binary | quote }}
+        executable: python3
+      register: rtk_published_state
+      changed_when: false
+      failed_when: not (rtk_published_state.stdout | from_json).valid
+      when: not ansible_check_mode
+
+    - name: Mesclar hooks e instruções sem alterar permissões ou MCPs
+      ansible.builtin.command:
+        argv: >-
+          {{ ['python3', rtk_install_dir ~ '/configure_rtk.py',
+              '--home', ai_stack_home, '--binary', rtk_binary,
+              '--claude-dir', rtk_claude_dir, '--codex-dir', rtk_codex_dir,
+              '--clients', rtk_clients | join(',')] }}
+      register: rtk_configured
+      changed_when: (rtk_configured.stdout | from_json).changed
+      when: not ansible_check_mode
+
+    - name: Informar limite da previsão das integrações
+      ansible.builtin.debug:
+        msg: >-
+          Check mode não executa init nem instala binários; a mesclagem validada
+          de hooks/instruções será calculada na aplicação real.
+      when: ansible_check_mode

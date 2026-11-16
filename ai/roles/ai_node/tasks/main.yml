@@ -1,0 +1,96 @@
+---
+- name: Preparar Node.js como usuário dos agentes
+  become: "{{ ansible_facts['user_id'] != ai_stack_user }}"
+  become_user: "{{ ai_stack_user }}"
+  environment: "{{ ai_stack_environment }}"
+  block:
+    - name: Localizar Node.js compatível no PATH, NVM ou instalação gerenciada
+      ansible.builtin.shell: |
+        candidates=()
+        if command -v node >/dev/null 2>&1; then candidates+=("$(command -v node)"); fi
+        if [ -s "$HOME/.nvm/nvm.sh" ]; then
+          . "$HOME/.nvm/nvm.sh" --no-use >/dev/null 2>&1
+          candidate=$(nvm which default 2>/dev/null || true)
+          if [ -n "$candidate" ]; then candidates+=("$candidate"); fi
+        fi
+        candidates+=("$AI_NODE_MANAGED_BINARY")
+        for candidate in "${candidates[@]}"; do
+          if [ -x "$candidate" ] && "$candidate" -e '
+            const [major, minor] = process.versions.node.split(".").map(Number);
+            process.exit((major === 20 && minor >= 19) || (major === 22 && minor >= 12) || major >= 23 ? 0 : 1);
+          ' >/dev/null 2>&1; then
+            "$candidate" -p 'process.execPath'
+            exit 0
+          fi
+        done
+        exit 0
+      args:
+        executable: /bin/bash
+      environment:
+        AI_NODE_MANAGED_BINARY: "{{ ai_node_install_dir }}/bin/node"
+      register: ai_node_detected
+      changed_when: false
+      check_mode: false
+
+    - name: Instalar Node.js LTS local quando necessário
+      when: ai_node_detected.stdout | trim | length == 0
+      block:
+        - name: Consultar versões oficiais do Node.js
+          ansible.builtin.uri:
+            url: "{{ ai_node_dist_url }}/index.json"
+            return_content: true
+          register: ai_node_releases
+          when: not ansible_check_mode
+
+        - name: Filtrar versões LTS da linha solicitada
+          ansible.builtin.set_fact:
+            ai_node_candidates: >-
+              {{ ai_node_releases.json | selectattr('version', 'match', '^v' ~ ai_node_major ~ '[.]')
+                 | selectattr('lts') | list }}
+          when: not ansible_check_mode
+
+        - name: Validar disponibilidade da linha LTS
+          ansible.builtin.assert:
+            that: ai_node_candidates | length > 0
+            fail_msg: "Nenhuma versão LTS encontrada para Node.js {{ ai_node_major }}."
+          when: not ansible_check_mode
+
+        - name: Selecionar versão LTS e arquitetura
+          ansible.builtin.set_fact:
+            ai_node_release: "{{ (ai_node_candidates | first).version }}"
+            ai_node_arch: "{{ {'x86_64': 'x64', 'aarch64': 'arm64'}[ansible_facts['architecture']] }}"
+          when: not ansible_check_mode
+
+        - name: Preparar diretório do Node.js gerenciado
+          ansible.builtin.file:
+            path: "{{ ai_node_install_dir }}"
+            state: directory
+            mode: '0755'
+
+        - name: Baixar distribuição oficial e verificar SHA256
+          ansible.builtin.get_url:
+            url: "{{ ai_node_dist_url }}/{{ ai_node_release }}/node-{{ ai_node_release }}-linux-{{ ai_node_arch }}.tar.gz"
+            checksum: "sha256:{{ ai_node_dist_url }}/{{ ai_node_release }}/SHASUMS256.txt"
+            dest: "{{ ai_stack_cache_dir }}/node.tar.gz"
+            mode: '0600'
+          when: not ansible_check_mode
+
+        - name: Extrair Node.js no diretório do usuário
+          ansible.builtin.unarchive:
+            src: "{{ ai_stack_cache_dir }}/node.tar.gz"
+            dest: "{{ ai_node_install_dir }}"
+            remote_src: true
+            extra_opts: [--strip-components=1]
+          when: not ansible_check_mode
+
+    - name: Definir executável Node.js usado pelos MCPs
+      ansible.builtin.set_fact:
+        ai_node_resolved_binary: >-
+          {{ ai_node_detected.stdout | trim if ai_node_detected.stdout | trim | length > 0
+             else ai_node_install_dir ~ '/bin/node' }}
+
+    - name: Verificar Node.js selecionado
+      ansible.builtin.command:
+        argv: ["{{ ai_node_resolved_binary }}", --version]
+      changed_when: false
+      when: not ansible_check_mode

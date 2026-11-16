@@ -1,0 +1,3 @@
+#!/bin/sh
+# Managed by Ansible (ai/roles/herdr). Verified release payload lives outside PATH.
+exec /home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/herdr-fresh-home-5/.local/share/ai-stack/herdr/bin/herdr "$@"

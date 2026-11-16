@@ -1,0 +1,168 @@
+
+PLAY [localhost] ***************************************************************
+
+TASK [ansible.builtin.include_tasks] *******************************************
+included: /home/andrew/git/ansible-workstation/ai/roles/cao/tasks/mcp.yml for localhost
+
+TASK [Validar clientes e perfis para compartilhamento dos MCPs] ****************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [Validar estrutura de esforços e modelos] *********************************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [Validar esforços e modelos para cada definição] **************************
+ok: [localhost] => (item=supervisor) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "description": "Coding supervisor coordinating development and review",
+        "name": "supervisor",
+        "tags": [
+            "supervisor",
+            "coordination",
+            "effort-medium"
+        ],
+        "template": "supervisor"
+    },
+    "msg": "All assertions passed"
+}
+[ERROR]: Task failed: Action failed: Informe codex e claude válidos para developer_low em cao_profile_efforts e cao_profile_models.
+Origin: /home/andrew/git/ansible-workstation/ai/roles/cao/tasks/mcp.yml:19:3
+
+17     fail_msg: "cao_profile_efforts e cao_profile_models devem conter apenas perfis definidos."
+18
+19 - name: Validar esforços e modelos para cada definição
+     ^ column 3
+
+failed: [localhost] (item=developer_low) => {
+    "ansible_loop_var": "item",
+    "assertion": "item.name in cao_profile_models",
+    "changed": false,
+    "evaluated_to": false,
+    "item": {
+        "description": "Generalist developer for simple mechanical or single-file changes",
+        "name": "developer_low",
+        "tags": [
+            "coding",
+            "developer",
+            "effort-low",
+            "simple-tasks"
+        ],
+        "template": "developer"
+    },
+    "msg": "Informe codex e claude válidos para developer_low em cao_profile_efforts e cao_profile_models."
+}
+[ERROR]: Task failed: Action failed: Informe codex e claude válidos para developer_medium em cao_profile_efforts e cao_profile_models.
+Origin: /home/andrew/git/ansible-workstation/ai/roles/cao/tasks/mcp.yml:19:3
+
+17     fail_msg: "cao_profile_efforts e cao_profile_models devem conter apenas perfis definidos."
+18
+19 - name: Validar esforços e modelos para cada definição
+     ^ column 3
+
+failed: [localhost] (item=developer_medium) => {
+    "ansible_loop_var": "item",
+    "assertion": "item.name in cao_profile_models",
+    "changed": false,
+    "evaluated_to": false,
+    "item": {
+        "description": "Generalist developer for features and fixes requiring tests",
+        "name": "developer_medium",
+        "tags": [
+            "coding",
+            "developer",
+            "effort-medium",
+            "feature"
+        ],
+        "template": "developer"
+    },
+    "msg": "Informe codex e claude válidos para developer_medium em cao_profile_efforts e cao_profile_models."
+}
+[ERROR]: Task failed: Action failed: Informe codex e claude válidos para developer_high em cao_profile_efforts e cao_profile_models.
+Origin: /home/andrew/git/ansible-workstation/ai/roles/cao/tasks/mcp.yml:19:3
+
+17     fail_msg: "cao_profile_efforts e cao_profile_models devem conter apenas perfis definidos."
+18
+19 - name: Validar esforços e modelos para cada definição
+     ^ column 3
+
+failed: [localhost] (item=developer_high) => {
+    "ansible_loop_var": "item",
+    "assertion": "item.name in cao_profile_models",
+    "changed": false,
+    "evaluated_to": false,
+    "item": {
+        "description": "Generalist developer for complex or high-risk work",
+        "name": "developer_high",
+        "tags": [
+            "coding",
+            "developer",
+            "effort-high",
+            "complex"
+        ],
+        "template": "developer"
+    },
+    "msg": "Informe codex e claude válidos para developer_high em cao_profile_efforts e cao_profile_models."
+}
+[ERROR]: Task failed: Action failed: Informe codex e claude válidos para reviewer_basic em cao_profile_efforts e cao_profile_models.
+Origin: /home/andrew/git/ansible-workstation/ai/roles/cao/tasks/mcp.yml:19:3
+
+17     fail_msg: "cao_profile_efforts e cao_profile_models devem conter apenas perfis definidos."
+18
+19 - name: Validar esforços e modelos para cada definição
+     ^ column 3
+
+failed: [localhost] (item=reviewer_basic) => {
+    "ansible_loop_var": "item",
+    "assertion": "item.name in cao_profile_models",
+    "changed": false,
+    "evaluated_to": false,
+    "item": {
+        "description": "Code reviewer for simple and medium complexity work",
+        "name": "reviewer_basic",
+        "tags": [
+            "review",
+            "reviewer",
+            "effort-low",
+            "simple-tasks"
+        ],
+        "template": "reviewer"
+    },
+    "msg": "Informe codex e claude válidos para reviewer_basic em cao_profile_efforts e cao_profile_models."
+}
+[ERROR]: Task failed: Action failed: Informe codex e claude válidos para reviewer_advanced em cao_profile_efforts e cao_profile_models.
+Origin: /home/andrew/git/ansible-workstation/ai/roles/cao/tasks/mcp.yml:19:3
+
+17     fail_msg: "cao_profile_efforts e cao_profile_models devem conter apenas perfis definidos."
+18
+19 - name: Validar esforços e modelos para cada definição
+     ^ column 3
+
+failed: [localhost] (item=reviewer_advanced) => {
+    "ansible_loop_var": "item",
+    "assertion": "item.name in cao_profile_models",
+    "changed": false,
+    "evaluated_to": false,
+    "item": {
+        "description": "Code reviewer for complex or high-risk work",
+        "name": "reviewer_advanced",
+        "tags": [
+            "review",
+            "reviewer",
+            "effort-high",
+            "complex"
+        ],
+        "template": "reviewer"
+    },
+    "msg": "Informe codex e claude válidos para reviewer_advanced em cao_profile_efforts e cao_profile_models."
+}
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=3    changed=0    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0   
+

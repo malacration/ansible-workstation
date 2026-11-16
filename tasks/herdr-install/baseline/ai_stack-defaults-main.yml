@@ -1,0 +1,30 @@
+---
+# Configurações compartilhadas por todas as roles da stack.
+# Usuário já existente no destino. Ao executar com sudo, usa o usuário original.
+ai_stack_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id'], true) }}"
+ai_stack_home: "{{ ansible_facts['getent_passwd'][ai_stack_user][4] }}"
+ai_stack_bin_dir: "{{ ai_stack_home }}/.local/bin"
+ai_stack_cache_dir: "{{ ai_stack_home }}/.cache/ai-stack"
+ai_stack_environment:
+  HOME: "{{ ai_stack_home }}"
+  PATH: "{{ ai_stack_bin_dir }}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  XDG_CONFIG_HOME: "{{ ai_stack_home }}/.config"
+  XDG_DATA_HOME: "{{ ai_stack_home }}/.local/share"
+  XDG_CACHE_HOME: "{{ ai_stack_home }}/.cache"
+# latest/stable são resolvidos na primeira instalação. Atualização é explícita.
+ai_stack_upgrade: false
+ai_stack_packages:
+  - acl
+  - bash
+  - ca-certificates
+  - curl
+  - git
+  - gzip
+  - jq
+  - python3
+  - python3-venv
+  - ripgrep
+  - tar
+  - tmux
+  - unzip
+  - zstd

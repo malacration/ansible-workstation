@@ -1,0 +1,78 @@
+### seeded state (before runs)
+d ISOLATED/.local/share/ai-stack/herdr/bin
+f ISOLATED/.cache/ai-stack/herdr/0.9.1-herdr-linux-x86_64
+f ISOLATED/.cache/ai-stack/herdr/0.9.5-herdr-linux-x86_64
+f ISOLATED/.cache/ai-stack/herdr/notes.txt
+f ISOLATED/.local/share/ai-stack/herdr/bin/herdr
+f ISOLATED/.local/share/ai-stack/herdr/bin/herdr.1829901.2026-11-16@13:23:12~
+f ISOLATED/.local/share/ai-stack/herdr/release.json
+l ISOLATED/.cache/ai-stack/herdr/0.9.1-herdr-linux-x86_64.link
+l ISOLATED/.local/share/ai-stack/herdr/bin/herdr.1.2026-01-01@00:00:00~
+### re-seeded: cache trap symlink renamed to match the cache regex
+f ISOLATED/.cache/ai-stack/herdr/0.9.1-herdr-linux-x86_64
+f ISOLATED/.cache/ai-stack/herdr/0.9.5-herdr-linux-x86_64
+f ISOLATED/.cache/ai-stack/herdr/notes.txt
+l ISOLATED/.cache/ai-stack/herdr/0.9.2-herdr-linux-aarch64
+--- after run1 (switch to 0.9.4)
+regular backups in payload dirs: 0
+  l herdr.1.2026-01-01@00:00:00~
+cache entries:
+  f 0.9.4-herdr-linux-x86_64
+  f notes.txt
+  l 0.9.2-herdr-linux-aarch64
+installed: herdr 0.9.4; receipt: 0.9.4
+ASSERT OK
+--- after run2 (back to 0.9.5)
+regular backups in payload dirs: 0
+  l herdr.1.2026-01-01@00:00:00~
+cache entries:
+  f 0.9.5-herdr-linux-x86_64
+  f notes.txt
+  l 0.9.2-herdr-linux-aarch64
+installed: herdr 0.9.5; receipt: 0.9.5
+ASSERT OK
+--- after run3 (tamper reconcile 1)
+regular backups in payload dirs: 0
+  l herdr.1.2026-01-01@00:00:00~
+cache entries:
+  f 0.9.5-herdr-linux-x86_64
+  f notes.txt
+  l 0.9.2-herdr-linux-aarch64
+installed: herdr 0.9.5; receipt: 0.9.5
+ASSERT OK
+--- after run4 (tamper reconcile 2)
+regular backups in payload dirs: 0
+  l herdr.1.2026-01-01@00:00:00~
+cache entries:
+  f 0.9.5-herdr-linux-x86_64
+  f notes.txt
+  l 0.9.2-herdr-linux-aarch64
+installed: herdr 0.9.5; receipt: 0.9.5
+ASSERT OK
+--- after run5 (explicit latest upgrade)
+regular backups in payload dirs: 0
+  l herdr.1.2026-01-01@00:00:00~
+cache entries:
+  f 0.9.5-herdr-linux-x86_64
+  f notes.txt
+  l 0.9.2-herdr-linux-aarch64
+installed: herdr 0.9.5; receipt: 0.9.5
+ASSERT OK
+--- after run6 (idempotence)
+regular backups in payload dirs: 0
+  l herdr.1.2026-01-01@00:00:00~
+cache entries:
+  f 0.9.5-herdr-linux-x86_64
+  f notes.txt
+  l 0.9.2-herdr-linux-aarch64
+installed: herdr 0.9.5; receipt: 0.9.5
+ASSERT OK
+--- after run7 (check mode)
+regular backups in payload dirs: 0
+  l herdr.1.2026-01-01@00:00:00~
+cache entries:
+  f 0.9.5-herdr-linux-x86_64
+  f notes.txt
+  l 0.9.2-herdr-linux-aarch64
+installed: herdr 0.9.5; receipt: 0.9.5
+ASSERT OK

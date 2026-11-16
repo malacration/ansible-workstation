@@ -1,0 +1,14 @@
+---
+- name: Compartilhar MCPs do Codex e Claude com o CAO
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: true
+  roles:
+    - cao
+  tasks:
+    - name: Sincronizar MCPs nos perfis do CAO
+      ansible.builtin.import_role:
+        name: cao
+        tasks_from: mcp
+      when: cao_mcp_sync_enabled | bool

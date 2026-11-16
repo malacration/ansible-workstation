@@ -1,0 +1,35 @@
+---
+- name: Garantir instalação do uv
+  ansible.builtin.import_tasks: uv.yml
+
+- name: Validar versões solicitadas para CAO e Python
+  ansible.builtin.assert:
+    that:
+      - cao_version | string is match('^(latest|[0-9]+\.[0-9]+\.[0-9]+([a-zA-Z0-9.+-]+)?)$')
+      - cao_python_version | string is version('3.11', '>=')
+    fail_msg: Use uma versão numérica ou latest, com Python 3.11 ou superior para CAO.
+
+- name: Instalar CAO como usuário comum
+  become: "{{ ansible_facts['user_id'] != ai_stack_user }}"
+  become_user: "{{ ai_stack_user }}"
+  environment: "{{ ai_stack_environment | combine({'UV_TOOL_BIN_DIR': ai_stack_bin_dir}) }}"
+  block:
+    - name: Instalar CAO em ambiente Python isolado
+      ansible.builtin.command:
+        argv: >-
+          {{ [ai_stack_bin_dir ~ '/uv', 'tool', 'install', '--python',
+              cao_python_version | string, cao_install_spec]
+             + (['--upgrade'] if ai_stack_upgrade | bool else []) }}
+      register: cao_install_result
+      changed_when: >-
+        'Installed ' in cao_install_result.stderr or
+        'Uninstalled ' in cao_install_result.stderr
+      notify: Reiniciar servidor CAO
+      when: not ansible_check_mode
+
+    - name: Verificar executáveis do CAO
+      ansible.builtin.command:
+        argv: ["{{ ai_stack_bin_dir }}/{{ item }}", --help]
+      loop: [cao, cao-server]
+      changed_when: false
+      when: not ansible_check_mode

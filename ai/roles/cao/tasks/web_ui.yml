@@ -1,0 +1,94 @@
+---
+# Instalações via Git não trazem a Web UI: upstream só gera web_ui/ no build
+# de release (npm run build). Sem ela, cao-server responde 404 em "/".
+- name: Preparar Node.js para compilar a Web UI do CAO
+  ansible.builtin.include_role:
+    name: ai_node
+  when: not ansible_check_mode
+
+- name: Compilar Web UI do CAO instalado via Git
+  become: "{{ ansible_facts['user_id'] != ai_stack_user }}"
+  become_user: "{{ ai_stack_user }}"
+  environment: >-
+    {{ ai_stack_environment | combine({'PATH': (ai_node_resolved_binary | dirname) ~ ':' ~ ai_stack_environment.PATH}) }}
+  when: not ansible_check_mode
+  block:
+    - name: Consultar diretório dos ambientes uv
+      ansible.builtin.command:
+        argv: ["{{ ai_stack_bin_dir }}/uv", tool, dir]
+      register: cao_web_uv_tools_dir
+      changed_when: false
+
+    - name: Identificar pacote e commit do CAO instalado
+      ansible.builtin.command:
+        argv:
+          - "{{ cao_web_uv_tools_dir.stdout | trim }}/cli-agent-orchestrator/bin/python"
+          - -I
+          - -c
+          - |
+            import importlib.metadata as m, importlib.resources as r, json
+            direct = json.loads(m.distribution('cli-agent-orchestrator').read_text('direct_url.json') or '{}')
+            print(json.dumps({'package_dir': str(r.files('cli_agent_orchestrator')),
+                              'commit': direct.get('vcs_info', {}).get('commit_id', '')}))
+      register: cao_web_installed
+      changed_when: false
+
+    - name: Definir caminhos da Web UI do CAO
+      ansible.builtin.set_fact:
+        cao_web_commit: "{{ (cao_web_installed.stdout | from_json).commit }}"
+        cao_web_dest: "{{ (cao_web_installed.stdout | from_json).package_dir }}/web_ui"
+        cao_web_src: "{{ ai_stack_cache_dir }}/cao-web-src"
+
+    - name: Validar commit do CAO instalado
+      ansible.builtin.assert:
+        that: cao_web_commit is match('^[0-9a-f]{40}$')
+        fail_msg: Não foi possível identificar o commit Git do CAO instalado.
+
+    - name: Ler commit da Web UI instalada
+      ansible.builtin.slurp:
+        src: "{{ cao_web_dest }}/.ai-stack-commit"
+      register: cao_web_marker
+      failed_when: false
+
+    - name: Compilar e instalar Web UI do commit instalado
+      when: >-
+        cao_web_marker.content is not defined or
+        (cao_web_marker.content | b64decode | trim) != cao_web_commit
+      block:
+        - name: Obter fonte do CAO no commit instalado
+          ansible.builtin.git:
+            repo: "{{ cao_git_url }}"
+            dest: "{{ cao_web_src }}"
+            version: "{{ cao_web_commit }}"
+            force: true
+
+        - name: Instalar dependências da Web UI
+          ansible.builtin.command:
+            argv: [npm, ci, --no-audit, --no-fund]
+            chdir: "{{ cao_web_src }}/web"
+          changed_when: true
+
+        - name: Compilar Web UI
+          ansible.builtin.command:
+            argv: [npm, run, build]
+            chdir: "{{ cao_web_src }}/web"
+          changed_when: true
+
+        - name: Remover Web UI anterior
+          ansible.builtin.file:
+            path: "{{ cao_web_dest }}"
+            state: absent
+
+        - name: Copiar Web UI para o pacote instalado
+          ansible.builtin.copy:
+            src: "{{ cao_web_src }}/src/cli_agent_orchestrator/web_ui/"
+            dest: "{{ cao_web_dest }}/"
+            remote_src: true
+            mode: preserve
+
+        - name: Registrar commit da Web UI instalada
+          ansible.builtin.copy:
+            content: "{{ cao_web_commit }}\n"
+            dest: "{{ cao_web_dest }}/.ai-stack-commit"
+            mode: '0644'
+          notify: Reiniciar servidor CAO

@@ -1,0 +1,5 @@
+---
+codex_version: latest
+codex_installer_url: https://chatgpt.com/codex/install.sh
+# Opcional, no formato sha256:HASH, para validar também o script de instalação.
+codex_installer_checksum: ''

@@ -1,0 +1,66 @@
+
+PLAY [Verificar antecipadamente a migração do serviço CAO] *********************
+
+TASK [Gathering Facts] *********************************************************
+ok: [localhost]
+
+TASK [Aplicar padrão da opção de serviço quando ausente] ***********************
+skipping: [localhost]
+
+TASK [Determinar usuário padrão dos agentes] ***********************************
+ok: [localhost]
+
+TASK [Consultar usuário de instalação] *****************************************
+ok: [localhost]
+
+TASK [Determinar diretório padrão dos agentes] *********************************
+ok: [localhost]
+
+TASK [Determinar diretório padrão de executáveis] ******************************
+ok: [localhost]
+
+TASK [Determinar nome padrão da unidade] ***************************************
+ok: [localhost]
+
+TASK [Determinar nomes legados padrão] *****************************************
+skipping: [localhost]
+
+TASK [Determinar política padrão de reinício] **********************************
+ok: [localhost]
+
+TASK [Validar backend de terminal do CAO] **************************************
+[ERROR]: Task failed: Finalization of task args for 'ansible.builtin.assert' failed: Error while resolving value for 'fail_msg': 'cao_terminal_backend' is undefined
+
+Task failed.
+Origin: /home/andrew/git/ansible-workstation/ai/roles/cao/tasks/service-preflight.yml:2:3
+
+1 ---
+2 - name: Validar backend de terminal do CAO
+    ^ column 3
+
+<<< caused by >>>
+
+Finalization of task args for 'ansible.builtin.assert' failed.
+Origin: /home/andrew/git/ansible-workstation/ai/roles/cao/tasks/service-preflight.yml:3:3
+
+1 ---
+2 - name: Validar backend de terminal do CAO
+3   ansible.builtin.assert:
+    ^ column 3
+
+<<< caused by >>>
+
+Error while resolving value for 'fail_msg': 'cao_terminal_backend' is undefined
+Origin: /home/andrew/git/ansible-workstation/ai/roles/cao/tasks/service-preflight.yml:5:15
+
+3   ansible.builtin.assert:
+4     that: cao_terminal_backend in ['tmux', 'herdr']
+5     fail_msg: "cao_terminal_backend deve ser tmux ou herdr (experimental), não '{{ cao_terminal_backend }}'."
+                ^ column 15
+
+fatal: [localhost]: FAILED! => {"changed": false, "msg": "Task failed: Finalization of task args for 'ansible.builtin.assert' failed: Error while resolving value for 'fail_msg': 'cao_terminal_backend' is undefined"}
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=7    changed=0    unreachable=0    failed=1    skipped=2    rescued=0    ignored=0   
+
+rc=2

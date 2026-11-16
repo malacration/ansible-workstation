@@ -1,0 +1,274 @@
+{
+  "status": "ready_for_final_independent_review",
+  "written_correction_task": "/home/andrew/git/ansible-workstation/tasks/rtk-install/REVIEW.md",
+  "test_count": 29,
+  "execution_gate_cases": [
+    {
+      "mode": "normal",
+      "state": "hash_mismatch",
+      "marker_written": false,
+      "returncode": 0
+    },
+    {
+      "mode": "normal",
+      "state": "missing_receipt",
+      "marker_written": false,
+      "returncode": 0
+    },
+    {
+      "mode": "normal",
+      "state": "malformed_receipt",
+      "marker_written": false,
+      "returncode": 0
+    },
+    {
+      "mode": "normal",
+      "state": "unsupported_receipt",
+      "marker_written": false,
+      "returncode": 0
+    },
+    {
+      "mode": "normal",
+      "state": "symlink_receipt",
+      "marker_written": false,
+      "returncode": 0
+    },
+    {
+      "mode": "normal",
+      "state": "symlink_binary",
+      "marker_written": false,
+      "returncode": 0
+    },
+    {
+      "mode": "normal",
+      "state": "fifo_binary",
+      "marker_written": false,
+      "returncode": 0
+    },
+    {
+      "mode": "normal",
+      "state": "nonexecutable_binary",
+      "marker_written": false,
+      "returncode": 0
+    },
+    {
+      "mode": "normal",
+      "state": "missing_binary",
+      "marker_written": false,
+      "returncode": 0
+    },
+    {
+      "mode": "normal",
+      "state": "valid",
+      "marker_written": true,
+      "returncode": 0
+    },
+    {
+      "mode": "check",
+      "state": "hash_mismatch",
+      "marker_written": false,
+      "returncode": 0
+    },
+    {
+      "mode": "check",
+      "state": "missing_receipt",
+      "marker_written": false,
+      "returncode": 0
+    },
+    {
+      "mode": "check",
+      "state": "malformed_receipt",
+      "marker_written": false,
+      "returncode": 0
+    },
+    {
+      "mode": "check",
+      "state": "unsupported_receipt",
+      "marker_written": false,
+      "returncode": 0
+    },
+    {
+      "mode": "check",
+      "state": "symlink_receipt",
+      "marker_written": false,
+      "returncode": 0
+    },
+    {
+      "mode": "check",
+      "state": "symlink_binary",
+      "marker_written": false,
+      "returncode": 0
+    },
+    {
+      "mode": "check",
+      "state": "fifo_binary",
+      "marker_written": false,
+      "returncode": 0
+    },
+    {
+      "mode": "check",
+      "state": "nonexecutable_binary",
+      "marker_written": false,
+      "returncode": 0
+    },
+    {
+      "mode": "check",
+      "state": "missing_binary",
+      "marker_written": false,
+      "returncode": 0
+    },
+    {
+      "mode": "check",
+      "state": "valid",
+      "marker_written": true,
+      "returncode": 0
+    }
+  ],
+  "full_role_recovery": {
+    "assertions": [
+      {
+        "case": "mismatch-check",
+        "marker_written": false,
+        "original_preserved": true
+      },
+      {
+        "case": "mismatch-normal",
+        "marker_written": false,
+        "verified_replacement": true
+      },
+      {
+        "case": "symlink-check",
+        "marker_written": false,
+        "target_unchanged": true
+      },
+      {
+        "case": "symlink-normal",
+        "marker_written": false,
+        "target_unchanged": true,
+        "link_preserved": true
+      },
+      {
+        "case": "directory-normal",
+        "verified_replacement": true,
+        "directory_preserved": true
+      },
+      {
+        "case": "malformed-receipt-normal",
+        "verified_replacement": true
+      }
+    ],
+    "ansible": [
+      {
+        "case": "recovery-bootstrap",
+        "returncode": 0,
+        "recap": "localhost                  : ok=30   changed=6    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   "
+      },
+      {
+        "case": "recovery-initial-idempotence",
+        "returncode": 0,
+        "recap": "localhost                  : ok=14   changed=0    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   "
+      },
+      {
+        "case": "recovery-mismatch-check",
+        "returncode": 0,
+        "recap": "localhost                  : ok=12   changed=1    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   "
+      },
+      {
+        "case": "recovery-mismatch-normal",
+        "returncode": 0,
+        "recap": "localhost                  : ok=30   changed=4    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   "
+      },
+      {
+        "case": "recovery-symlink-check",
+        "returncode": 0,
+        "recap": "localhost                  : ok=12   changed=1    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   "
+      },
+      {
+        "case": "recovery-symlink-normal",
+        "returncode": 0,
+        "recap": "localhost                  : ok=30   changed=5    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   "
+      },
+      {
+        "case": "recovery-directory-check",
+        "returncode": 0,
+        "recap": "localhost                  : ok=12   changed=1    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   "
+      },
+      {
+        "case": "recovery-directory-normal",
+        "returncode": 0,
+        "recap": "localhost                  : ok=30   changed=5    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   "
+      },
+      {
+        "case": "recovery-malformed-receipt-check",
+        "returncode": 0,
+        "recap": "localhost                  : ok=12   changed=1    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   "
+      },
+      {
+        "case": "recovery-malformed-receipt-normal",
+        "returncode": 0,
+        "recap": "localhost                  : ok=30   changed=4    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   "
+      },
+      {
+        "case": "recovery-final-idempotence",
+        "returncode": 0,
+        "recap": "localhost                  : ok=14   changed=0    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   "
+      },
+      {
+        "case": "recovery-final-check",
+        "returncode": 0,
+        "recap": "localhost                  : ok=12   changed=0    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   "
+      }
+    ],
+    "cached_official_fixture_requests": [
+      "/releases/tags/v1.2.0",
+      "/download/v1.2.0/checksums.txt",
+      "/releases/tags/v1.2.0",
+      "/download/v1.2.0/checksums.txt",
+      "/releases/tags/v1.2.0",
+      "/download/v1.2.0/checksums.txt",
+      "/releases/tags/v1.2.0",
+      "/download/v1.2.0/checksums.txt",
+      "/releases/tags/v1.2.0",
+      "/download/v1.2.0/checksums.txt"
+    ]
+  },
+  "final_recaps": {
+    "ansible-final-round2.log": "localhost                  : ok=14   changed=1    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0",
+    "ansible-final-round2-idempotence.log": "localhost                  : ok=14   changed=0    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0",
+    "ansible-final-round2-check.log": "localhost                  : ok=12   changed=0    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0",
+    "ansible-check-empty-round2.log": "localhost                  : ok=12   changed=4    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0"
+  },
+  "source_sha256": {
+    "/home/andrew/git/ansible-workstation/ai/roles/rtk/README.md": "937abf8527a44870b11a19df70deeaba43b8f391a8136edb8883d73f73ab9588",
+    "/home/andrew/git/ansible-workstation/ai/roles/rtk/defaults/main.yml": "4b8de896291e401d0ac56dded59ca31a0f9d30609d36381e87958b70fefbe324",
+    "/home/andrew/git/ansible-workstation/ai/roles/rtk/files/configure_rtk.py": "9f063e4d14b2ab4ebc11d015529a7b820410b4361ccc0afe785cbcf86e7a2d88",
+    "/home/andrew/git/ansible-workstation/ai/roles/rtk/files/installed_state.py": "8350b0c1ddfcc251e5650285bcb302815b48e059aef1e5db3f274d74f82a054c",
+    "/home/andrew/git/ansible-workstation/ai/roles/rtk/meta/main.yml": "40c407353bdc672aa412bc39317c5c1cab145fda4d1eaa2c17f9cad1da397b52",
+    "/home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/main.yml": "e44f89b2efc3f2327236c7af62b4da625b429b3d7aed6d536fe033dcbe8043e5",
+    "/home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/release.yml": "9c07d0217fc867942718f61f8d2d30a51a6d1d0dc9c909e62786fbd584319570",
+    "/home/andrew/git/ansible-workstation/ai/roles/rtk/templates/rtk.j2": "f8dccc91f4854d1fcba4b91576d95d1de75e658d4e8be11c96f420737d710968",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-install/test_configure_rtk.py": "50f11e93095d36c850a0aeb4d9d38c664dd6d994a9667678aae7ac51a67afcbb",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-install/test_installed_state.py": "6c5e1fe504a19bf5f7ba95c52f7c91cf4bd419b14c32073b7769fbd7db091851",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-install/validate_ansible.py": "fe57cd8e321fcea9364b57cc554f4ef7e955e926c94972e298eb3d440097818c",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-install/validate_recovery.py": "9edfe9dd6deb4eb730d44a4d6bd280ad31dce5f681ea02b997ba7ab95c5d8125",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-install/isolated.yml": "71ac2c7efdbbc82aa10e5c26f9b6251e1d008e6d7bd44df0015be1b2a6951956",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-install/isolated-empty.yml": "6360bab2e648a44b86a7abed36f6bf5324ba1810533c63cfb93a183f6250b8ee",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-install/rtk.yml.example": "e96b9d2f40dc4a9db85688a46d2dabf84f2a5bf8ad659c993126f69701436732",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-install/REPORT.md": "47e8a8309f49964c48e7678112f8a59ae3ad8bb00f25935cbc3bd0ee09f35f6a",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-install/INTEGRATION.md": "7dcc15b2587c98fdae3324251920702f60ea3f0308b70182869354a95ae28a2c",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-install/REVIEW_TASK.md": "207f59fd515d7b99d5962277ad603566a62a42bbcb149a543a2e9a130c609559",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-install/SPECIFICATION.md": "a4f83a25e7662a16c529cb7e03f7db522aa87bd67ea1d27b00397464e04edc0a"
+  },
+  "scope": [
+    "/home/andrew/git/ansible-workstation/ai/roles/rtk",
+    "/home/andrew/git/ansible-workstation/tasks/rtk-install"
+  ],
+  "live_application": false,
+  "shared_edits": false,
+  "limitations": [
+    "ARM64 not executed",
+    "No authenticated agent session",
+    "ansible-lint unavailable",
+    "Recovery uses retained official artifacts via temporary localhost fixture after GitHub public API quota exhaustion"
+  ]
+}

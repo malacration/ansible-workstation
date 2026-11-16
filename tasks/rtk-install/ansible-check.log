@@ -1,0 +1,72 @@
+
+PLAY [Validar apenas RTK em HOME isolado] **************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [localhost]
+
+TASK [Impedir aplicação acidental no HOME real] ********************************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [../../ai/roles/rtk : Validar plataforma e parâmetros RTK] ****************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [../../ai/roles/rtk : Inspect receipt and executable without running installed RTK] ***
+ok: [localhost]
+
+TASK [../../ai/roles/rtk : Establish installed executable integrity before any version probe] ***
+ok: [localhost]
+
+TASK [../../ai/roles/rtk : Refuse unsafe managed directory ancestors before writes] ***
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [../../ai/roles/rtk : Verificar versão do binário gerenciado] *************
+ok: [localhost]
+
+TASK [../../ai/roles/rtk : Definir necessidade de consultar release] ***********
+ok: [localhost]
+
+TASK [../../ai/roles/rtk : Preparar diretórios RTK] ****************************
+ok: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-home/.local/bin)
+ok: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-home/.cache/ai-stack/rtk)
+ok: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-home/.local/share/ai-stack/rtk)
+ok: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-home/.local/share/ai-stack/rtk/bin)
+
+TASK [../../ai/roles/rtk : Instalar release oficial verificado] ****************
+skipping: [localhost]
+
+TASK [../../ai/roles/rtk : Informar instalação prevista no check mode] *********
+skipping: [localhost]
+
+TASK [../../ai/roles/rtk : Preserve nonregular wrapper destinations without following them] ***
+skipping: [localhost]
+
+TASK [../../ai/roles/rtk : Instalar comando RTK com telemetria bloqueada] ******
+ok: [localhost]
+
+TASK [../../ai/roles/rtk : Instalar mesclador das integrações RTK] *************
+ok: [localhost]
+
+TASK [../../ai/roles/rtk : Revalidate published executable before running init through wrapper] ***
+skipping: [localhost]
+
+TASK [../../ai/roles/rtk : Mesclar hooks e instruções sem alterar permissões ou MCPs] ***
+skipping: [localhost]
+
+TASK [../../ai/roles/rtk : Informar limite da previsão das integrações] ********
+ok: [localhost] => {
+    "msg": "Check mode não executa init nem instala binários; a mesclagem validada de hooks/instruções será calculada na aplicação real."
+}
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=12   changed=0    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   
+
+[WARNING]: provided hosts list is empty, only localhost is available. Note that the implicit localhost does not match 'all'

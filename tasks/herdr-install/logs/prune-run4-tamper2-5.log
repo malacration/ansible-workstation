@@ -1,0 +1,136 @@
+
+PLAY [Validar apenas herdr em HOME isolado] ************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [localhost]
+
+TASK [Impedir aplicação acidental no HOME real] ********************************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [../../ai/roles/herdr : Validar parâmetros do herdr] **********************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [../../ai/roles/herdr : Informar arquitetura sem binário oficial do herdr] ***
+skipping: [localhost]
+
+TASK [../../ai/roles/herdr : Gerenciar herdr como usuário dos agentes] *********
+included: /home/andrew/git/ansible-workstation/ai/roles/herdr/tasks/install.yml for localhost
+
+TASK [../../ai/roles/herdr : Inspecionar recibo e executável sem executar o herdr instalado] ***
+ok: [localhost]
+
+TASK [../../ai/roles/herdr : Registrar integridade do executável antes de consultar a versão] ***
+ok: [localhost]
+
+TASK [../../ai/roles/herdr : Recusar ancestrais inseguros antes de qualquer escrita] ***
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [../../ai/roles/herdr : Verificar versão do binário gerenciado] ***********
+skipping: [localhost]
+
+TASK [../../ai/roles/herdr : Definir necessidade de consultar o release] *******
+ok: [localhost]
+
+TASK [../../ai/roles/herdr : Preparar diretórios do herdr] *********************
+ok: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/herdr-install/ansible-home/.local/bin)
+ok: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/herdr-install/ansible-home/.cache/ai-stack/herdr)
+ok: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/herdr-install/ansible-home/.local/share/ai-stack/herdr)
+ok: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/herdr-install/ansible-home/.local/share/ai-stack/herdr/bin)
+
+TASK [../../ai/roles/herdr : Instalar release oficial verificado] **************
+included: /home/andrew/git/ansible-workstation/ai/roles/herdr/tasks/release.yml for localhost
+
+TASK [../../ai/roles/herdr : Consultar metadados oficiais do release solicitado] ***
+ok: [localhost]
+
+TASK [../../ai/roles/herdr : Validar release estável e binário Linux da arquitetura] ***
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [../../ai/roles/herdr : Definir versão e metadados resolvidos] ************
+ok: [localhost]
+
+TASK [../../ai/roles/herdr : Baixar manifesto oficial de checksums] ************
+ok: [localhost]
+
+TASK [../../ai/roles/herdr : Localizar checksum oficial exato do binário] ******
+ok: [localhost]
+
+TASK [../../ai/roles/herdr : Exigir checksum oficial e validar digest e pins disponíveis] ***
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [../../ai/roles/herdr : Baixar binário oficial conferindo SHA256 antes de executar] ***
+ok: [localhost]
+
+TASK [../../ai/roles/herdr : Criar diretório temporário do candidato] **********
+changed: [localhost]
+
+TASK [../../ai/roles/herdr : Copiar binário verificado para o candidato executável] ***
+changed: [localhost]
+
+TASK [../../ai/roles/herdr : Calcular SHA256 do candidato sem seguir links] ****
+ok: [localhost]
+
+TASK [../../ai/roles/herdr : Exigir candidato regular, executável e íntegro] ***
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [../../ai/roles/herdr : Conferir versão declarada pelo executável] ********
+ok: [localhost]
+
+TASK [../../ai/roles/herdr : Preservar destinos instalados inválidos antes da publicação] ***
+ok: [localhost]
+
+TASK [../../ai/roles/herdr : Publicar binário validado atomicamente] ***********
+changed: [localhost]
+
+TASK [../../ai/roles/herdr : Registrar proveniência e integridade do release] ***
+ok: [localhost]
+
+TASK [../../ai/roles/herdr : Remover somente diretório temporário do candidato] ***
+changed: [localhost]
+
+TASK [../../ai/roles/herdr : Localizar downloads de outras versões no cache] ***
+ok: [localhost]
+
+TASK [../../ai/roles/herdr : Remover downloads de outras versões do cache] *****
+skipping: [localhost]
+
+TASK [../../ai/roles/herdr : Informar instalação prevista no check mode] *******
+skipping: [localhost]
+
+TASK [../../ai/roles/herdr : Preservar destino não regular do comando sem segui-lo] ***
+ok: [localhost]
+
+TASK [../../ai/roles/herdr : Instalar comando herdr no PATH da stack] **********
+ok: [localhost]
+
+TASK [../../ai/roles/herdr : Revalidar executável publicado] *******************
+ok: [localhost]
+
+TASK [../../ai/roles/herdr : Localizar backups do binário e do recibo já revalidados] ***
+ok: [localhost]
+
+TASK [../../ai/roles/herdr : Remover backups do binário e do recibo] ***********
+changed: [localhost] => (item=herdr.1879552.2026-11-16@14:00:07~)
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=32   changed=5    unreachable=0    failed=0    skipped=4    rescued=0    ignored=0   
+
+rc=0

@@ -1,0 +1,38 @@
+---
+- name: Preparar dependências da stack de IA
+  ansible.builtin.import_playbook: common.yml
+  tags: [ai_common]
+
+- name: Instalar Codex CLI
+  ansible.builtin.import_playbook: codex.yml
+  tags: [codex]
+
+- name: Instalar Claude Code
+  ansible.builtin.import_playbook: claude.yml
+  tags: [claude]
+
+- name: Install RTK OSS local shell filtering
+  ansible.builtin.import_playbook: rtk.yml
+  tags: [rtk]
+  when: rtk_enabled | default(true) | bool
+
+- name: Instalar Chrome DevTools MCP e suas dependências
+  ansible.builtin.import_playbook: chrome-devtools.yml
+  tags: [chrome_devtools]
+  when: chrome_devtools_enabled | default(ansible_facts['architecture'] == 'x86_64') | bool
+
+- name: Instalar uv
+  ansible.builtin.import_playbook: uv.yml
+  tags: [uv]
+
+- name: Instalar CLI Agent Orchestrator
+  ansible.builtin.import_playbook: cao.yml
+  tags: [cao]
+
+- name: Compartilhar MCPs nos perfis do CAO
+  ansible.builtin.import_playbook: mcp.yml
+  tags: [mcp]
+
+- name: Configurar serviço opcional do CAO
+  ansible.builtin.import_playbook: cao-service.yml
+  tags: [cao_service]

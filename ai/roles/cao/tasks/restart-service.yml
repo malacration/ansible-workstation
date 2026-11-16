@@ -1,0 +1,50 @@
+---
+- name: Verificar se a unidade do CAO já foi instalada
+  ansible.builtin.stat:
+    path: "/etc/systemd/system/{{ cao_service_name }}.service"
+    follow: false
+  register: cao_service_unit
+  when:
+    - cao_service_enabled | bool
+    - cao_restart_on_change | bool
+    - not ansible_check_mode
+
+- name: Consultar cgroup antes do reinício em tmux
+  ansible.builtin.command:
+    argv: [cat, /proc/self/cgroup]
+  register: cao_restart_cgroup
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when:
+    - cao_service_enabled | bool
+    - cao_restart_on_change | bool
+    - not ansible_check_mode
+    - cao_service_unit.stat.exists | default(false)
+    - "'TMUX' in (ansible_facts['env'] | default({}))"
+
+- name: Impedir reinício a partir da própria sessão CAO
+  ansible.builtin.assert:
+    that:
+      - "'CAO_TERMINAL_ID' not in (ansible_facts['env'] | default({}))"
+      - "'cao-server' not in (cao_restart_cgroup.stdout | default(''))"
+    fail_msg: "Para reiniciar o servidor, execute fora de uma sessão CAO (terminal comum ou SSH)."
+  when:
+    - cao_service_enabled | bool
+    - cao_restart_on_change | bool
+    - not ansible_check_mode
+    - cao_service_unit.stat.exists | default(false)
+
+- name: Reiniciar unidade existente do CAO
+  become: true
+  become_user: root
+  ansible.builtin.systemd_service:
+    name: "{{ cao_service_name }}"
+    daemon_reload: true
+    state: restarted
+  when:
+    - cao_service_enabled | bool
+    - cao_restart_on_change | bool
+    - not ansible_check_mode
+    - cao_service_unit.stat.exists
+    - not (cao_service_unit.stat.islnk | default(false))

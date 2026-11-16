@@ -1,0 +1,43 @@
+---
+- name: Validar versão solicitada do uv
+  ansible.builtin.assert:
+    that:
+      - cao_uv_version | string is match('^(latest|[0-9]+\.[0-9]+\.[0-9]+)$')
+    fail_msg: Use uma versão numérica ou latest para o uv.
+
+- name: Instalar uv como usuário comum
+  become: "{{ ansible_facts['user_id'] != ai_stack_user }}"
+  become_user: "{{ ai_stack_user }}"
+  environment: "{{ ai_stack_environment | combine({'UV_TOOL_BIN_DIR': ai_stack_bin_dir}) }}"
+  block:
+    - name: Consultar versão atual do uv
+      ansible.builtin.command:
+        argv: ["{{ ai_stack_bin_dir }}/uv", --version]
+      register: cao_uv_current
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Baixar e instalar uv
+      when: >-
+        cao_uv_current.rc != 0 or ai_stack_upgrade | bool or
+        (cao_uv_version | string != 'latest' and
+         cao_uv_version | string not in (cao_uv_current.stdout | default('')).split())
+      block:
+        - name: Baixar instalador oficial do uv
+          ansible.builtin.get_url:
+            url: "{{ cao_uv_installer_url }}"
+            dest: "{{ ai_stack_cache_dir }}/uv-install.sh"
+            checksum: "{{ cao_uv_installer_checksum | default(omit, true) }}"
+            mode: '0700'
+            force: true
+          when: not ansible_check_mode
+
+        - name: Executar instalador do uv
+          ansible.builtin.command:
+            argv: [/bin/sh, "{{ ai_stack_cache_dir }}/uv-install.sh"]
+          environment:
+            UV_INSTALL_DIR: "{{ ai_stack_bin_dir }}"
+            UV_NO_MODIFY_PATH: '1'
+          changed_when: true
+          when: not ansible_check_mode

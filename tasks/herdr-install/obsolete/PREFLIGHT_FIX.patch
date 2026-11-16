@@ -1,0 +1,59 @@
+diff --git a/a/service-preflight.yml b/b/service-preflight.yml
+index b259922..cdfbdb8 100644
+--- a/a/service-preflight.yml
++++ b/b/service-preflight.yml
+@@ -1,4 +1,28 @@
+ ---
++# Esta validação também roda em ai/cao-service-preflight.yml, play sem os defaults
++# da role ai_stack e ANTES de ai/herdr.yml em ai/all.yml; por isso usa default('tmux')
++# e aceita herdr habilitado. service.yml exige o comando instalado depois do herdr.yml.
++- name: Validar backend de terminal do CAO
++  ansible.builtin.assert:
++    that: cao_terminal_backend | default('tmux') in ['tmux', 'herdr']
++    fail_msg: "cao_terminal_backend deve ser tmux ou herdr (experimental), não '{{ cao_terminal_backend | default('tmux') }}'."
++
++- name: Verificar comando herdr para o backend herdr
++  ansible.builtin.stat:
++    path: "{{ ai_stack_bin_dir }}/herdr"
++  register: cao_herdr_command
++  when: cao_service_enabled | bool and cao_terminal_backend | default('tmux') == 'herdr'
++
++- name: Exigir herdr instalado ou habilitado para o backend herdr
++  ansible.builtin.assert:
++    that: >-
++      (cao_herdr_command.stat.executable | default(false)) or
++      (herdr_enabled | default(true) | bool)
++    fail_msg: >-
++      cao_terminal_backend=herdr exige herdr instalado em {{ ai_stack_bin_dir }}/herdr
++      ou herdr_enabled=true; use cao_terminal_backend=tmux caso contrário.
++  when: cao_service_enabled | bool and cao_terminal_backend | default('tmux') == 'herdr'
++
+ - name: Validar disponibilidade do systemd para o serviço opcional
+   ansible.builtin.assert:
+     that:
+diff --git a/a/service.yml b/b/service.yml
+index 68d5f98..f99a441 100644
+--- a/a/service.yml
++++ b/b/service.yml
+@@ -64,6 +64,21 @@
+         daemon_reload: true
+       when: cao_legacy_removed.changed and not ansible_check_mode
+ 
++    # Em ai/all.yml, ai/herdr.yml já rodou; no check mode o herdr ainda não existe.
++    - name: Exigir comando herdr instalado antes de gravar a unidade
++      ansible.builtin.stat:
++        path: "{{ ai_stack_bin_dir }}/herdr"
++      register: cao_herdr_installed
++      when: cao_terminal_backend == 'herdr'
++
++    - name: Recusar unidade herdr sem o comando herdr
++      ansible.builtin.assert:
++        that: ansible_check_mode or (cao_herdr_installed.stat.executable | default(false))
++        fail_msg: >-
++          cao_terminal_backend=herdr exige {{ ai_stack_bin_dir }}/herdr. Execute
++          ai/herdr.yml antes, ou use cao_terminal_backend=tmux.
++      when: cao_terminal_backend == 'herdr'
++
+     - name: Instalar unidade systemd do CAO
+       ansible.builtin.template:
+         src: cao-server.service.j2

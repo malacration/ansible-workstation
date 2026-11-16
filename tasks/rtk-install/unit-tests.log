@@ -1,0 +1,18 @@
+test_broken_markers_fail (test_configure_rtk.MergeTests.test_broken_markers_fail) ... ok
+test_duplicate_or_custom_matcher_rtk_hooks_fail (test_configure_rtk.MergeTests.test_duplicate_or_custom_matcher_rtk_hooks_fail) ... ok
+test_hooks_preserve_unrelated_settings_events_and_commands (test_configure_rtk.MergeTests.test_hooks_preserve_unrelated_settings_events_and_commands) ... ok
+test_instruction_block_preserves_user_text_and_is_idempotent (test_configure_rtk.MergeTests.test_instruction_block_preserves_user_text_and_is_idempotent) ... ok
+test_malformed_or_legacy_hooks_fail_without_changing_input (test_configure_rtk.MergeTests.test_malformed_or_legacy_hooks_fail_without_changing_input) ... ok
+test_native_existing_hook_is_updated_without_duplicating (test_configure_rtk.MergeTests.test_native_existing_hook_is_updated_without_duplicating) ... ok
+test_symlink_and_outside_home_are_rejected (test_configure_rtk.MergeTests.test_symlink_and_outside_home_are_rejected) ... ok
+test_unknown_release_hook_schema_fails (test_configure_rtk.MergeTests.test_unknown_release_hook_schema_fails) ... ok
+test_dry_run_does_not_change_selected_home (test_configure_rtk.RealReleaseTests.test_dry_run_does_not_change_selected_home) ... ok
+test_invalid_second_client_prevents_partial_configuration (test_configure_rtk.RealReleaseTests.test_invalid_second_client_prevents_partial_configuration) ... ok
+test_native_hooks_rewrite_supported_shell_and_keep_other_tools (test_configure_rtk.RealReleaseTests.test_native_hooks_rewrite_supported_shell_and_keep_other_tools) ... ok
+test_release_init_merge_backups_and_second_run_idempotence (test_configure_rtk.RealReleaseTests.test_release_init_merge_backups_and_second_run_idempotence) ... ok
+test_wrapper_blocks_telemetry_even_with_enabled_config (test_configure_rtk.RealReleaseTests.test_wrapper_blocks_telemetry_even_with_enabled_config) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.635s
+
+OK

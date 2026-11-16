@@ -1,0 +1,52 @@
+{
+  "entrypoint": "/home/andrew/git/ansible-workstation/ai/rtk.yml",
+  "temporary_home": "/tmp/rtk-real-entrypoint-wa5qmz26/home",
+  "temporary_home_removed_after_test": true,
+  "archive_path": "/home/andrew/git/ansible-workstation/tasks/rtk-install/rtk-oss-x86_64-unknown-linux-musl.tar.gz",
+  "audited_archive_sha256": "a28407dc13038bdc9c2a1f5a047b0c636e0c1d495b15523576e2adb992a06a17",
+  "shared_prerequisite_tasks_skipped": "ai_common",
+  "role_defaults_exercised": [
+    "ai_stack_user",
+    "ai_stack_bin_dir",
+    "ai_stack_cache_dir",
+    "ai_stack_environment",
+    "ai_stack_upgrade"
+  ],
+  "only_home_overridden": true,
+  "clients": [],
+  "release_lookup_required": false,
+  "commands": [
+    {
+      "label": "initial_publication",
+      "argv": [
+        "ansible-playbook",
+        "-i",
+        "localhost,",
+        "/home/andrew/git/ansible-workstation/ai/rtk.yml",
+        "--skip-tags",
+        "ai_common",
+        "-e",
+        "@/tmp/rtk-real-entrypoint-wa5qmz26/variables.json"
+      ],
+      "returncode": 0,
+      "stdout": "\nPLAY [Preparar Ubuntu para a stack de IA] **************************************\n\nPLAY [Install RTK OSS local shell filtering] ***********************************\n\nTASK [Gathering Facts] *********************************************************\nok: [localhost]\n\nTASK [ai_stack : Validar sistema e usu\u00e1rio de instala\u00e7\u00e3o da stack] *************\nskipping: [localhost]\n\nTASK [ai_stack : Consultar o diret\u00f3rio home do usu\u00e1rio de instala\u00e7\u00e3o] **********\nskipping: [localhost]\n\nTASK [ai_stack : Validar o diret\u00f3rio home] *************************************\nskipping: [localhost]\n\nTASK [ai_stack : Instalar depend\u00eancias do Ubuntu] ******************************\nskipping: [localhost]\n\nTASK [ai_stack : Preparar diret\u00f3rios do usu\u00e1rio] *******************************\nskipping: [localhost] => (item=/tmp/rtk-real-entrypoint-wa5qmz26/home/.local/bin) \nskipping: [localhost] => (item=/tmp/rtk-real-entrypoint-wa5qmz26/home/.cache/ai-stack) \nskipping: [localhost] => (item=/tmp/rtk-real-entrypoint-wa5qmz26/home/.config/ai-stack) \nskipping: [localhost]\n\nTASK [ai_stack : Adicionar os execut\u00e1veis ao PATH do Bash e Zsh] ***************\nskipping: [localhost] => (item=.profile) \nskipping: [localhost] => (item=.bashrc) \nskipping: [localhost] => (item=.zshrc) \nskipping: [localhost]\n\nTASK [rtk : Validar plataforma e par\u00e2metros RTK] *******************************\nok: [localhost] => {\n    \"changed\": false,\n    \"msg\": \"All assertions passed\"\n}\n\nTASK [rtk : Inspect receipt and executable without running installed RTK] ******\nok: [localhost]\n\nTASK [rtk : Establish installed executable integrity before any version probe] ***\nok: [localhost]\n\nTASK [rtk : Refuse unsafe managed directory ancestors before writes] ***********\nok: [localhost] => {\n    \"changed\": false,\n    \"msg\": \"All assertions passed\"\n}\n\nTASK [rtk : Verificar vers\u00e3o do bin\u00e1rio gerenciado] ****************************\nok: [localhost]\n\nTASK [rtk : Definir necessidade de consultar release] **************************\nok: [localhost]\n\nTASK [rtk : Preparar diret\u00f3rios RTK] *******************************************\nchanged: [localhost] => (item=/tmp/rtk-real-entrypoint-wa5qmz26/home/.local/bin)\nchanged: [localhost] => (item=/tmp/rtk-real-entrypoint-wa5qmz26/home/.cache/ai-stack/rtk)\nchanged: [localhost] => (item=/tmp/rtk-real-entrypoint-wa5qmz26/home/.local/share/ai-stack/rtk)\nchanged: [localhost] => (item=/tmp/rtk-real-entrypoint-wa5qmz26/home/.local/share/ai-stack/rtk/bin)\n\nTASK [rtk : Instalar release oficial verificado] *******************************\nskipping: [localhost]\n\nTASK [rtk : Informar instala\u00e7\u00e3o prevista no check mode] ************************\nskipping: [localhost]\n\nTASK [rtk : Preserve nonregular wrapper destinations without following them] ***\nok: [localhost]\n\nTASK [rtk : Instalar comando RTK com telemetria bloqueada] *********************\nchanged: [localhost]\n\nTASK [rtk : Instalar mesclador das integra\u00e7\u00f5es RTK] ****************************\nchanged: [localhost]\n\nTASK [rtk : Revalidate published executable before running init through wrapper] ***\nok: [localhost]\n\nTASK [rtk : Mesclar hooks e instru\u00e7\u00f5es sem alterar permiss\u00f5es ou MCPs] *********\nok: [localhost]\n\nTASK [rtk : Informar limite da previs\u00e3o das integra\u00e7\u00f5es] ***********************\nskipping: [localhost]\n\nPLAY RECAP *********************************************************************\nlocalhost                  : ok=13   changed=3    unreachable=0    failed=0    skipped=9    rescued=0    ignored=0   \n\n",
+      "stderr": "[WARNING]: Host 'localhost' is using the discovered Python interpreter at '/home/andrew/miniforge3/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.21/reference_appendices/interpreter_discovery.html for more information.\n"
+    },
+    {
+      "label": "repeat_idempotence",
+      "argv": [
+        "ansible-playbook",
+        "-i",
+        "localhost,",
+        "/home/andrew/git/ansible-workstation/ai/rtk.yml",
+        "--skip-tags",
+        "ai_common",
+        "-e",
+        "@/tmp/rtk-real-entrypoint-wa5qmz26/variables.json"
+      ],
+      "returncode": 0,
+      "stdout": "\nPLAY [Preparar Ubuntu para a stack de IA] **************************************\n\nPLAY [Install RTK OSS local shell filtering] ***********************************\n\nTASK [Gathering Facts] *********************************************************\nok: [localhost]\n\nTASK [ai_stack : Validar sistema e usu\u00e1rio de instala\u00e7\u00e3o da stack] *************\nskipping: [localhost]\n\nTASK [ai_stack : Consultar o diret\u00f3rio home do usu\u00e1rio de instala\u00e7\u00e3o] **********\nskipping: [localhost]\n\nTASK [ai_stack : Validar o diret\u00f3rio home] *************************************\nskipping: [localhost]\n\nTASK [ai_stack : Instalar depend\u00eancias do Ubuntu] ******************************\nskipping: [localhost]\n\nTASK [ai_stack : Preparar diret\u00f3rios do usu\u00e1rio] *******************************\nskipping: [localhost] => (item=/tmp/rtk-real-entrypoint-wa5qmz26/home/.local/bin) \nskipping: [localhost] => (item=/tmp/rtk-real-entrypoint-wa5qmz26/home/.cache/ai-stack) \nskipping: [localhost] => (item=/tmp/rtk-real-entrypoint-wa5qmz26/home/.config/ai-stack) \nskipping: [localhost]\n\nTASK [ai_stack : Adicionar os execut\u00e1veis ao PATH do Bash e Zsh] ***************\nskipping: [localhost] => (item=.profile) \nskipping: [localhost] => (item=.bashrc) \nskipping: [localhost] => (item=.zshrc) \nskipping: [localhost]\n\nTASK [rtk : Validar plataforma e par\u00e2metros RTK] *******************************\nok: [localhost] => {\n    \"changed\": false,\n    \"msg\": \"All assertions passed\"\n}\n\nTASK [rtk : Inspect receipt and executable without running installed RTK] ******\nok: [localhost]\n\nTASK [rtk : Establish installed executable integrity before any version probe] ***\nok: [localhost]\n\nTASK [rtk : Refuse unsafe managed directory ancestors before writes] ***********\nok: [localhost] => {\n    \"changed\": false,\n    \"msg\": \"All assertions passed\"\n}\n\nTASK [rtk : Verificar vers\u00e3o do bin\u00e1rio gerenciado] ****************************\nok: [localhost]\n\nTASK [rtk : Definir necessidade de consultar release] **************************\nok: [localhost]\n\nTASK [rtk : Preparar diret\u00f3rios RTK] *******************************************\nok: [localhost] => (item=/tmp/rtk-real-entrypoint-wa5qmz26/home/.local/bin)\nok: [localhost] => (item=/tmp/rtk-real-entrypoint-wa5qmz26/home/.cache/ai-stack/rtk)\nok: [localhost] => (item=/tmp/rtk-real-entrypoint-wa5qmz26/home/.local/share/ai-stack/rtk)\nok: [localhost] => (item=/tmp/rtk-real-entrypoint-wa5qmz26/home/.local/share/ai-stack/rtk/bin)\n\nTASK [rtk : Instalar release oficial verificado] *******************************\nskipping: [localhost]\n\nTASK [rtk : Informar instala\u00e7\u00e3o prevista no check mode] ************************\nskipping: [localhost]\n\nTASK [rtk : Preserve nonregular wrapper destinations without following them] ***\nok: [localhost]\n\nTASK [rtk : Instalar comando RTK com telemetria bloqueada] *********************\nok: [localhost]\n\nTASK [rtk : Instalar mesclador das integra\u00e7\u00f5es RTK] ****************************\nok: [localhost]\n\nTASK [rtk : Revalidate published executable before running init through wrapper] ***\nok: [localhost]\n\nTASK [rtk : Mesclar hooks e instru\u00e7\u00f5es sem alterar permiss\u00f5es ou MCPs] *********\nok: [localhost]\n\nTASK [rtk : Informar limite da previs\u00e3o das integra\u00e7\u00f5es] ***********************\nskipping: [localhost]\n\nPLAY RECAP *********************************************************************\nlocalhost                  : ok=13   changed=0    unreachable=0    failed=0    skipped=9    rescued=0    ignored=0   \n\n",
+      "stderr": "[WARNING]: Host 'localhost' is using the discovered Python interpreter at '/home/andrew/miniforge3/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.21/reference_appendices/interpreter_discovery.html for more information.\n"
+    }
+  ]
+}

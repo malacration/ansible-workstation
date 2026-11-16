@@ -1,0 +1,3 @@
+# Cache local do Ansible/ansible-lint
+.ansible/
+/tasks/rtk-install/ansible-home/smoke-repo/

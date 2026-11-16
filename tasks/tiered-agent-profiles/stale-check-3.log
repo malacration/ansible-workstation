@@ -1,0 +1,6 @@
+test_stale_script_is_not_executed (test_mcp_check_mode.McpCheckModeTests.test_stale_script_is_not_executed) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 6.464s
+
+OK

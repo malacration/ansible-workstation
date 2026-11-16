@@ -1,0 +1,134 @@
+---
+- name: Validar disponibilidade do systemd para o serviço opcional
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['service_mgr'] == 'systemd'
+    fail_msg: O serviço opcional requer systemd. Use cao_service_enabled=false neste host.
+  when: cao_service_enabled | bool
+
+- name: Configurar serviço opcional do CAO
+  become: true
+  become_user: root
+  when: cao_service_enabled | bool
+  block:
+    # Validate and inspect every legacy candidate before changing any unit.
+    - name: Validar nomes das unidades
+      ansible.builtin.assert:
+        that:
+          - item is match('^[A-Za-z0-9_.@-]+$')
+          - item not in ['.', '..']
+        fail_msg: "Nome de unidade systemd inválido: {{ item }}"
+      loop: "{{ [cao_service_name] + cao_service_legacy_names }}"
+
+    - name: Inspecionar unidades legadas sem seguir links
+      ansible.builtin.stat:
+        path: "/etc/systemd/system/{{ item }}.service"
+        follow: false
+      loop: "{{ cao_service_legacy_names | unique | difference([cao_service_name]) }}"
+      register: cao_legacy_stats
+
+    - name: Recusar arquivos legados que não sejam regulares
+      ansible.builtin.assert:
+        that:
+          - not item.stat.exists or (item.stat.isreg | default(false) and not (item.stat.islnk | default(false)))
+        fail_msg: "A unidade legada {{ item.item }} não é um arquivo regular; nenhuma unidade foi alterada."
+      loop: "{{ cao_legacy_stats.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Ler unidades legadas regulares
+      ansible.builtin.slurp:
+        src: "/etc/systemd/system/{{ item.item }}.service"
+      loop: "{{ cao_legacy_stats.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.stat.exists
+      register: cao_legacy_contents
+
+    - name: Confirmar identidade das unidades legadas
+      ansible.builtin.assert:
+        that:
+          - "('User=' ~ ai_stack_user) in (item.content | b64decode).splitlines()"
+          - "('ExecStart=' ~ ai_stack_bin_dir ~ '/cao-server --host 127.0.0.1 --port 9889') in (item.content | b64decode).splitlines()"
+          - "((item.content | b64decode).splitlines() | select('match', '^User=') | list | length) == 1"
+          - "((item.content | b64decode).splitlines() | select('match', '^ExecStart=') | list | length) == 1"
+        fail_msg: "A unidade legada {{ item.item.item }} não corresponde à unidade da role; nenhuma unidade foi alterada."
+      loop: "{{ cao_legacy_contents.results }}"
+      loop_control:
+        label: "{{ item.item.item }}"
+      when: not (item.skipped | default(false))
+
+    - name: Consultar estado das unidades legadas
+      ansible.builtin.command:
+        argv: [systemctl, show, "{{ item.item }}.service", --property=ActiveState, --value]
+      loop: "{{ cao_legacy_stats.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.stat.exists
+      register: cao_legacy_states
+      changed_when: false
+      check_mode: false
+
+    - name: Exigir janela de manutenção para unidades legadas ativas
+      ansible.builtin.assert:
+        that:
+          - item.stdout | trim in ['inactive', 'failed'] or cao_restart_on_change | bool
+        fail_msg: >-
+          A unidade legada {{ item.item.item }} está ativa ou em transição e sua parada
+          encerra as sessões CAO. Execute novamente em janela de manutenção com
+          -e cao_restart_on_change=true. Nenhuma unidade foi alterada.
+      loop: "{{ cao_legacy_states.results }}"
+      loop_control:
+        label: "{{ item.item.item }}"
+      when: not (item.skipped | default(false))
+
+    - name: Informar migração prevista em modo de verificação
+      ansible.builtin.debug:
+        msg: "Seria parada e desabilitada a unidade legada {{ item.item }}, removido seu arquivo e recarregado o systemd."
+      loop: "{{ cao_legacy_stats.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: ansible_check_mode and item.stat.exists
+      changed_when: true
+
+    - name: Parar e desabilitar unidades legadas
+      ansible.builtin.systemd_service:
+        name: "{{ item.item }}.service"
+        enabled: false
+        state: stopped
+      loop: "{{ cao_legacy_stats.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.stat.exists and not ansible_check_mode
+
+    - name: Remover arquivos das unidades legadas
+      ansible.builtin.file:
+        path: "/etc/systemd/system/{{ item.item }}.service"
+        state: absent
+      loop: "{{ cao_legacy_stats.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.stat.exists
+      register: cao_legacy_removed
+
+    - name: Recarregar systemd após remoção das unidades legadas
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      when: cao_legacy_removed.changed and not ansible_check_mode
+
+    - name: Instalar unidade systemd do CAO
+      ansible.builtin.template:
+        src: cao-server.service.j2
+        dest: "/etc/systemd/system/{{ cao_service_name }}.service"
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Reiniciar servidor CAO
+
+    - name: Habilitar e iniciar servidor CAO
+      ansible.builtin.systemd_service:
+        name: "{{ cao_service_name }}"
+        daemon_reload: true
+        enabled: true
+        state: started
+      when: not ansible_check_mode

@@ -1,0 +1,18 @@
+
+PLAY [localhost] ***************************************************************
+
+TASK [ansible.builtin.file] ****************************************************
+[WARNING]: Host 'localhost' is using the discovered Python interpreter at '/home/andrew/miniforge3/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.21/reference_appendices/interpreter_discovery.html for more information.
+ok: [localhost]
+
+TASK [ansible.builtin.template] ************************************************
+ok: [localhost] => (item={'name': 'code_supervisor', 'template': 'code_supervisor'})
+changed: [localhost] => (item={'name': 'developer_low', 'template': 'developer'})
+changed: [localhost] => (item={'name': 'developer_medium', 'template': 'developer'})
+changed: [localhost] => (item={'name': 'developer_high', 'template': 'developer'})
+changed: [localhost] => (item={'name': 'reviewer_basic', 'template': 'reviewer'})
+changed: [localhost] => (item={'name': 'reviewer_advanced', 'template': 'reviewer'})
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=2    changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+

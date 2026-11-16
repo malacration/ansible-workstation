@@ -1,0 +1,3 @@
+---
+# O subplaybook deve importar ai/common.yml; testes isolados fornecem suas vars.
+dependencies: []

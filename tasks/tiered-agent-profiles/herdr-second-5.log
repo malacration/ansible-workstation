@@ -1,0 +1,67 @@
+
+PLAY [localhost] ***************************************************************
+
+TASK [Gathering Facts] *********************************************************
+[WARNING]: Host 'localhost' is using the discovered Python interpreter at '/home/andrew/miniforge3/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.21/reference_appendices/interpreter_discovery.html for more information.
+ok: [localhost]
+
+TASK [herdr : Validar parâmetros do herdr] *************************************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [herdr : Informar arquitetura sem binário oficial do herdr] ***************
+skipping: [localhost]
+
+TASK [herdr : Gerenciar herdr como usuário dos agentes] ************************
+included: /home/andrew/git/ansible-workstation/ai/roles/herdr/tasks/install.yml for localhost
+
+TASK [herdr : Inspecionar recibo e executável sem executar o herdr instalado] ***
+ok: [localhost]
+
+TASK [herdr : Registrar integridade do executável antes de consultar a versão] ***
+ok: [localhost]
+
+TASK [herdr : Recusar ancestrais inseguros antes de qualquer escrita] **********
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [herdr : Verificar versão do binário gerenciado] **************************
+ok: [localhost]
+
+TASK [herdr : Definir necessidade de consultar o release] **********************
+ok: [localhost]
+
+TASK [herdr : Preparar diretórios do herdr] ************************************
+ok: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/herdr-amend-home-5/.local/bin)
+ok: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/herdr-amend-home-5/.cache/ai-stack/herdr)
+ok: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/herdr-amend-home-5/.local/share/ai-stack/herdr)
+ok: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/herdr-amend-home-5/.local/share/ai-stack/herdr/bin)
+
+TASK [herdr : Instalar release oficial verificado] *****************************
+skipping: [localhost]
+
+TASK [herdr : Informar instalação prevista no check mode] **********************
+skipping: [localhost]
+
+TASK [herdr : Preservar destino não regular do comando sem segui-lo] ***********
+ok: [localhost]
+
+TASK [herdr : Instalar comando herdr no PATH da stack] *************************
+ok: [localhost]
+
+TASK [herdr : Revalidar executável publicado] **********************************
+ok: [localhost]
+
+TASK [herdr : Localizar backups do binário e do recibo já revalidados] *********
+ok: [localhost]
+
+TASK [herdr : Remover backups do binário e do recibo] **************************
+skipping: [localhost]
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=13   changed=0    unreachable=0    failed=0    skipped=4    rescued=0    ignored=0   
+

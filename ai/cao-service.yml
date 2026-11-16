@@ -1,0 +1,19 @@
+---
+- name: Validar backend de terminal do CAO
+  ansible.builtin.import_playbook: cao-terminal-backend.yml
+  tags: [herdr]
+
+- name: Verificar previamente unidades do CAO
+  ansible.builtin.import_playbook: cao-service-preflight.yml
+
+- name: Configurar serviço opcional do CAO
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: true
+  tasks:
+    - name: Configurar somente a unidade systemd do CAO
+      ansible.builtin.import_role:
+        name: cao
+        tasks_from: service
+      when: cao_service_enabled | bool

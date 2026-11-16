@@ -1,0 +1,246 @@
+#!/usr/bin/env python3
+"""Generate release-native RTK init output in isolation, then merge owned pieces.
+
+Only the selected hook JSON and instruction files are read. Client config.toml,
+credentials, MCPs, permission settings and existing RTK configs are never read.
+The public RTK wrapper forces the upstream telemetry opt-out on every call.
+"""
+
+import argparse
+import copy
+import hashlib
+import json
+import os
+from pathlib import Path
+import shlex
+import stat
+import subprocess
+import sys
+import tempfile
+
+
+START = '<!-- BEGIN ANSIBLE RTK -->'
+END = '<!-- END ANSIBLE RTK -->'
+
+
+def safe_path(home, path):
+    """Refuse links before reading, including dangling links and parent links."""
+    path = Path(os.path.abspath(path))
+    if path == home or home not in path.parents:
+        raise ValueError('RTK integration paths must be inside the selected home')
+    for candidate in [path, *path.parents]:
+        if candidate.is_symlink():
+            raise ValueError('Symlink in RTK integration path; review it manually')
+    if path.exists() and not path.is_file():
+        raise ValueError('RTK integration destination must be a regular file')
+    return path
+
+
+def merge_block(original, payload):
+    """Preserve all user text byte for byte outside our explicitly owned block."""
+    block = START + '\n' + payload.rstrip() + '\n' + END
+    if original.count(START) != original.count(END) or original.count(START) > 1:
+        raise ValueError('Unbalanced or duplicated managed RTK instruction markers')
+    if START in original:
+        before, rest = original.split(START)
+        _, after = rest.split(END)
+        return before + block + after
+    separator = '' if not original else ('\n' if original.endswith('\n') else '\n\n')
+    return original + separator + block + '\n'
+
+
+def is_rtk_hook(command, client, binary):
+    """Adopt exact native commands; reject ambiguous path-shaped custom wrappers."""
+    try:
+        words = shlex.split(command)
+    except ValueError:
+        return False
+    if len(words) < 3 or words[1:3] != ['hook', client]:
+        return False
+    executable = Path(words[0])
+    # The native CLI spelling identifies RTK even when its installation moved.
+    # Arbitrarily named previous wrappers cannot be adopted unambiguously.
+    if words[0] in ['rtk', str(binary)] or (executable.is_absolute() and executable.name == 'rtk'):
+        if len(words) != 3:
+            raise ValueError('Customized native RTK hook command; review manually before migration')
+        return True
+    if len(words) != 3:
+        return False
+    if executable.is_absolute() or '/' in words[0]:
+        raise ValueError('Ambiguous native hook executable; review the previous RTK wrapper path')
+    return False
+
+
+def merge_hooks(original, generated, client, binary):
+    """Keep unrelated events, matchers, hooks and top-level settings intact."""
+    root = copy.deepcopy(original)
+    if not isinstance(root, dict):
+        raise ValueError('Hook JSON root must be an object')
+    events = root.setdefault('hooks', {})
+    if not isinstance(events, dict):
+        raise ValueError('hooks must be an object')
+    groups = events.setdefault('PreToolUse', [])
+    if not isinstance(groups, list):
+        raise ValueError('PreToolUse must be an array')
+    desired = copy.deepcopy(generated['hooks']['PreToolUse'])
+    if len(desired) != 1 or desired[0].get('matcher') != 'Bash':
+        raise ValueError('Unsupported RTK init hook schema; review the new release')
+    hooks = desired[0].get('hooks', [])
+    if len(hooks) != 1 or hooks[0].get('command') != 'rtk hook ' + client:
+        raise ValueError('Unsupported RTK init hook command; review the new release')
+    desired_command = shlex.quote(str(binary)) + ' hook ' + client
+    hooks[0]['command'] = desired_command
+    matches = []
+    for group in groups:
+        if not isinstance(group, dict) or not isinstance(group.get('hooks'), list):
+            raise ValueError('Invalid PreToolUse hook group')
+        for hook in group['hooks']:
+            if not isinstance(hook, dict):
+                raise ValueError('Invalid PreToolUse hook entry')
+            command = hook.get('command', '')
+            if not isinstance(command, str):
+                raise ValueError('Invalid hook command')
+            if 'rtk-rewrite' in command:
+                raise ValueError('Legacy RTK hook found; migrate it manually before applying')
+            if hook.get('type') == 'command' and is_rtk_hook(command, client, binary):
+                if group.get('matcher') != 'Bash':
+                    raise ValueError('Existing RTK hook has a custom matcher; review manually')
+                matches.append(hook)
+    if len(matches) > 1:
+        raise ValueError('Multiple RTK hooks already exist; review duplicates manually')
+    if matches:
+        matches[0]['command'] = desired_command
+    else:
+        groups.extend(desired)
+    return root
+
+
+def atomic_write(path, data, mode):
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    descriptor, name = tempfile.mkstemp(prefix='.rtk-', dir=path.parent)
+    try:
+        with os.fdopen(descriptor, 'wb') as output:
+            output.write(data)
+            os.fchmod(output.fileno(), mode)
+        os.replace(name, path)
+    finally:
+        if os.path.exists(name):
+            os.unlink(name)
+
+
+def configure(home, binary, claude_dir, codex_dir, clients, check=False):
+    home = Path(os.path.abspath(home))
+    binary = Path(os.path.abspath(binary))
+    selected = set(clients)
+    if selected - {'claude_code', 'codex'}:
+        raise ValueError('Unsupported RTK client')
+    # Validate all destinations before invoking init or opening any user files.
+    destinations = {}
+    for client, directory, hook_name, instructions in [
+        ('claude_code', claude_dir, 'settings.json', 'CLAUDE.md'),
+        ('codex', codex_dir, 'hooks.json', 'AGENTS.md'),
+    ]:
+        if client in selected:
+            destinations[client] = [safe_path(home, Path(directory) / name)
+                                    for name in [hook_name, instructions, 'RTK.md']]
+    changes = {}
+    originals = {}
+
+    def propose(path, value):
+        old = path.read_bytes() if path.exists() else None
+        new = value.encode('utf-8')
+        if old != new:
+            changes[path] = new
+            originals[path] = old
+
+    # No copy of client settings is passed to init. It can only see empty staging
+    # directories, with every relevant HOME override pinned to those directories.
+    with tempfile.TemporaryDirectory(prefix='rtk-init-') as temporary:
+        stage = Path(temporary)
+        environment = {
+            'PATH': str(binary.parent) + ':/usr/local/bin:/usr/bin:/bin',
+            'HOME': str(stage), 'CODEX_HOME': str(stage / '.codex'),
+            'CLAUDE_CONFIG_DIR': str(stage / '.claude'),
+            'XDG_CONFIG_HOME': str(stage / '.config'),
+            'XDG_DATA_HOME': str(stage / '.local/share'),
+            'XDG_CACHE_HOME': str(stage / '.cache'),
+            'RTK_TELEMETRY_DISABLED': '1', 'RTK_ONRAMP_DISABLED': '1',
+        }
+        for client, paths in destinations.items():
+            native = 'claude' if client == 'claude_code' else 'codex'
+            args = ['init', '-g', '--no-trust-filters']
+            args += ['--auto-patch'] if native == 'claude' else ['--codex']
+            subprocess.run([str(binary), *args], env=environment, cwd=stage,
+                           input='', text=True, capture_output=True, check=True,
+                           timeout=30)
+            staged_dir = stage / ('.claude' if native == 'claude' else '.codex')
+            hook_path, instructions, awareness = paths
+            generated = json.loads((staged_dir / hook_path.name).read_text())
+            original = json.loads(hook_path.read_text()) if hook_path.exists() else {}
+            merged = merge_hooks(original, generated, native, binary)
+            # Avoid reformatting a user's JSON when it already contains our hook.
+            if merged != original:
+                propose(hook_path, json.dumps(merged, indent=2, ensure_ascii=False) + '\n')
+            body = (staged_dir / 'RTK.md').read_text()
+            if body.startswith('<!-- rtk-owned:'):
+                body = body.split('\n', 1)[1].lstrip('\n')
+            old_awareness = awareness.read_text() if awareness.exists() else ''
+            propose(awareness, merge_block(old_awareness, body))
+            old_instructions = instructions.read_text() if instructions.exists() else ''
+            if native == 'claude':
+                payload = '@RTK.md'
+            else:
+                # Codex does not promise Markdown @ imports; include the awareness
+                # inline, plus explicit fallback for tools that do not trigger hooks.
+                payload = (body.rstrip() + '\n\nUse `rtk <command>` for supported shell commands. '
+                           'The local wrapper disables telemetry. Use `rtk bypass <command>` '
+                           'when unfiltered output is required.')
+            propose(instructions, merge_block(old_instructions, payload))
+
+    backups = {}
+    for path, old in originals.items():
+        if old is not None:
+            digest = hashlib.sha256(old).hexdigest()
+            backup = safe_path(home, path.with_name(path.name + '.rtk-backup.' + digest))
+            if backup.exists() and backup.read_bytes() != old:
+                raise ValueError('Existing RTK backup conflicts with current file content')
+            backups[backup] = old
+    if not check:
+        # Preserve originals before the first write. No setting values are logged.
+        for path, old in backups.items():
+            if not path.exists():
+                path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+                with path.open('xb') as output:
+                    os.chmod(path, 0o600)
+                    output.write(old)
+        for path, new in changes.items():
+            mode = stat.S_IMODE(path.stat().st_mode) if path.exists() else 0o600
+            atomic_write(path, new, mode)
+    return {'changed': bool(changes), 'files': [str(p) for p in changes],
+            'backups': [str(p) for p in backups], 'clients': sorted(selected)}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--home', required=True, type=Path)
+    parser.add_argument('--binary', required=True, type=Path)
+    parser.add_argument('--claude-dir', required=True, type=Path)
+    parser.add_argument('--codex-dir', required=True, type=Path)
+    parser.add_argument('--clients', default='claude_code,codex')
+    parser.add_argument('--check', action='store_true')
+    args = parser.parse_args()
+    try:
+        result = configure(args.home, args.binary, args.claude_dir, args.codex_dir,
+                           list(filter(None, args.clients.split(','))), args.check)
+        print(json.dumps(result))
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
+        # Do not echo client configuration or subprocess output in error messages.
+        print('RTK integration failed: ' + type(error).__name__ + ': '
+              + (str(error) if isinstance(error, (ValueError, KeyError)) else
+                 'check file permissions and release init compatibility'), file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

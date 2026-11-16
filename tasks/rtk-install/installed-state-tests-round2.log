@@ -1,0 +1,15 @@
+test_actual_role_tasks_skip_invalid_binary_in_normal_and_check_modes (test_installed_state.AnsibleExecutionGateTests.test_actual_role_tasks_skip_invalid_binary_in_normal_and_check_modes) ... ok
+test_directory_and_fifo_are_not_read (test_installed_state.StateTests.test_directory_and_fifo_are_not_read) ... ok
+test_linked_parent_is_refused_before_read_or_publication (test_installed_state.StateTests.test_linked_parent_is_refused_before_read_or_publication) ... ok
+test_malformed_and_unsupported_receipts_are_reconciliation_states (test_installed_state.StateTests.test_malformed_and_unsupported_receipts_are_reconciliation_states) ... ok
+test_matching_supported_receipt_is_valid_without_executing (test_installed_state.StateTests.test_matching_supported_receipt_is_valid_without_executing) ... ok
+test_mismatch_is_invalid_without_executing (test_installed_state.StateTests.test_mismatch_is_invalid_without_executing) ... ok
+test_nonexecutable_or_missing_binary_is_invalid (test_installed_state.StateTests.test_nonexecutable_or_missing_binary_is_invalid) ... ok
+test_publication_preserves_nonregular_objects_without_following_targets (test_installed_state.StateTests.test_publication_preserves_nonregular_objects_without_following_targets) ... ok
+test_symlink_binary_is_rejected_even_when_target_hash_matches (test_installed_state.StateTests.test_symlink_binary_is_rejected_even_when_target_hash_matches) ... ok
+test_symlink_receipt_is_rejected (test_installed_state.StateTests.test_symlink_receipt_is_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 9.261s
+
+OK

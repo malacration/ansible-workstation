@@ -1,0 +1,41 @@
+---
+- name: Visibilidade no play herdr
+  hosts: localhost
+  gather_facts: false
+  vars:
+    ai_stack_home: /home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/visibility-home-5
+    ai_stack_user: test
+    ansible_facts: {user_id: test, architecture: x86_64}
+  roles:
+    - {role: ai_stack, when: false}
+    - {role: herdr, when: false}
+  tasks:
+    - ansible.builtin.debug:
+        var: cao_terminal_backend
+- name: Visibilidade no play de backend
+  hosts: localhost
+  gather_facts: false
+  vars:
+    ai_stack_home: /home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/visibility-home-5
+    ai_stack_user: test
+    ansible_facts: {user_id: test, architecture: x86_64}
+  roles:
+    - {role: ai_stack, when: false}
+  tasks:
+    - ansible.builtin.import_role:
+        name: herdr
+        tasks_from: backend
+    - ansible.builtin.debug:
+        var: cao_terminal_backend
+- name: Visibilidade no play do serviço
+  hosts: localhost
+  gather_facts: false
+  vars:
+    ai_stack_home: /home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/visibility-home-5
+    ai_stack_user: test
+    ansible_facts: {user_id: test, architecture: x86_64}
+  roles:
+    - {role: cao, when: false}
+  tasks:
+    - ansible.builtin.debug:
+        var: cao_terminal_backend

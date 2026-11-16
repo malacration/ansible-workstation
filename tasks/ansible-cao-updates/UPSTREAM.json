@@ -1,0 +1,29 @@
+{
+  "pypi": {
+    "url": "https://pypi.org/pypi/cli-agent-orchestrator/json",
+    "version": "2.5.4"
+  },
+  "commit": {
+    "url": "https://api.github.com/repos/awslabs/cli-agent-orchestrator/commits/main",
+    "sha": "3e30ea3ed6e7fb607b13358d81123afff5a8e69f",
+    "date": "2026-11-16T12:31:13Z"
+  },
+  "upstream-pyproject": {
+    "url": "https://raw.githubusercontent.com/awslabs/cli-agent-orchestrator/3e30ea3ed6e7fb607b13358d81123afff5a8e69f/pyproject.toml"
+  },
+  "upstream-setup": {
+    "url": "https://raw.githubusercontent.com/awslabs/cli-agent-orchestrator/3e30ea3ed6e7fb607b13358d81123afff5a8e69f/docs/ephemeral-agents-agent-setup.md"
+  },
+  "upstream-decisions": {
+    "url": "https://raw.githubusercontent.com/awslabs/cli-agent-orchestrator/3e30ea3ed6e7fb607b13358d81123afff5a8e69f/docs/decisions.md"
+  },
+  "upstream-types": {
+    "url": "https://raw.githubusercontent.com/awslabs/cli-agent-orchestrator/3e30ea3ed6e7fb607b13358d81123afff5a8e69f/src/cli_agent_orchestrator/decisions/types.py"
+  },
+  "upstream-ephemeral": {
+    "url": "https://raw.githubusercontent.com/awslabs/cli-agent-orchestrator/3e30ea3ed6e7fb607b13358d81123afff5a8e69f/docs/ephemeral-agents.md"
+  },
+  "upstream-engine": {
+    "url": "https://raw.githubusercontent.com/awslabs/cli-agent-orchestrator/3e30ea3ed6e7fb607b13358d81123afff5a8e69f/src/cli_agent_orchestrator/decisions/engine.py"
+  }
+}

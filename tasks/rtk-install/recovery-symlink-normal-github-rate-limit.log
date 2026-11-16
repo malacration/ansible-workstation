@@ -1,0 +1,59 @@
+
+PLAY [Validar apenas RTK em HOME isolado] **************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [localhost]
+
+TASK [Impedir aplicação acidental no HOME real] ********************************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [../../ai/roles/rtk : Validar plataforma e parâmetros RTK] ****************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [../../ai/roles/rtk : Inspect receipt and executable without running installed RTK] ***
+ok: [localhost]
+
+TASK [../../ai/roles/rtk : Establish installed executable integrity before any version probe] ***
+ok: [localhost]
+
+TASK [../../ai/roles/rtk : Refuse unsafe managed directory ancestors before writes] ***
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [../../ai/roles/rtk : Verificar versão do binário gerenciado] *************
+skipping: [localhost]
+
+TASK [../../ai/roles/rtk : Definir necessidade de consultar release] ***********
+ok: [localhost]
+
+TASK [../../ai/roles/rtk : Preparar diretórios RTK] ****************************
+ok: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-home/.local/bin)
+ok: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-home/.cache/ai-stack/rtk)
+ok: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-home/.local/share/ai-stack/rtk)
+ok: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-home/.local/share/ai-stack/rtk/bin)
+
+TASK [../../ai/roles/rtk : Instalar release oficial verificado] ****************
+included: /home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/release.yml for localhost
+
+TASK [../../ai/roles/rtk : Consultar metadados oficiais do release solicitado] ***
+[ERROR]: Task failed: Module failed: Status code was 403 and not [200]: HTTP Error 403: rate limit exceeded
+Origin: /home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/release.yml:2:3
+
+1 ---
+2 - name: Consultar metadados oficiais do release solicitado
+    ^ column 3
+
+fatal: [localhost]: FAILED! => {"access_control_allow_origin": "*", "access_control_expose_headers": "ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, X-RateLimit-Used, X-RateLimit-Resource, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, Deprecation, Sunset", "changed": false, "connection": "close", "content": "{\"message\":\"API rate limit exceeded for 200.9.224.142. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)\",\"documentation_url\":\"https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting\"}\n", "content_length": "279", "content_security_policy": "default-src 'none'; style-src 'unsafe-inline'", "content_type": "application/json; charset=utf-8", "date": "Mon, 16 Nov 2026 14:10:22 GMT", "elapsed": 0, "json": {"documentation_url": "https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting", "message": "API rate limit exceeded for 200.9.224.142. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)"}, "msg": "Status code was 403 and not [200]: HTTP Error 403: rate limit exceeded", "redirected": false, "referrer_policy": "origin-when-cross-origin, strict-origin-when-cross-origin", "server": "Varnish", "status": 403, "strict_transport_security": "max-age=31536000; includeSubdomains; preload", "url": "https://api.github.com/repos/rtk-ai/rtk/releases/tags/v1.2.0", "x_content_type_options": "nosniff", "x_frame_options": "deny", "x_github_edge_region": "brazilsouth", "x_github_media_type": "github.v3; format=json", "x_github_request_id": "6881:279520:AB063:115372:6AFB0ECE", "x_ratelimit_limit": "60", "x_ratelimit_remaining": "0", "x_ratelimit_reset": "1794838249", "x_ratelimit_resource": "core", "x_ratelimit_used": "60", "x_xss_protection": "1; mode=block"}
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=9    changed=0    unreachable=0    failed=1    skipped=1    rescued=0    ignored=0   
+
+[WARNING]: provided hosts list is empty, only localhost is available. Note that the implicit localhost does not match 'all'

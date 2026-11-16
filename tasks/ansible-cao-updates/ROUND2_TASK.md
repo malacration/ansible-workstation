@@ -1,0 +1,5 @@
+# Round two correction task
+
+Implement both P2 findings in REVIEW.md, which was read completely before changes. Normalize auxiliary requirements (distribution/extra aliases and canonical specifiers), deduplicate equivalent requirements, and prevent ordinary runs from advancing mutable Git refs. Preserve receipt-level constraints/resolution state, or reject unsupported nonempty state before invoking uv tool install. Add focused regressions; rerun relevant checks; refresh REPORT.md, CHANGES.diff, VALIDATION.json, FINAL_STATE.json, FILES.json, COMMANDS.md and REVIEW_TASK.md for independent round two review. Keep RTK untouched. Do not apply the workstation playbook, change the live CAO tool environment or restart servers/sessions. New technical records and instructions are in English; existing repository documentation is not translated unnecessarily.
+
+The written correction task is preserved in round1/REVIEW.md. The eight reviewed implementation hashes were verified and their files checkpointed in round1/implementation before editing. No applicable AGENTS.md was found in the target paths or ancestors; git status was read first.

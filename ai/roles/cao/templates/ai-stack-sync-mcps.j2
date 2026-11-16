@@ -1,0 +1,10 @@
+#!/bin/sh
+exec {{ (cao_mcp_uv_tools_dir.stdout ~ '/cli-agent-orchestrator/bin/python') | quote }} \
+  {{ (ai_stack_home ~ '/.local/share/ai-stack/sync_mcps.py') | quote }} \
+  --home {{ ai_stack_home | quote }} \
+  --definitions-only \
+  --base-dir {{ (ai_stack_home ~ '/.local/share/ai-stack/profiles') | quote }} \
+  --prefix {{ cao_mcp_profile_prefix | quote }} \
+  --clients {% for client in cao_mcp_clients %}{{ client | quote }} {% endfor %}\
+  --profiles {% for profile in cao_mcp_profiles %}{{ profile | quote }} {% endfor %}\
+  "$@"

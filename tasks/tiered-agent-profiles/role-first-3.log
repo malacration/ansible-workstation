@@ -1,0 +1,160 @@
+
+PLAY [localhost] ***************************************************************
+
+TASK [ansible.builtin.include_tasks] *******************************************
+included: /home/andrew/git/ansible-workstation/ai/roles/cao/tasks/mcp.yml for localhost
+
+TASK [Validar clientes e perfis para compartilhamento dos MCPs] ****************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [Validar perfis selecionados e prefixos legados] **************************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [Validar estrutura de esforços e modelos] *********************************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [Validar esforços e modelos para cada definição] **************************
+ok: [localhost] => (item=supervisor) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "description": "Coding supervisor coordinating development and review",
+        "name": "supervisor",
+        "tags": [
+            "supervisor",
+            "coordination",
+            "effort-medium"
+        ],
+        "template": "supervisor"
+    },
+    "msg": "All assertions passed"
+}
+ok: [localhost] => (item=developer_low) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "description": "Generalist developer for simple mechanical or single-file changes",
+        "name": "developer_low",
+        "tags": [
+            "coding",
+            "developer",
+            "effort-low",
+            "simple-tasks"
+        ],
+        "template": "developer"
+    },
+    "msg": "All assertions passed"
+}
+ok: [localhost] => (item=developer_medium) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "description": "Generalist developer for features and fixes requiring tests",
+        "name": "developer_medium",
+        "tags": [
+            "coding",
+            "developer",
+            "effort-medium",
+            "feature"
+        ],
+        "template": "developer"
+    },
+    "msg": "All assertions passed"
+}
+ok: [localhost] => (item=developer_high) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "description": "Generalist developer for complex or high-risk work",
+        "name": "developer_high",
+        "tags": [
+            "coding",
+            "developer",
+            "effort-high",
+            "complex"
+        ],
+        "template": "developer"
+    },
+    "msg": "All assertions passed"
+}
+ok: [localhost] => (item=reviewer_basic) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "description": "Code reviewer for simple and medium complexity work",
+        "name": "reviewer_basic",
+        "tags": [
+            "review",
+            "reviewer",
+            "effort-low",
+            "simple-tasks"
+        ],
+        "template": "reviewer"
+    },
+    "msg": "All assertions passed"
+}
+ok: [localhost] => (item=reviewer_advanced) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "description": "Code reviewer for complex or high-risk work",
+        "name": "reviewer_advanced",
+        "tags": [
+            "review",
+            "reviewer",
+            "effort-high",
+            "complex"
+        ],
+        "template": "reviewer"
+    },
+    "msg": "All assertions passed"
+}
+
+TASK [Consultar diretório dos ambientes uv] ************************************
+[WARNING]: Host 'localhost' is using the discovered Python interpreter at '/home/andrew/miniforge3/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.21/reference_appendices/interpreter_discovery.html for more information.
+ok: [localhost]
+
+TASK [Preparar diretório do sincronizador] *************************************
+ok: [localhost]
+
+TASK [Preparar diretório privado das definições de perfis] *********************
+ok: [localhost]
+
+TASK [Instalar definições de perfis gerenciadas] *******************************
+changed: [localhost] => (item={'name': 'supervisor', 'template': 'supervisor', 'description': 'Coding supervisor coordinating development and review', 'tags': ['supervisor', 'coordination', 'effort-medium']})
+ok: [localhost] => (item={'name': 'developer_low', 'template': 'developer', 'description': 'Generalist developer for simple mechanical or single-file changes', 'tags': ['coding', 'developer', 'effort-low', 'simple-tasks']})
+ok: [localhost] => (item={'name': 'developer_medium', 'template': 'developer', 'description': 'Generalist developer for features and fixes requiring tests', 'tags': ['coding', 'developer', 'effort-medium', 'feature']})
+ok: [localhost] => (item={'name': 'developer_high', 'template': 'developer', 'description': 'Generalist developer for complex or high-risk work', 'tags': ['coding', 'developer', 'effort-high', 'complex']})
+changed: [localhost] => (item={'name': 'reviewer_basic', 'template': 'reviewer', 'description': 'Code reviewer for simple and medium complexity work', 'tags': ['review', 'reviewer', 'effort-low', 'simple-tasks']})
+changed: [localhost] => (item={'name': 'reviewer_advanced', 'template': 'reviewer', 'description': 'Code reviewer for complex or high-risk work', 'tags': ['review', 'reviewer', 'effort-high', 'complex']})
+
+TASK [Instalar sincronizador dos MCPs] *****************************************
+changed: [localhost]
+
+TASK [Instalar comando de sincronização dos MCPs] ******************************
+ok: [localhost]
+
+TASK [Verificar se o sincronizador já existe] **********************************
+ok: [localhost]
+
+TASK [Sincronizar MCPs e gerar perfis do CAO] **********************************
+changed: [localhost]
+
+TASK [Informar indisponibilidade da previsão] **********************************
+skipping: [localhost]
+
+TASK [Informar perfis e definições removidos ou previstos para remoção] ********
+skipping: [localhost]
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=13   changed=3    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0   
+

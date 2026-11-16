@@ -1,0 +1,28 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - ../../ai/roles/cao/defaults/main.yml
+  vars:
+    ai_stack_home: /home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/mcp-amend-home-5
+    ai_stack_bin_dir: "{{ ai_stack_home }}/bin"
+    ai_stack_user: "{{ lookup('env', 'USER') }}"
+    ansible_facts:
+      user_id: "{{ lookup('env', 'USER') }}"
+    ai_stack_environment:
+      HOME: "{{ ai_stack_home }}"
+      UV_TOOL_DIR: /home/andrew/.local/share/uv/tools
+  pre_tasks:
+    - name: Criar diretório para pré-requisito uv no HOME vazio
+      ansible.builtin.file:
+        path: "{{ ai_stack_bin_dir }}"
+        state: directory
+        mode: '0700'
+    - name: Disponibilizar uv existente somente no HOME isolado
+      ansible.builtin.file:
+        src: /home/andrew/.local/bin/uv
+        dest: "{{ ai_stack_bin_dir }}/uv"
+        state: link
+  tasks:
+    - ansible.builtin.include_tasks: ../../ai/roles/cao/tasks/mcp.yml

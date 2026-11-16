@@ -1,0 +1,5 @@
+absent ~/.local/bin/herdr
+absent ~/.local/share/ai-stack/herdr
+absent ~/.cache/ai-stack/herdr
+absent ~/.config/herdr
+2026-11-13 13:42:27.645798035 -0400 /etc/systemd/system/cao-server-andrew.service

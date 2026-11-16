@@ -1,0 +1,65 @@
+---
+# Copie para um arquivo local e use: -e @minhas-variaveis.yml
+# ai_stack_user: andrew  # Opcional: por padrão usa o usuário da workstation.
+ai_stack_upgrade: false
+codex_version: latest
+claude_version: stable
+cao_uv_version: latest
+cao_source: git  # pypi para releases publicadas; latest não significa main.
+cao_git_url: https://github.com/awslabs/cli-agent-orchestrator.git
+cao_git_ref: 3e30ea3ed6e7fb607b13358d81123afff5a8e69f  # main para branch móvel.
+cao_version: latest  # Aplicável apenas a cao_source=pypi.
+cao_upgrade: false  # Atualização apenas do CAO; não atualiza uv/outros CLIs.
+cao_extras: []  # Acrescenta aos extras já declarados no recibo uv.
+cao_with_packages: []  # Acrescenta aos --with já declarados no recibo uv.
+cao_restart_on_change: false
+cao_python_version: '3.12'
+cao_service_enabled: false
+cao_service_name: cao-server
+cao_service_legacy_names: ["cao-server-{{ ai_stack_user }}"]
+cao_mcp_sync_enabled: true
+cao_mcp_clients: [codex, claude_code]
+cao_mcp_profiles: [supervisor, developer_low, developer_medium, developer_high, reviewer_basic, reviewer_advanced]
+cao_profile_efforts:
+  supervisor: {codex: medium, claude: medium}
+  developer_low: {codex: low, claude: low}
+  developer_medium: {codex: medium, claude: medium}
+  developer_high: {codex: high, claude: high}
+  reviewer_basic: {codex: low, claude: low}
+  reviewer_advanced: {codex: high, claude: high}
+cao_profile_models:
+  supervisor: {codex: null, claude: null}
+  developer_low: {codex: null, claude: opus}
+  developer_medium: {codex: null, claude: opus}
+  developer_high: {codex: null, claude: opus}
+  reviewer_basic: {codex: null, claude: null}
+  reviewer_advanced: {codex: null, claude: null}
+cao_mcp_profile_prefix: mala
+cao_mcp_prune_prefixes: [ai_stack]
+
+# Chrome DevTools MCP chama os subplaybooks de Node.js e Chrome.
+chrome_devtools_enabled: true
+chrome_devtools_install_browser: true
+chrome_devtools_version: latest
+chrome_devtools_clients: [codex, claude_code]
+chrome_devtools_args: []  # Ex.: [--headless] em uma máquina sem interface gráfica.
+
+# Playwright MCP usa o Chrome instalado localmente por padrão.
+playwright_mcp_enabled: true
+playwright_mcp_install_browser: true
+playwright_mcp_version: latest
+playwright_mcp_clients: [codex, claude_code]
+playwright_mcp_args: [--browser, chrome]
+
+
+# herdr: multiplexador usado pelo backend experimental do CAO. Instalado por padrão
+# em ai/all.yml; não é usado até cao_terminal_backend=herdr.
+herdr_enabled: true
+herdr_version: '0.9.5'          # pin auditado; ou latest
+# herdr_upgrade: true           # reconsultar/reverificar (herda ai_stack_upgrade)
+# herdr_checksum: 'sha256:HEX'  # pin adicional opcional do binário
+
+# Backend do cao-server na unidade systemd opcional: tmux (padrão) ou herdr.
+# Com tmux a unidade não muda. Trocar exige reiniciar o cao-server sem sessões
+# abertas; sessões não migram entre backends.
+cao_terminal_backend: tmux

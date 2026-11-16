@@ -1,0 +1,83 @@
+
+PLAY [Validar apenas RTK em HOME isolado] **************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [localhost]
+
+TASK [Impedir aplicação acidental no HOME real] ********************************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [../../ai/roles/rtk : Validar plataforma e parâmetros RTK] ****************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [../../ai/roles/rtk : Inspect receipt and executable without running installed RTK] ***
+ok: [localhost]
+
+TASK [../../ai/roles/rtk : Establish installed executable integrity before any version probe] ***
+ok: [localhost]
+
+TASK [../../ai/roles/rtk : Refuse unsafe managed directory ancestors before writes] ***
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [../../ai/roles/rtk : Verificar versão do binário gerenciado] *************
+ok: [localhost]
+
+TASK [../../ai/roles/rtk : Definir necessidade de consultar release] ***********
+ok: [localhost]
+
+TASK [../../ai/roles/rtk : Preparar diretórios RTK] ****************************
+ok: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-home/.local/bin)
+ok: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-home/.cache/ai-stack/rtk)
+ok: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-home/.local/share/ai-stack/rtk)
+ok: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-home/.local/share/ai-stack/rtk/bin)
+
+TASK [../../ai/roles/rtk : Instalar release oficial verificado] ****************
+included: /home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/release.yml for localhost
+
+TASK [../../ai/roles/rtk : Consultar metadados oficiais do release solicitado] ***
+ok: [localhost]
+
+TASK [../../ai/roles/rtk : Validar release estável e artefato OSS da arquitetura] ***
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [../../ai/roles/rtk : Definir versão e metadados resolvidos] **************
+ok: [localhost]
+
+TASK [../../ai/roles/rtk : Baixar manifesto oficial SHA256] ********************
+ok: [localhost]
+
+TASK [../../ai/roles/rtk : Localizar checksum exato do artefato] ***************
+ok: [localhost]
+
+TASK [../../ai/roles/rtk : Exigir checksum oficial único e validar pins disponíveis] ***
+[ERROR]: Task failed: Action failed: Manifesto/digest/pin RTK divergente ou checksum ausente; instalação interrompida.
+Origin: /home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/release.yml:35:3
+
+33          (rtk_asset_name | regex_escape) ~ '\r?$') }}
+34
+35 - name: Exigir checksum oficial único e validar pins disponíveis
+     ^ column 3
+
+fatal: [localhost]: FAILED! => {
+    "assertion": "rtk_checksum == '' or rtk_checksum | lower == 'sha256:' ~ rtk_matching_hashes[0] | lower",
+    "changed": false,
+    "evaluated_to": false,
+    "msg": "Manifesto/digest/pin RTK divergente ou checksum ausente; instalação interrompida."
+}
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=15   changed=0    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0   
+
+[WARNING]: provided hosts list is empty, only localhost is available. Note that the implicit localhost does not match 'all'

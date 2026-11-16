@@ -1,0 +1,45 @@
+---
+- name: Instalar e validar Claude Code como usuário comum
+  become: "{{ ansible_facts['user_id'] != ai_stack_user }}"
+  become_user: "{{ ai_stack_user }}"
+  environment: "{{ ai_stack_environment }}"
+  block:
+    - name: Consultar versão atual do Claude Code
+      ansible.builtin.command:
+        argv: ["{{ ai_stack_bin_dir }}/claude", --version]
+      register: claude_current
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Validar versão solicitada do Claude Code
+      ansible.builtin.assert:
+        that:
+          - claude_version | string is match('^(stable|latest|[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?)$')
+
+    - name: Baixar e executar instalador oficial do Claude Code
+      when: >-
+        claude_current.rc != 0 or ai_stack_upgrade | bool or
+        (claude_version | string not in ['stable', 'latest'] and
+         claude_version | string not in (claude_current.stdout | default('')).split())
+      block:
+        - name: Baixar instalador do Claude Code
+          ansible.builtin.get_url:
+            url: "{{ claude_installer_url }}"
+            dest: "{{ ai_stack_cache_dir }}/claude-install.sh"
+            checksum: "{{ claude_installer_checksum | default(omit, true) }}"
+            mode: '0700'
+            force: true
+          when: not ansible_check_mode
+
+        - name: Executar instalador do Claude Code
+          ansible.builtin.command:
+            argv: [/bin/bash, "{{ ai_stack_cache_dir }}/claude-install.sh", "{{ claude_version | string }}"]
+          changed_when: true
+          when: not ansible_check_mode
+
+    - name: Verificar instalação do Claude Code
+      ansible.builtin.command:
+        argv: ["{{ ai_stack_bin_dir }}/claude", --version]
+      changed_when: false
+      when: not ansible_check_mode

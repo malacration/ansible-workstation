@@ -1,0 +1,8 @@
+{
+  "release": "v1.2.0",
+  "host_architecture": "x86_64",
+  "x86_64_elf_machine": 62,
+  "aarch64_elf_machine": 183,
+  "aarch64_archive_sha256": "9786c61dbbea704e1468ee7060930d3b45b67f79ba2babfb73463e85340628d9",
+  "aarch64_execution": "not executed (different architecture)"
+}

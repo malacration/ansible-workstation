@@ -1,0 +1,45 @@
+---
+- name: Validar versões solicitadas para CAO e Python
+  ansible.builtin.assert:
+    that:
+      - cao_version | string is match('^(latest|[0-9]+\.[0-9]+\.[0-9]+([a-zA-Z0-9.+-]+)?)$')
+      - cao_python_version | string is version('3.11', '>=')
+      - cao_source in ['pypi', 'git']
+      - cao_git_url | length > 0
+      - cao_git_ref | length > 0
+      - cao_extras is sequence and cao_extras is not string
+      - cao_with_packages is sequence and cao_with_packages is not string
+    fail_msg: Use origem pypi ou git, ref não vazia, listas de extras/pacotes e Python 3.11+.
+
+- name: Garantir instalação do uv
+  ansible.builtin.import_tasks: uv.yml
+
+- name: Instalar CAO como usuário comum
+  become: "{{ ansible_facts['user_id'] != ai_stack_user }}"
+  become_user: "{{ ai_stack_user }}"
+  environment: "{{ ai_stack_environment | combine({'UV_TOOL_BIN_DIR': ai_stack_bin_dir}) }}"
+  block:
+    - name: Instalar CAO em ambiente Python isolado
+      ansible.builtin.script:
+        cmd: >-
+          {{ (role_path ~ '/files/install_cao.py') | quote }}
+          --uv {{ (ai_stack_bin_dir ~ '/uv') | quote }}
+          --config {{ {'spec': cao_install_spec, 'python': cao_python_version | string,
+                       'upgrade': cao_upgrade | bool, 'extras': cao_extras,
+                       'with_packages': cao_with_packages} | to_json | quote }}
+        # Ubuntu 22.04 tem Python 3.10 no sistema; tomllib requer o Python 3.11+
+        # escolhido para CAO. uv run não usa/cria ambiente do projeto atual.
+        executable: >-
+          {{ (ai_stack_bin_dir ~ '/uv') | quote }} run --no-project --no-config
+          --python {{ cao_python_version | string | quote }}
+      register: cao_install_result
+      changed_when: (cao_install_result.stdout | from_json).changed
+      notify: Reiniciar servidor CAO
+      when: not ansible_check_mode
+
+    - name: Verificar executáveis do CAO
+      ansible.builtin.command:
+        argv: ["{{ ai_stack_bin_dir }}/{{ item }}", --help]
+      loop: [cao, cao-server]
+      changed_when: false
+      when: not ansible_check_mode

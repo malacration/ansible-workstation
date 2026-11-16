@@ -1,0 +1,5 @@
+---
+# Reaproveita Node compatível do PATH ou do NVM; instala uma cópia local se faltar.
+ai_node_major: '24'
+ai_node_install_dir: "{{ ai_stack_home }}/.local/share/ai-stack/node"
+ai_node_dist_url: https://nodejs.org/dist

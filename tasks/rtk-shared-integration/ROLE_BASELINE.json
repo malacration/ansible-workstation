@@ -1,0 +1,9 @@
+{
+  "/home/andrew/git/ansible-workstation/ai/roles/rtk/README.md": "220607c54397bcb40bf7e9b3af1d526d31ea04414f978c1d09796b969a4c9f32",
+  "/home/andrew/git/ansible-workstation/ai/roles/rtk/defaults/main.yml": "4b8de896291e401d0ac56dded59ca31a0f9d30609d36381e87958b70fefbe324",
+  "/home/andrew/git/ansible-workstation/ai/roles/rtk/files/configure_rtk.py": "e2defa61670989efcb42a1082f14bc765e273b8577ccfe4e22b1f5c132a8a5e5",
+  "/home/andrew/git/ansible-workstation/ai/roles/rtk/meta/main.yml": "40c407353bdc672aa412bc39317c5c1cab145fda4d1eaa2c17f9cad1da397b52",
+  "/home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/main.yml": "c5f88519cb7026fad223bc42422e4365aa8cb092be6916d6d2322969c621488b",
+  "/home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/release.yml": "3cef9f9aa0f650ee141373d0a41b1fe772603b16237ee5f10f0d0df3b46f4a19",
+  "/home/andrew/git/ansible-workstation/ai/roles/rtk/templates/rtk.j2": "f8dccc91f4854d1fcba4b91576d95d1de75e658d4e8be11c96f420737d710968"
+}

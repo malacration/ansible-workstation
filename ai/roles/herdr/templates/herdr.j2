@@ -1,0 +1,3 @@
+#!/bin/sh
+# Managed by Ansible (ai/roles/herdr). Verified release payload lives outside PATH.
+exec {{ (herdr_install_dir ~ '/bin/herdr') | quote }} "$@"

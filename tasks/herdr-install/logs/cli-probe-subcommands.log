@@ -1,0 +1,105 @@
+### herdr workspace create --help
+Create a workspace
+
+Usage: herdr workspace create [OPTIONS]
+
+Options:
+      --cwd <PATH>
+          
+
+      --label <TEXT>
+          
+
+      --env <KEY=VALUE>
+          Set an environment variable for the launched process
+
+      --focus
+          
+
+      --no-focus
+
+rc=0
+### herdr tab create --help
+Create a tab
+
+Usage: herdr tab create [OPTIONS]
+
+Options:
+      --workspace <WORKSPACE_ID>
+          
+
+      --cwd <PATH>
+          
+
+      --label <TEXT>
+          
+
+      --env <KEY=VALUE>
+          Set an environment variable for the launched process
+
+      --focus
+          
+
+      --no-focus
+
+rc=0
+### herdr pane read --help
+Read pane terminal output
+
+Usage: herdr pane read [OPTIONS] <PANE_ID>
+
+Arguments:
+  <PANE_ID>
+          
+
+Options:
+      --source <SOURCE>
+          Terminal snapshot source (default: recent)
+          
+          [possible values: visible, recent, recent-unwrapped, detection]
+
+      --lines <N>
+          
+
+      --format <FORMAT>
+          [possible values: text, ansi]
+
+      --ansi
+          
+
+      --raw
+
+rc=0
+### herdr pane process-info --help
+Show pane process information
+
+Usage: herdr pane process-info [OPTIONS]
+
+Options:
+      --pane <ID>
+          
+
+      --current
+
+rc=0
+### herdr pane send-keys --help
+Send key presses to a pane
+
+Usage: herdr pane send-keys <PANE_ID> <KEY>...
+
+Arguments:
+  <PANE_ID>
+          
+
+  <KEY>...
+          
+
+Use esc as the canonical Escape key name; escape is also accepted.
+
+rc=0
+### herdr api snapshot --help
+Print the live session snapshot
+
+Usage: herdr api snapshot
+
+rc=0

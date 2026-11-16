@@ -1,0 +1,22 @@
+[Unit]
+Description=CLI Agent Orchestrator ({{ ai_stack_user }})
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User={{ ai_stack_user }}
+WorkingDirectory={{ ai_stack_home }}
+Environment="HOME={{ ai_stack_home }}"
+Environment="PATH={{ ai_stack_environment.PATH }}"
+Environment="XDG_CONFIG_HOME={{ ai_stack_environment.XDG_CONFIG_HOME }}"
+Environment="XDG_DATA_HOME={{ ai_stack_environment.XDG_DATA_HOME }}"
+Environment="XDG_CACHE_HOME={{ ai_stack_environment.XDG_CACHE_HOME }}"
+EnvironmentFile=-{{ ai_stack_home }}/.config/ai-stack/environment
+ExecStart={{ ai_stack_bin_dir }}/cao-server --host 127.0.0.1 --port 9889
+Restart=on-failure
+RestartSec=5
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

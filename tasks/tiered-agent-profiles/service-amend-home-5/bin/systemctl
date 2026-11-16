@@ -1,0 +1,3 @@
+#!/bin/sh
+printf "%s\n" "$*" >> /home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/fake-systemctl-amend-5.log
+exit 1

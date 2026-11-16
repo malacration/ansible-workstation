@@ -1,0 +1,17 @@
+
+PLAY [Renderizar unidade CAO para comparação] **********************************
+
+TASK [Renderizar baseline (antes da mudança)] **********************************
+changed: [localhost]
+
+TASK [Renderizar template atual com tmux e herdr] ******************************
+changed: [localhost] => (item=tmux)
+changed: [localhost] => (item=herdr)
+changed: [localhost] => (item=screen)
+
+TASK [Renderizar template atual sem cao_terminal_backend definido] *************
+changed: [localhost]
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=3    changed=3    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+

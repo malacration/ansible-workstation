@@ -1,0 +1,6 @@
+---
+# Execute na janela de manutenção; não gerencia serviço nem configura decisões.
+- name: Atualizar somente o pacote CAO na origem configurada
+  ansible.builtin.import_playbook: cao.yml
+  vars:
+    cao_upgrade: true

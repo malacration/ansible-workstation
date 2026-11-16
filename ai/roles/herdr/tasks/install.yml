@@ -1,0 +1,128 @@
+---
+- name: Gerenciar herdr como usuário dos agentes
+  become: "{{ ansible_facts['user_id'] != ai_stack_user }}"
+  become_user: "{{ ai_stack_user }}"
+  environment: "{{ ai_stack_environment }}"
+  block:
+    - name: Inspecionar recibo e executável sem executar o herdr instalado
+      ansible.builtin.script:
+        cmd: >-
+          {{ (role_path ~ '/files/installed_state.py') | quote }}
+          --install-dir {{ herdr_install_dir | quote }}
+          --architecture {{ ansible_facts['architecture'] | quote }}
+          --wrapper {{ herdr_binary | quote }}
+        executable: python3
+      register: herdr_inspection
+      changed_when: false
+      check_mode: false
+
+    - name: Registrar integridade do executável antes de consultar a versão
+      ansible.builtin.set_fact:
+        herdr_verified_state: "{{ herdr_inspection.stdout | from_json }}"
+
+    - name: Recusar ancestrais inseguros antes de qualquer escrita
+      ansible.builtin.assert:
+        that: not herdr_verified_state.unsafe_parent | default(false)
+        fail_msg: Os diretórios gerenciados do herdr não podem ter ancestrais symlink ou não-diretório.
+
+    # `herdr --version` só imprime a versão; não inicia servidor nem lê sessões.
+    - name: Verificar versão do binário gerenciado
+      ansible.builtin.command:
+        argv: ["{{ herdr_install_dir }}/bin/herdr", --version]
+      register: herdr_current
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      when: herdr_verified_state.valid | bool
+
+    - name: Definir necessidade de consultar o release
+      ansible.builtin.set_fact:
+        herdr_needs_release: >-
+          {{ not herdr_verified_state.valid or herdr_upgrade | bool or
+             herdr_current.rc | default(1) != 0 or
+             herdr_current.stdout | default('') | trim != 'herdr ' ~ herdr_verified_state.receipt.get('version', '') or
+             (herdr_checksum != '' and herdr_checksum | lower != 'sha256:' ~ herdr_verified_state.receipt.get('sha256', '')) or
+             (herdr_version != 'latest' and herdr_current.stdout | default('') | trim != 'herdr ' ~ herdr_version) }}
+        herdr_asset_name: "herdr-linux-{{ ansible_facts['architecture'] }}"
+
+    - name: Preparar diretórios do herdr
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ herdr_binary | dirname }}"
+        - "{{ ai_stack_cache_dir }}/herdr"
+        - "{{ herdr_install_dir }}"
+        - "{{ herdr_install_dir }}/bin"
+
+    - name: Instalar release oficial verificado
+      ansible.builtin.include_tasks: release.yml
+      when: herdr_needs_release | bool and not ansible_check_mode
+
+    - name: Informar instalação prevista no check mode
+      ansible.builtin.debug:
+        msg: "herdr {{ herdr_version }} será resolvido, verificado e instalado na aplicação real."
+      changed_when: true
+      when: herdr_needs_release | bool and ansible_check_mode
+
+    - name: Preservar destino não regular do comando sem segui-lo
+      ansible.builtin.script:
+        cmd: >-
+          {{ (role_path ~ '/files/installed_state.py') | quote }}
+          --install-dir {{ herdr_install_dir | quote }}
+          --architecture {{ ansible_facts['architecture'] | quote }}
+          --prepare-publication --wrapper {{ herdr_binary | quote }}
+        executable: python3
+      register: herdr_publication_paths
+      changed_when: (herdr_publication_paths.stdout | from_json).changed
+      when: not ansible_check_mode
+
+    - name: Instalar comando herdr no PATH da stack
+      ansible.builtin.template:
+        src: herdr.j2
+        dest: "{{ herdr_binary }}"
+        mode: '0755'
+        backup: true
+
+    - name: Revalidar executável publicado
+      ansible.builtin.script:
+        cmd: >-
+          {{ (role_path ~ '/files/installed_state.py') | quote }}
+          --install-dir {{ herdr_install_dir | quote }}
+          --architecture {{ ansible_facts['architecture'] | quote }}
+          --wrapper {{ herdr_binary | quote }}
+        executable: python3
+      register: herdr_published_state
+      changed_when: false
+      failed_when: not (herdr_published_state.stdout | from_json).valid
+      when: not ansible_check_mode
+
+    # Ansible backups (ARQUIVO.PID.AAAA-MM-DD@HH:MM:SS~) of the private binary and
+    # receipt only serve a failed publication; once the published release has
+    # been revalidated they are deleted. Regular files only, links not followed.
+    # Backups of the public command in ai_stack_bin_dir are kept on purpose: they
+    # may hold a herdr installed before this role managed the command.
+    - name: Localizar backups do binário e do recibo já revalidados
+      ansible.builtin.find:
+        paths:
+          - "{{ herdr_install_dir }}/bin"
+          - "{{ herdr_install_dir }}"
+        patterns:
+          - '^herdr[.][0-9]+[.][0-9]{4}-[0-9]{2}-[0-9]{2}@[0-9]{2}:[0-9]{2}:[0-9]{2}~$'
+          - '^release[.]json[.][0-9]+[.][0-9]{4}-[0-9]{2}-[0-9]{2}@[0-9]{2}:[0-9]{2}:[0-9]{2}~$'
+        use_regex: true
+        file_type: file
+        follow: false
+        recurse: false
+      register: herdr_payload_backups
+      when: not ansible_check_mode
+
+    - name: Remover backups do binário e do recibo
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ herdr_payload_backups.files | default([]) }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+      when: not ansible_check_mode

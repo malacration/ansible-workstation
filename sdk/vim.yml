@@ -1,5 +1,4 @@
-- hosts: localhost
-  name: Playbook para instalar o Vim
+- name: Playbook para instalar o Vim
   hosts: localhost
   become: yes  # Para garantir que as tarefas sejam executadas com permissões de superusuário
   tasks:

@@ -1,0 +1,103 @@
+{
+  "round": 3,
+  "commands": [
+    {
+      "argv": [
+        "ansible-playbook",
+        "/home/andrew/git/ansible-workstation/ai/rtk.yml",
+        "--syntax-check"
+      ],
+      "returncode": 0,
+      "stdout": "\nplaybook: /home/andrew/git/ansible-workstation/ai/rtk.yml\n",
+      "stderr": "[WARNING]: provided hosts list is empty, only localhost is available. Note that the implicit localhost does not match 'all'\n"
+    },
+    {
+      "argv": [
+        "ansible-playbook",
+        "/home/andrew/git/ansible-workstation/ai/all.yml",
+        "--syntax-check"
+      ],
+      "returncode": 0,
+      "stdout": "\nplaybook: /home/andrew/git/ansible-workstation/ai/all.yml\n",
+      "stderr": "[WARNING]: provided hosts list is empty, only localhost is available. Note that the implicit localhost does not match 'all'\n[WARNING]: Deprecation warnings can be disabled by setting `deprecation_warnings=False` in ansible.cfg.\n[DEPRECATION WARNING]: apt_key has been deprecated. Use deb822_repository instead. This feature will be removed from ansible-core version 2.25.\nOrigin: /home/andrew/git/ansible-workstation/browser/chrome.yml:14:7\n\n12\n13     - name: Add Google Chrome signing key\n14       apt_key:\n         ^ column 7\n\n[DEPRECATION WARNING]: apt_repository has been deprecated. Use deb822_repository instead. This feature will be removed from ansible-core version 2.25.\nOrigin: /home/andrew/git/ansible-workstation/browser/chrome.yml:19:7\n\n17\n18     - name: Add Google Chrome repository\n19       apt_repository:\n         ^ column 7\n\n"
+    },
+    {
+      "argv": [
+        "ansible-playbook",
+        "/home/andrew/git/ansible-workstation/ai/rtk.yml",
+        "--list-tasks"
+      ],
+      "returncode": 0,
+      "stdout": "\nplaybook: /home/andrew/git/ansible-workstation/ai/rtk.yml\n\n  play #1 (localhost): Preparar Ubuntu para a stack de IA\tTAGS: [ai_common,rtk]\n    tasks:\n      ai_stack : Validar sistema e usu\u00e1rio de instala\u00e7\u00e3o da stack\tTAGS: [ai_common, rtk]\n      ai_stack : Consultar o diret\u00f3rio home do usu\u00e1rio de instala\u00e7\u00e3o\tTAGS: [ai_common, rtk]\n      ai_stack : Validar o diret\u00f3rio home\tTAGS: [ai_common, rtk]\n      ai_stack : Instalar depend\u00eancias do Ubuntu\tTAGS: [ai_common, rtk]\n      ai_stack : Preparar diret\u00f3rios do usu\u00e1rio\tTAGS: [ai_common, rtk]\n      ai_stack : Adicionar os execut\u00e1veis ao PATH do Bash e Zsh\tTAGS: [ai_common, rtk]\n\n  play #2 (localhost): Install RTK OSS local shell filtering\tTAGS: []\n    tasks:\n      ai_stack : Validar sistema e usu\u00e1rio de instala\u00e7\u00e3o da stack\tTAGS: []\n      ai_stack : Consultar o diret\u00f3rio home do usu\u00e1rio de instala\u00e7\u00e3o\tTAGS: []\n      ai_stack : Validar o diret\u00f3rio home\tTAGS: []\n      ai_stack : Instalar depend\u00eancias do Ubuntu\tTAGS: []\n      ai_stack : Preparar diret\u00f3rios do usu\u00e1rio\tTAGS: []\n      ai_stack : Adicionar os execut\u00e1veis ao PATH do Bash e Zsh\tTAGS: []\n      rtk : Validar plataforma e par\u00e2metros RTK\tTAGS: [rtk]\n      rtk : Inspect receipt and executable without running installed RTK\tTAGS: [rtk]\n      rtk : Establish installed executable integrity before any version probe\tTAGS: [rtk]\n      rtk : Refuse unsafe managed directory ancestors before writes\tTAGS: [rtk]\n      rtk : Verificar vers\u00e3o do bin\u00e1rio gerenciado\tTAGS: [rtk]\n      rtk : Definir necessidade de consultar release\tTAGS: [rtk]\n      rtk : Preparar diret\u00f3rios RTK\tTAGS: [rtk]\n      rtk : Instalar release oficial verificado\tTAGS: [rtk]\n      rtk : Informar instala\u00e7\u00e3o prevista no check mode\tTAGS: [rtk]\n      rtk : Preserve nonregular wrapper destinations without following them\tTAGS: [rtk]\n      rtk : Instalar comando RTK com telemetria bloqueada\tTAGS: [rtk]\n      rtk : Instalar mesclador das integra\u00e7\u00f5es RTK\tTAGS: [rtk]\n      rtk : Revalidate published executable before running init through wrapper\tTAGS: [rtk]\n      rtk : Mesclar hooks e instru\u00e7\u00f5es sem alterar permiss\u00f5es ou MCPs\tTAGS: [rtk]\n      rtk : Informar limite da previs\u00e3o das integra\u00e7\u00f5es\tTAGS: [rtk]\n",
+      "stderr": "[WARNING]: provided hosts list is empty, only localhost is available. Note that the implicit localhost does not match 'all'\n"
+    },
+    {
+      "argv": [
+        "ansible-playbook",
+        "/home/andrew/git/ansible-workstation/ai/all.yml",
+        "--list-tasks",
+        "--tags",
+        "rtk"
+      ],
+      "returncode": 0,
+      "stdout": "\nplaybook: /home/andrew/git/ansible-workstation/ai/all.yml\n\n  play #1 (localhost): Preparar Ubuntu para a stack de IA\tTAGS: [ai_common]\n    tasks:\n\n  play #2 (localhost): Instalar Codex CLI no Ubuntu\tTAGS: [codex]\n    tasks:\n\n  play #3 (localhost): Instalar Claude Code no Ubuntu\tTAGS: [claude]\n    tasks:\n\n  play #4 (localhost): Preparar Ubuntu para a stack de IA\tTAGS: [rtk,ai_common]\n    tasks:\n      ai_stack : Validar sistema e usu\u00e1rio de instala\u00e7\u00e3o da stack\tTAGS: [ai_common, rtk]\n      ai_stack : Consultar o diret\u00f3rio home do usu\u00e1rio de instala\u00e7\u00e3o\tTAGS: [ai_common, rtk]\n      ai_stack : Validar o diret\u00f3rio home\tTAGS: [ai_common, rtk]\n      ai_stack : Instalar depend\u00eancias do Ubuntu\tTAGS: [ai_common, rtk]\n      ai_stack : Preparar diret\u00f3rios do usu\u00e1rio\tTAGS: [ai_common, rtk]\n      ai_stack : Adicionar os execut\u00e1veis ao PATH do Bash e Zsh\tTAGS: [ai_common, rtk]\n\n  play #5 (localhost): Install RTK OSS local shell filtering\tTAGS: [rtk]\n    tasks:\n      ai_stack : Validar sistema e usu\u00e1rio de instala\u00e7\u00e3o da stack\tTAGS: [rtk]\n      ai_stack : Consultar o diret\u00f3rio home do usu\u00e1rio de instala\u00e7\u00e3o\tTAGS: [rtk]\n      ai_stack : Validar o diret\u00f3rio home\tTAGS: [rtk]\n      ai_stack : Instalar depend\u00eancias do Ubuntu\tTAGS: [rtk]\n      ai_stack : Preparar diret\u00f3rios do usu\u00e1rio\tTAGS: [rtk]\n      ai_stack : Adicionar os execut\u00e1veis ao PATH do Bash e Zsh\tTAGS: [rtk]\n      rtk : Validar plataforma e par\u00e2metros RTK\tTAGS: [rtk]\n      rtk : Inspect receipt and executable without running installed RTK\tTAGS: [rtk]\n      rtk : Establish installed executable integrity before any version probe\tTAGS: [rtk]\n      rtk : Refuse unsafe managed directory ancestors before writes\tTAGS: [rtk]\n      rtk : Verificar vers\u00e3o do bin\u00e1rio gerenciado\tTAGS: [rtk]\n      rtk : Definir necessidade de consultar release\tTAGS: [rtk]\n      rtk : Preparar diret\u00f3rios RTK\tTAGS: [rtk]\n      rtk : Instalar release oficial verificado\tTAGS: [rtk]\n      rtk : Informar instala\u00e7\u00e3o prevista no check mode\tTAGS: [rtk]\n      rtk : Preserve nonregular wrapper destinations without following them\tTAGS: [rtk]\n      rtk : Instalar comando RTK com telemetria bloqueada\tTAGS: [rtk]\n      rtk : Instalar mesclador das integra\u00e7\u00f5es RTK\tTAGS: [rtk]\n      rtk : Revalidate published executable before running init through wrapper\tTAGS: [rtk]\n      rtk : Mesclar hooks e instru\u00e7\u00f5es sem alterar permiss\u00f5es ou MCPs\tTAGS: [rtk]\n      rtk : Informar limite da previs\u00e3o das integra\u00e7\u00f5es\tTAGS: [rtk]\n\n  play #6 (localhost): Preparar Ubuntu para a stack de IA\tTAGS: [chrome_devtools]\n    tasks:\n\n  play #7 (localhost): Instalar Codex CLI no Ubuntu\tTAGS: [chrome_devtools]\n    tasks:\n\n  play #8 (localhost): Instalar Claude Code no Ubuntu\tTAGS: [chrome_devtools]\n    tasks:\n\n  play #9 (localhost): Preparar Node.js para os MCPs\tTAGS: [chrome_devtools]\n    tasks:\n\n  play #10 (localhost): Install Google Chrome on Ubuntu\tTAGS: [chrome_devtools]\n    tasks:\n\n  play #11 (localhost): Instalar e registrar Chrome DevTools MCP\tTAGS: [chrome_devtools]\n    tasks:\n\n  play #12 (localhost): Instalar uv no Ubuntu\tTAGS: [uv]\n    tasks:\n\n  play #13 (localhost): Instalar CLI Agent Orchestrator no Ubuntu\tTAGS: [cao]\n    tasks:\n\n  play #14 (localhost): Compartilhar MCPs do Codex e Claude com o CAO\tTAGS: [mcp]\n    tasks:\n\n  play #15 (localhost): Configurar servi\u00e7o opcional do CAO\tTAGS: [cao_service]\n    tasks:\n",
+      "stderr": "[WARNING]: provided hosts list is empty, only localhost is available. Note that the implicit localhost does not match 'all'\n[WARNING]: Deprecation warnings can be disabled by setting `deprecation_warnings=False` in ansible.cfg.\n[DEPRECATION WARNING]: apt_key has been deprecated. Use deb822_repository instead. This feature will be removed from ansible-core version 2.25.\nOrigin: /home/andrew/git/ansible-workstation/browser/chrome.yml:14:7\n\n12\n13     - name: Add Google Chrome signing key\n14       apt_key:\n         ^ column 7\n\n[DEPRECATION WARNING]: apt_repository has been deprecated. Use deb822_repository instead. This feature will be removed from ansible-core version 2.25.\nOrigin: /home/andrew/git/ansible-workstation/browser/chrome.yml:19:7\n\n17\n18     - name: Add Google Chrome repository\n19       apt_repository:\n         ^ column 7\n\n"
+    },
+    {
+      "argv": [
+        "/home/andrew/.local/share/uv/tools/cli-agent-orchestrator/bin/python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "/home/andrew/git/ansible-workstation/ai/tests",
+        "-v"
+      ],
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "test_auxiliary_alias_does_not_advance_branch_without_upgrade (test_install_cao.IsolatedInstallTests.test_auxiliary_alias_does_not_advance_branch_without_upgrade) ... ok\ntest_install_repeat_pin_upgrade_and_git_source_preserve_extras (test_install_cao.IsolatedInstallTests.test_install_repeat_pin_upgrade_and_git_source_preserve_extras) ... ok\ntest_stored_constraints_reject_upgrade_and_source_change_without_mutation (test_install_cao.IsolatedInstallTests.test_stored_constraints_reject_upgrade_and_source_change_without_mutation) ... ok\ntest_direct_sources (test_install_cao.ReceiptTests.test_direct_sources) ... ok\ntest_pinned_requirement_with_extra_and_marker (test_install_cao.ReceiptTests.test_pinned_requirement_with_extra_and_marker) ... ok\ntest_requirement_aliases_extras_and_specifiers_compare_semantically (test_install_cao.ReceiptTests.test_requirement_aliases_extras_and_specifiers_compare_semantically) ... ok\ntest_unknown_or_ambiguous_fields_fail (test_install_cao.ReceiptTests.test_unknown_or_ambiguous_fields_fail) ... ok\ntest_unknown_receipt_resolution_state_is_rejected (test_install_cao.ReceiptTests.test_unknown_receipt_resolution_state_is_rejected) ... ok\ntest_actual_entrypoints_preserve_extra_variable_overrides (test_rtk_entrypoint.RtkEntrypointTests.test_actual_entrypoints_preserve_extra_variable_overrides) ... ok\ntest_actual_entrypoints_preserve_inventory_overrides (test_rtk_entrypoint.RtkEntrypointTests.test_actual_entrypoints_preserve_inventory_overrides) ... ok\ntest_actual_entrypoints_resolve_shared_defaults (test_rtk_entrypoint.RtkEntrypointTests.test_actual_entrypoints_resolve_shared_defaults) ... ok\ntest_real_profile_loader_and_provider_delivery (test_sync_mcps.CaoCompatibilityTests.test_real_profile_loader_and_provider_delivery) ... ok\ntest_check_mode_writes_nothing (test_sync_mcps.SyncMcpsTests.test_check_mode_writes_nothing) ... ok\ntest_codex_http_grants_are_preserved_for_explicit_delegation (test_sync_mcps.SyncMcpsTests.test_codex_http_grants_are_preserved_for_explicit_delegation) ... ok\ntest_codex_http_inherits_global_config_and_preserves_role_grants (test_sync_mcps.SyncMcpsTests.test_codex_http_inherits_global_config_and_preserves_role_grants) ... ok\ntest_codex_profile_http_missing_from_global_config_is_rejected (test_sync_mcps.SyncMcpsTests.test_codex_profile_http_missing_from_global_config_is_rejected) ... ok\ntest_disabled_claude_servers_are_not_imported (test_sync_mcps.SyncMcpsTests.test_disabled_claude_servers_are_not_imported) ... ok\ntest_existing_custom_profile_is_not_overwritten (test_sync_mcps.SyncMcpsTests.test_existing_custom_profile_is_not_overwritten) ... ok\ntest_idempotence_and_removal_after_client_configuration_changes (test_sync_mcps.SyncMcpsTests.test_idempotence_and_removal_after_client_configuration_changes) ... ok\ntest_invalid_source_fails_before_any_profile_is_written (test_sync_mcps.SyncMcpsTests.test_invalid_source_fails_before_any_profile_is_written) ... ok\ntest_missing_configs_still_provide_internal_coordination (test_sync_mcps.SyncMcpsTests.test_missing_configs_still_provide_internal_coordination) ... ok\ntest_provider_isolation_originals_and_coordinator_are_preserved (test_sync_mcps.SyncMcpsTests.test_provider_isolation_originals_and_coordinator_are_preserved) ... ok\n\n----------------------------------------------------------------------\nRan 22 tests in 5.956s\n\nOK\n"
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "ps",
+        "-p",
+        "240075",
+        "-o",
+        "pid=,lstart=,args="
+      ],
+      "returncode": 0,
+      "stdout": " 240075 Fri Nov 13 13:42:29 2026 /home/andrew/.local/share/uv/tools/cli-agent-orchestrator/bin/python /home/andrew/.local/bin/cao-server --host 127.0.0.1 --port 9889\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "status",
+        "--short"
+      ],
+      "returncode": 0,
+      "stdout": " M README.md\n M all.yml\n M browser/chrome.yml\n M sdk/git-secrets.yml\n M sdk/sdkman.yml\n M sdk/vim.yml\n M sdk/zsh.yml\n?? .gitignore\n?? ai/\n?? tasks/\n",
+      "stderr": ""
+    }
+  ],
+  "additional_checks": {
+    "task_free_variable_resolution": "six combinations: two actual entrypoints times defaults/inventory/extra vars",
+    "unchanged_previously_reviewed_implementation_count": 9,
+    "rtk_role_not_edited_by_this_task": true,
+    "rtk_role_concurrent_change_evidence": "/home/andrew/git/ansible-workstation/tasks/ansible-cao-updates/ROUND3_RTK_ROLE_CURRENT.json",
+    "rtk_role_stable_since_isolated_rerun": true,
+    "live_cao_receipt_unchanged": true,
+    "python_ast": "passed"
+  },
+  "isolated_entrypoint_evidence": "/home/andrew/git/ansible-workstation/tasks/rtk-shared-integration/ISOLATED_ENTRYPOINT.json"
+}

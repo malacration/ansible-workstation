@@ -1,0 +1,385 @@
+diff --git a/home/andrew/git/ansible-workstation/tasks/ansible-cao-updates/round1/implementation/ai/README.md b/home/andrew/git/ansible-workstation/ai/README.md
+index 8cdef50..dee9c6c 100644
+--- a/home/andrew/git/ansible-workstation/tasks/ansible-cao-updates/round1/implementation/ai/README.md
++++ b/home/andrew/git/ansible-workstation/ai/README.md
+@@ -71,6 +71,7 @@ ansible-playbook all.yml --tags ai -K
+ | `ai/common.yml` | Dependências do Ubuntu e diretórios do usuário |
+ | `ai/codex.yml` | Codex CLI |
+ | `ai/claude.yml` | Claude Code |
++| `ai/rtk.yml` | RTK OSS local shell filtering and native Codex/Claude hooks |
+ | `ai/node.yml` | Reaproveitar Node.js compatível ou instalar uma cópia local LTS |
+ | `ai/chrome-devtools.yml` | Dependências, pacote e registro do Chrome DevTools MCP |
+ | `browser/chrome.yml` | Navegador Chrome, reutilizado pelo componente Chrome DevTools |
+@@ -112,6 +113,38 @@ O subplaybook do CAO instala o orquestrador. O de MCPs também garante o CAO
+ antes de configurar os perfis; instale pelo menos um dos clientes para lançar
+ agentes. O serviço é configurado separadamente e permanece opcional.
+ 
++## RTK OSS shell filtering
++
++RTK is an optional component of `ai/all.yml`, enabled by default. Its standalone
++entry point imports `ai/common.yml` for stack prerequisites and PATH setup.
++The release source is [rtk-ai/rtk](https://github.com/rtk-ai/rtk), pinned to the
++audited OSS release `1.2.0`, with mandatory official checksum verification.
++Clients default to `[claude_code, codex]`. Native hooks filter shell-tool output;
++RTK does not change provider URLs, MCP configuration or sandbox permissions.
++Unselected hooks and instructions are preserved. New client/CAO sessions load
++the merged hooks; their launch environment must include the stack bin directory.
++Live authenticated agent behavior has not been tested by this integration.
++
++Commands for validation, followed by optional application after review:
++
++```bash
++ansible-playbook /home/andrew/git/ansible-workstation/ai/rtk.yml --syntax-check
++ansible-playbook /home/andrew/git/ansible-workstation/ai/all.yml --list-tasks --tags rtk
++# Review predicted changes before applying in a maintenance window:
++ansible-playbook /home/andrew/git/ansible-workstation/ai/rtk.yml --check --diff -K
++ansible-playbook /home/andrew/git/ansible-workstation/ai/rtk.yml -K
++# Apply another reviewed release pin:
++ansible-playbook /home/andrew/git/ansible-workstation/ai/rtk.yml -K -e rtk_version=VERSION
++# Explicitly resolve and refresh the latest release:
++ansible-playbook /home/andrew/git/ansible-workstation/ai/rtk.yml -K -e rtk_version=latest -e rtk_upgrade=true
++```
++
++`latest` resolves on installation or explicit upgrade; ordinary runs keep the
++installed release. `rtk_upgrade` inherits `ai_stack_upgrade`; a fixed version
++remains fixed. Use `-e rtk_enabled=false` to skip RTK in `ai/all.yml` and use
++`--tags rtk` to select its import with prerequisites. No RTK installation or
++session restart was performed while adding these entry points.
++
+ ## Instalar Chrome DevTools MCP e suas dependências
+ 
+ `ai/all.yml` instala o Chrome DevTools MCP antes de sincronizar os perfis do
+@@ -403,6 +436,15 @@ suportados falham antes da instalação, sem descartar silenciosamente requisito
+ Plugins de decisões só devem ser declarados com fonte conhecida; este playbook
+ não inclui nem instala decider hospedado.
+ 
++The CAO helper uses `packaging>=24.2,<27` in its separate `uv run` environment
++to compare normalized PEP 508 requirements, including distribution/extra aliases
++and equivalent version specifiers. This parser is not added to CAO's tool
++requirements. Receipt-level constraints, overrides and unsupported nonempty
++resolution options cause refusal before `uv tool install`, rather than losing
++operator pins. The supported `find-links` option is replayed explicitly. Review
++unsupported receipt state before planning a replacement environment; the helper
++does not remove it automatically.
++
+ `cao_restart_on_change=false` impede o handler de reinício, inclusive quando
+ `cao_service_enabled=true`. A atualização do venv compartilhado deve acontecer
+ quando não houver sessões em uso: processos existentes podem manter código
+diff --git a/home/andrew/git/ansible-workstation/tasks/ansible-cao-updates/round1/implementation/ai/roles/cao/tasks/main.yml b/home/andrew/git/ansible-workstation/ai/roles/cao/tasks/main.yml
+index ee4453d..c714b16 100644
+--- a/home/andrew/git/ansible-workstation/tasks/ansible-cao-updates/round1/implementation/ai/roles/cao/tasks/main.yml
++++ b/home/andrew/git/ansible-workstation/ai/roles/cao/tasks/main.yml
+@@ -27,10 +27,11 @@
+           --config {{ {'spec': cao_install_spec, 'python': cao_python_version | string,
+                        'upgrade': cao_upgrade | bool, 'extras': cao_extras,
+                        'with_packages': cao_with_packages} | to_json | quote }}
+-        # Ubuntu 22.04 tem Python 3.10 no sistema; tomllib requer o Python 3.11+
+-        # escolhido para CAO. uv run não usa/cria ambiente do projeto atual.
++        # Use Python 3.11+ for tomllib and an explicit PEP 508 parser dependency.
++        # uv run neither uses nor creates an environment for the current project.
+         executable: >-
+           {{ (ai_stack_bin_dir ~ '/uv') | quote }} run --no-project --no-config
++          --with 'packaging>=24.2,<27'
+           --python {{ cao_python_version | string | quote }}
+       register: cao_install_result
+       changed_when: (cao_install_result.stdout | from_json).changed
+diff --git a/home/andrew/git/ansible-workstation/tasks/ansible-cao-updates/baseline/ai/all.yml b/home/andrew/git/ansible-workstation/ai/all.yml
+index 5ff42f1..dad08ce 100644
+--- a/home/andrew/git/ansible-workstation/tasks/ansible-cao-updates/baseline/ai/all.yml
++++ b/home/andrew/git/ansible-workstation/ai/all.yml
+@@ -11,6 +11,11 @@
+   ansible.builtin.import_playbook: claude.yml
+   tags: [claude]
+ 
++- name: Install RTK OSS local shell filtering
++  ansible.builtin.import_playbook: rtk.yml
++  tags: [rtk]
++  when: rtk_enabled | default(true) | bool
++
+ - name: Instalar Chrome DevTools MCP e suas dependências
+   ansible.builtin.import_playbook: chrome-devtools.yml
+   tags: [chrome_devtools]
+diff --git a/home/andrew/git/ansible-workstation/tasks/ansible-cao-updates/round1/implementation/ai/roles/cao/files/install_cao.py b/home/andrew/git/ansible-workstation/ai/roles/cao/files/install_cao.py
+index e878fbc..2a8ed5d 100644
+--- a/home/andrew/git/ansible-workstation/tasks/ansible-cao-updates/round1/implementation/ai/roles/cao/files/install_cao.py
++++ b/home/andrew/git/ansible-workstation/ai/roles/cao/files/install_cao.py
+@@ -15,10 +15,48 @@ import sys
+ import tomllib
+ from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
+ 
++from packaging.requirements import Requirement
++from packaging.utils import canonicalize_name
++
+ 
+ PACKAGE = 'cli-agent-orchestrator'
+ 
+ 
++def normalized_requirement(text):
++    """Use PEP 508/440 parsing rather than raw strings for receipt equality."""
++    requirement = Requirement(text)
++    requirement.name = canonicalize_name(requirement.name)
++    requirement.extras = {canonicalize_name(extra) for extra in requirement.extras}
++    return requirement
++
++
++def receipt_options(receipt):
++    """Reject resolution state we cannot replay before changing any CAO files.
++
++    find-links is the only supported uv option and is replayed explicitly. In
++    particular, silently dropping constraints/overrides/index/resolution options
++    would remove operator compatibility decisions on the next source change.
++    """
++    unknown_root = [key for key, value in receipt.items() if key != 'tool' and value]
++    if unknown_root:
++        raise ValueError(f'Unsupported nonempty uv receipt fields: {sorted(unknown_root)}')
++    tool = receipt['tool']
++    known = {'requirements', 'python', 'entrypoints', 'options'}
++    unknown = [key for key, value in tool.items() if key not in known and value]
++    if unknown:
++        raise ValueError(f'Unsupported nonempty uv receipt tool fields: {sorted(unknown)}; '
++                         'installation refused to preserve resolution state')
++    options = tool.get('options', {})
++    unknown_options = [key for key, value in options.items() if key != 'find-links' and value]
++    if unknown_options:
++        raise ValueError(f'Unsupported nonempty uv receipt options: {sorted(unknown_options)}; '
++                         'installation refused to preserve resolution state')
++    links = options.get('find-links', [])
++    if not isinstance(links, list) or any(not isinstance(link, str) for link in links):
++        raise ValueError('Unsupported uv receipt find-links format')
++    return [argument for link in links for argument in ('--find-links', link)]
++
++
+ def requirement_text(requirement):
+     """Render uv's receipt requirement as PEP 508, rejecting lossy conversions."""
+     known = {'name', 'extras', 'specifier', 'url', 'git', 'path', 'marker'}
+@@ -69,42 +107,49 @@ def install(uv, config):
+     receipt_path = Path(directory) / PACKAGE / 'uv-receipt.toml'
+     requirements = []
+     tool = {}
++    options = []
+     previous_receipt = receipt_path.read_bytes() if receipt_path.exists() else None
+     if receipt_path.exists():
+         with receipt_path.open('rb') as receipt:
+-            tool = tomllib.load(receipt)['tool']
++            data = tomllib.load(receipt)
++            options = receipt_options(data)
++            tool = data['tool']
+             requirements = tool['requirements']
+     extras = set(config['extras'])
+     packages = list(config['with_packages'])
+     for requirement in requirements:
+-        if requirement['name'].replace('_', '-').lower() == PACKAGE:
++        if canonicalize_name(requirement['name']) == PACKAGE:
+             extras.update(requirement.get('extras', []))
+         else:
+             packages.append(requirement_text(requirement))
+ 
+     # Preserve extras in custom cao_install_spec as well as the old uv receipt.
+-    match = re.match(r'^cli[-_]agent[-_]orchestrator(?:\[([^]]+)\])?(.*)$',
++    match = re.match(r'^cli[-_.]+agent[-_.]+orchestrator(?:\[([^]]+)\])?(.*)$',
+                      config['spec'], re.IGNORECASE)
+     if not match:
+         raise ValueError('cao_install_spec must name cli-agent-orchestrator explicitly')
+     extras.update(match.group(1).split(',') if match.group(1) else [])
+     if any(not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]*', extra) for extra in extras):
+         raise ValueError('Invalid CAO extra name')
+-    spec = PACKAGE + ('[' + ','.join(sorted(extras)) + ']' if extras else '') + match.group(2)
++    extras = {canonicalize_name(extra) for extra in extras}
++    spec = normalized_requirement(
++        PACKAGE + ('[' + ','.join(sorted(extras)) + ']' if extras else '') + match.group(2))
++    packages = sorted({normalized_requirement(package) for package in packages}, key=str)
+     # uv resolves a mutable Git branch even without --upgrade. A matching receipt
+     # is therefore the no-update boundary. Source/ref/Python/requirements changes
+     # still reconcile immediately, and an explicit upgrade always calls uv.
+     requested = {spec, *packages}
+-    installed = {requirement_text(requirement) for requirement in requirements}
++    installed = {normalized_requirement(requirement_text(requirement))
++                 for requirement in requirements}
+     entrypoints = tool.get('entrypoints', [])
+     if (not config['upgrade'] and requested == installed
+             and tool.get('python') == config['python'] and entrypoints
+             and all(Path(entry['install-path']).exists() for entry in entrypoints)
+             and (receipt_path.parent / 'bin/python').exists()):
+         return {'changed': False, 'extras': sorted(extras), 'with_count': len(set(packages))}
+-    command = [uv, 'tool', 'install', '--python', config['python'], spec]
+-    for package in dict.fromkeys(packages):
+-        command.extend(['--with', package])
++    command = [uv, 'tool', 'install', '--python', config['python'], str(spec), *options]
++    for package in packages:
++        command.extend(['--with', str(package)])
+     if config['upgrade']:
+         command.append('--upgrade')
+     result = subprocess.run(command, check=True, text=True, capture_output=True)
+diff --git a/home/andrew/git/ansible-workstation/tasks/ansible-cao-updates/round1/implementation/ai/tests/test_install_cao.py b/home/andrew/git/ansible-workstation/ai/tests/test_install_cao.py
+index 677c7e4..55eed39 100644
+--- a/home/andrew/git/ansible-workstation/tasks/ansible-cao-updates/round1/implementation/ai/tests/test_install_cao.py
++++ b/home/andrew/git/ansible-workstation/ai/tests/test_install_cao.py
+@@ -12,6 +12,8 @@ import unittest
+ from unittest.mock import patch
+ import zipfile
+ 
++import packaging
++
+ 
+ SCRIPT = Path(__file__).parents[1] / 'roles/cao/files/install_cao.py'
+ SPEC = importlib.util.spec_from_file_location('install_cao', SCRIPT)
+@@ -35,7 +37,35 @@ def wheel(directory, name, version, revision='release'):
+     return path
+ 
+ 
++def parser_wheel(directory):
++    """Expose the existing parser source to offline uv-run fixture resolution."""
++    path = wheel(directory, 'packaging', packaging.__version__)
++    package = Path(packaging.__file__).parent
++    with zipfile.ZipFile(path, 'a') as archive:
++        for source in package.rglob('*.py'):
++            archive.write(source, 'packaging/' + str(source.relative_to(package)))
++    return path
++
++
+ class ReceiptTests(unittest.TestCase):
++    def test_requirement_aliases_extras_and_specifiers_compare_semantically(self):
++        canonical = installer.normalized_requirement('fixture-plugin[local-extra]>=1,==1.0')
++        for alias in ['FiXtUrE_PlUgIn [LOCAL_Extra] ( == 1.0.0, >= 1.0 )',
++                      'fixture...plugin[local.extra]==1.0,>=1']:
++            with self.subTest(alias=alias):
++                parsed = installer.normalized_requirement(alias)
++                self.assertEqual(parsed, canonical)
++                self.assertEqual(hash(parsed), hash(canonical))
++
++    def test_unknown_receipt_resolution_state_is_rejected(self):
++        for state in [{'constraints': [{'name': 'plugin', 'specifier': '==1.0'}]},
++                      {'overrides': [{'name': 'plugin', 'specifier': '==1.0'}]},
++                      {'options': {'resolution': 'lowest'}},
++                      {'options': {'index-url': 'https://example.org/simple'}},
++                      {'future-resolution-field': ['nonempty']}]:
++            with self.subTest(state=state), self.assertRaisesRegex(ValueError, 'Unsupported'):
++                installer.receipt_options({'tool': {'requirements': [], **state}})
++
+     def test_pinned_requirement_with_extra_and_marker(self):
+         self.assertEqual(installer.requirement_text({
+             'name': 'plugin', 'specifier': '==1.0', 'extras': ['local'],
+@@ -69,12 +99,19 @@ class ReceiptTests(unittest.TestCase):
+ @unittest.skipUnless(shutil.which('uv') and shutil.which('git'), 'Requires uv and git')
+ class IsolatedInstallTests(unittest.TestCase):
+     def test_install_repeat_pin_upgrade_and_git_source_preserve_extras(self):
++        self.assert_install_scenarios('fixture-plugin==1.0')
++
++    def test_auxiliary_alias_does_not_advance_branch_without_upgrade(self):
++        self.assert_install_scenarios('FiXtUrE_PlUgIn ( == 1.0 )')
++
++    def assert_install_scenarios(self, auxiliary):
+         with tempfile.TemporaryDirectory(prefix='ansible-cao-test-') as directory:
+             root = Path(directory)
+             wheels = root / 'wheels'
+             wheels.mkdir()
+             wheel(wheels, 'cli_agent_orchestrator', '0.1')
+             wheel(wheels, 'fixture_plugin', '1.0')
++            parser_wheel(wheels)
+             env = dict(os.environ, UV_TOOL_DIR=str(root / 'tools'),
+                        UV_TOOL_BIN_DIR=str(root / 'bin'), UV_CACHE_DIR=str(root / 'cache'),
+                        UV_PYTHON_DOWNLOADS='never', UV_OFFLINE='true',
+@@ -82,13 +119,15 @@ class IsolatedInstallTests(unittest.TestCase):
+             uv = shutil.which('uv')
+             config = {'spec': 'cli-agent-orchestrator==0.1', 'python': shutil.which('python3'),
+                       'upgrade': False, 'extras': ['memory'],
+-                      'with_packages': ['fixture-plugin==1.0']}
++                      'with_packages': [auxiliary]}
+             with patch.dict(os.environ, env, clear=True):
+-                self.assertTrue(installer.install(uv, config)['changed'])
++                initial = installer.install(uv, config)
++                self.assertTrue(initial['changed'])
++                self.assertEqual(initial['with_count'], 1)
+                 self.assertFalse(installer.install(uv, config)['changed'])
+                 # Newly available versions are used only when upgrading latest.
+                 wheel(wheels, 'cli_agent_orchestrator', '0.2')
+-                config.update(extras=[], with_packages=[], upgrade=True)
++                config.update(extras=[], upgrade=True)
+                 self.assertFalse(installer.install(uv, config)['changed'])  # Pin holds.
+                 config.update(spec='cli-agent-orchestrator', upgrade=False)
+                 installer.install(uv, config)  # Remove the old constraint once.
+@@ -122,13 +161,17 @@ class IsolatedInstallTests(unittest.TestCase):
+                               upgrade=False)
+                 self.assertTrue(installer.install(uv, config)['changed'])
+                 self.assertFalse(installer.install(uv, config)['changed'])
++                installed_module = next((root / 'tools').rglob('cli_agent_orchestrator.py'))
++                self.assertIn("REVISION = 'first'", installed_module.read_text())
+                 wheel(repo, 'cli_agent_orchestrator', '0.3', 'second')
+                 git('add', '.')
+                 git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@localhost',
+                     'commit', '-m', 'second')
+                 self.assertFalse(installer.install(uv, config)['changed'])
++                self.assertIn("REVISION = 'first'", installed_module.read_text())
+                 config['upgrade'] = True
+                 self.assertTrue(installer.install(uv, config)['changed'])
++                self.assertIn("REVISION = 'second'", installed_module.read_text())
+                 config['spec'] = f'cli-agent-orchestrator[ui] @ git+{repo.as_uri()}@{first}'
+                 self.assertTrue(installer.install(uv, config)['changed'])
+                 self.assertFalse(installer.install(uv, config)['changed'])
+@@ -180,6 +223,47 @@ class IsolatedInstallTests(unittest.TestCase):
+                         self.assertIn('changed=0', result.stdout)
+                         self.assertEqual(receipt_path.read_bytes(), before)
+ 
++    def test_stored_constraints_reject_upgrade_and_source_change_without_mutation(self):
++        with tempfile.TemporaryDirectory(prefix='ansible-cao-constraints-') as directory:
++            root = Path(directory)
++            wheels = root / 'wheels'
++            wheels.mkdir()
++            wheel(wheels, 'cli_agent_orchestrator', '0.1')
++            wheel(wheels, 'fixture_plugin', '1.0')
++            constraint = root / 'constraints.txt'
++            constraint.write_text('fixture-plugin==1.0\n')
++            env = dict(os.environ, UV_TOOL_DIR=str(root / 'tools'),
++                       UV_TOOL_BIN_DIR=str(root / 'bin'), UV_CACHE_DIR=str(root / 'cache'),
++                       UV_PYTHON_DOWNLOADS='never', UV_OFFLINE='true',
++                       UV_FIND_LINKS=str(wheels), UV_NO_CONFIG='true',
++                       UV_CONSTRAINT=str(constraint))
++            uv = shutil.which('uv')
++            config = {'spec': 'cli-agent-orchestrator==0.1', 'python': shutil.which('python3'),
++                      'upgrade': False, 'extras': [], 'with_packages': ['fixture-plugin']}
++            with patch.dict(os.environ, env, clear=True):
++                installer.install(uv, config)
++                receipt = root / 'tools/cli-agent-orchestrator/uv-receipt.toml'
++                self.assertTrue(tomllib.loads(receipt.read_text())['tool']['constraints'])
++                wheel(wheels, 'fixture_plugin', '2.0')
++                os.environ.pop('UV_CONSTRAINT')
++
++                def snapshot():
++                    return {str(path.relative_to(root / 'tools')): path.read_bytes()
++                            for path in (root / 'tools').rglob('*') if path.is_file()}
++
++                before = snapshot()
++                for source, upgrade in [('cli-agent-orchestrator==0.1', True),
++                                        ('cli-agent-orchestrator @ git+file:///unused@main', False)]:
++                    config.update(spec=source, upgrade=upgrade)
++                    with patch.object(installer.subprocess, 'run', wraps=subprocess.run) as run:
++                        with self.assertRaisesRegex(ValueError, 'constraints'):
++                            installer.install(uv, config)
++                        self.assertEqual([call.args[0] for call in run.call_args_list],
++                                         [[uv, 'tool', 'dir']])
++                    self.assertEqual(snapshot(), before)
++                self.assertTrue(list((root / 'tools').rglob('fixture_plugin-1.0.dist-info')))
++                self.assertFalse(list((root / 'tools').rglob('fixture_plugin-2.0.dist-info')))
++
+ 
+ if __name__ == '__main__':
+     unittest.main()
+diff --git a/home/andrew/git/ansible-workstation/ai/rtk.yml b/home/andrew/git/ansible-workstation/ai/rtk.yml
+new file mode 100644
+index 0000000..6b93d3f
+--- /dev/null
++++ b/home/andrew/git/ansible-workstation/ai/rtk.yml
+@@ -0,0 +1,13 @@
++---
++- name: Prepare shared AI stack prerequisites for RTK
++  ansible.builtin.import_playbook: common.yml
++  tags: [rtk, ai_common]
++
++- name: Install RTK OSS local shell filtering
++  hosts: localhost
++  connection: local
++  become: false
++  gather_facts: true
++  roles:
++    - role: rtk
++      tags: [rtk]

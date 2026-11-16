@@ -1,0 +1,5 @@
+ai/herdr.yml                       syntax-ok
+ai/all.yml                         syntax-ok
+ai/cao-terminal-backend.yml        syntax-ok
+ai/cao-service.yml                 syntax-ok
+tasks/herdr-install/isolated.yml   syntax-ok

@@ -1,0 +1,28 @@
+---
+- name: Preparar dependências comuns
+  ansible.builtin.import_playbook: common.yml
+
+- name: Garantir Codex para registrar o MCP
+  ansible.builtin.import_playbook: codex.yml
+  when: "'codex' in (playwright_mcp_clients | default(['codex', 'claude_code']))"
+
+- name: Garantir Claude Code para registrar o MCP
+  ansible.builtin.import_playbook: claude.yml
+  when: "'claude_code' in (playwright_mcp_clients | default(['codex', 'claude_code']))"
+
+- name: Preparar Node.js para Playwright MCP
+  ansible.builtin.import_playbook: node.yml
+
+- name: Preparar navegador Chrome
+  ansible.builtin.import_playbook: ../browser/chrome.yml
+  when:
+    - playwright_mcp_install_browser | default(true) | bool
+    - ansible_facts['architecture'] == 'x86_64'
+
+- name: Instalar e registrar Playwright MCP
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: true
+  roles:
+    - playwright_mcp

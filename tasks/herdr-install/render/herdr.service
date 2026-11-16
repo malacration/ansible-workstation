@@ -1,0 +1,22 @@
+[Unit]
+Description=CLI Agent Orchestrator (fixture-user)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=fixture-user
+WorkingDirectory=/home/fixture-user
+Environment="HOME=/home/fixture-user"
+Environment="PATH=/home/fixture-user/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="XDG_CONFIG_HOME=/home/fixture-user/.config"
+Environment="XDG_DATA_HOME=/home/fixture-user/.local/share"
+Environment="XDG_CACHE_HOME=/home/fixture-user/.cache"
+EnvironmentFile=-/home/fixture-user/.config/ai-stack/environment
+ExecStart=/home/fixture-user/.local/bin/cao-server --host 127.0.0.1 --port 9889 --terminal herdr
+Restart=on-failure
+RestartSec=5
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

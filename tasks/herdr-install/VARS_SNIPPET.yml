@@ -1,0 +1,13 @@
+# Trecho para ai/vars.example.yml (mesclar depois da tarefa concorrente em ai/roles/cao).
+
+# herdr: multiplexador usado pelo backend experimental do CAO. Instalado por padrão
+# em ai/all.yml; não é usado até cao_terminal_backend=herdr.
+herdr_enabled: true
+herdr_version: '0.9.5'          # pin auditado; ou latest
+# herdr_upgrade: true           # reconsultar/reverificar (herda ai_stack_upgrade)
+# herdr_checksum: 'sha256:HEX'  # pin adicional opcional do binário
+
+# Backend do cao-server na unidade systemd opcional: tmux (padrão) ou herdr.
+# Com tmux a unidade não muda. Trocar exige reiniciar o cao-server sem sessões
+# abertas; sessões não migram entre backends.
+cao_terminal_backend: tmux

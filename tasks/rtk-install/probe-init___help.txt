@@ -1,0 +1,70 @@
+Initialize rtk instructions for assistant CLI usage
+
+Usage: rtk init [OPTIONS]
+
+Options:
+  -g, --global
+          Add to global assistant config directory instead of local project file
+
+      --opencode
+          Install OpenCode plugin (in addition to Claude Code)
+
+      --gemini
+          Initialize for Gemini CLI instead of Claude Code
+
+      --agent <AGENT>
+          Target agent to install hooks for (default: claude)
+
+          Possible values:
+          - claude:      Claude Code (default)
+          - cursor:      Cursor Agent (editor and CLI)
+          - trae:        Trae IDE
+          - windsurf:    Windsurf IDE (Cascade)
+          - cline:       Cline / Roo Code (VS Code)
+          - kilocode:    Kilo Code
+          - antigravity: Google Antigravity
+          - kimi:        Kimi AI
+          - pi:          Pi coding agent
+          - hermes:      Hermes CLI
+          - droid:       Factory Droid CLI
+          - vibe:        Mistral Vibe CLI
+          - omp:         Oh My Pi (OMP)
+
+      --show
+          Show current configuration
+
+      --claude-md
+          Inject full instructions into CLAUDE.md (legacy mode)
+
+      --hook-only
+          Hook only, no RTK.md
+
+      --auto-patch
+          Apply supported init changes without prompting
+
+      --no-patch
+          Skip optional init prompts and leave protected content unchanged
+
+      --trust-filters
+          Trust and enable detected custom filters without prompting
+
+      --no-trust-filters
+          Leave detected custom filters disabled without prompting
+
+      --uninstall
+          Remove RTK artifacts for the selected assistant mode
+
+      --codex
+          Target Codex CLI (uses PreToolUse hook + AGENTS.md + RTK.md)
+
+      --copilot
+          Install GitHub Copilot integration (VS Code + CLI)
+
+      --dry-run
+          Preview changes without writing any files (combine with -v to show content)
+
+      --skip-env
+          Set SKIP_ENV_VALIDATION=1 for child processes (Next.js, tsc, lint, prisma)
+
+  -h, --help
+          Print help (see a summary with '-h')

@@ -1,0 +1,16 @@
+---
+cao_uv_version: latest
+cao_uv_installer_url: "https://astral.sh/uv/{{ '' if cao_uv_version == 'latest' else cao_uv_version ~ '/' }}install.sh"
+cao_uv_installer_checksum: ''
+cao_version: latest
+# uv baixa este Python quando ele não existe; o Python do Ubuntu não é substituído.
+cao_python_version: '3.12'
+cao_install_spec: "cli-agent-orchestrator{{ '' if cao_version == 'latest' else '==' ~ cao_version }}"
+# O servidor pode ser iniciado manualmente com cao-server ou pelo systemd.
+cao_service_enabled: false
+cao_service_name: "cao-server-{{ ai_stack_user }}"
+# Gera perfis CAO separados a partir dos MCPs globais de cada cliente.
+cao_mcp_sync_enabled: true
+cao_mcp_clients: [codex, claude_code]
+cao_mcp_profiles: [code_supervisor, developer, reviewer]
+cao_mcp_profile_prefix: ai_stack

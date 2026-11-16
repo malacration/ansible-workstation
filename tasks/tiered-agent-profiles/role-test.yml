@@ -1,0 +1,17 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - ../../ai/roles/cao/defaults/main.yml
+  vars:
+    ai_stack_home: /home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/role-home
+    ai_stack_bin_dir: /home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/role-home/bin
+    ai_stack_user: "{{ lookup('env', 'USER') }}"
+    ai_stack_environment:
+      HOME: "{{ ai_stack_home }}"
+      UV_TOOL_DIR: /home/andrew/.local/share/uv/tools
+    ansible_facts:
+      user_id: "{{ lookup('env', 'USER') }}"
+  tasks:
+    - ansible.builtin.include_tasks: ../../ai/roles/cao/tasks/mcp.yml

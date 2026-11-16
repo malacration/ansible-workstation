@@ -1,0 +1,7 @@
+---
+playwright_mcp_version: latest
+playwright_mcp_clients: [codex, claude_code]
+playwright_mcp_install_browser: true
+playwright_mcp_install_dir: "{{ ai_stack_home }}/.local/share/ai-stack/playwright"
+playwright_mcp_command: "{{ ai_stack_bin_dir }}/playwright-mcp"
+playwright_mcp_args: [--browser, chrome]

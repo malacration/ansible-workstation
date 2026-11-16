@@ -1,0 +1,10 @@
+test_disabled_herdr_without_executable_is_rejected (test_cao_backend_entrypoint.BackendEntrypointTests.test_disabled_herdr_without_executable_is_rejected) ... ok
+test_enabled_herdr_on_fresh_host_is_allowed_in_check_mode (test_cao_backend_entrypoint.BackendEntrypointTests.test_enabled_herdr_on_fresh_host_is_allowed_in_check_mode) ... ok
+test_invalid_backend_is_rejected (test_cao_backend_entrypoint.BackendEntrypointTests.test_invalid_backend_is_rejected) ... ok
+test_real_mode_requires_executable (test_cao_backend_entrypoint.BackendEntrypointTests.test_real_mode_requires_executable) ... ok
+test_undefined_backend_uses_tmux (test_cao_backend_entrypoint.BackendEntrypointTests.test_undefined_backend_uses_tmux) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 9.354s
+
+OK

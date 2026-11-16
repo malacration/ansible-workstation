@@ -1,0 +1,3 @@
+# Chrome signing key correction — re-review request
+
+Independently review the correction in `/home/andrew/git/ansible-workstation/browser/chrome.yml` against the finding in `/home/andrew/git/ansible-workstation/tasks/chrome-signing-key/REVIEW.md`. Verify that removal is limited to complete equivalent stable/main entries, preserves both reported non-equivalent examples, and still removes ordinary matching entries. Review the focused regression checks and evidence in `/home/andrew/git/ansible-workstation/tasks/chrome-signing-key/ROUND2.md`; report any remaining defects and a verdict. Do not run the playbook or perform live APT, keyring, or package operations.

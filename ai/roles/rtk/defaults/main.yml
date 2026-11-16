@@ -1,0 +1,18 @@
+---
+# Pin auditado; latest resolve somente na instalação ou atualização explícita.
+rtk_version: '1.2.0'
+rtk_upgrade: "{{ ai_stack_upgrade | default(false) }}"
+rtk_clients: [claude_code, codex]
+rtk_install_dir: "{{ ai_stack_home }}/.local/share/ai-stack/rtk"
+rtk_binary: "{{ ai_stack_bin_dir }}/rtk"
+rtk_claude_dir: "{{ ai_stack_home }}/.claude"
+rtk_codex_dir: "{{ ai_stack_home }}/.codex"
+# Somente edição OSS: filtros/hooks locais, sem engine de pipelines.
+rtk_release_api: https://api.github.com/repos/rtk-ai/rtk/releases
+rtk_release_download_url: https://github.com/rtk-ai/rtk/releases/download
+# Pin adicional opcional, sha256:HEX. O checksum oficial é sempre obrigatório.
+rtk_checksum: ''
+rtk_audited_checksums:
+  '1.2.0':
+    x86_64: a28407dc13038bdc9c2a1f5a047b0c636e0c1d495b15523576e2adb992a06a17
+    aarch64: 9786c61dbbea704e1468ee7060930d3b45b67f79ba2babfb73463e85340628d9

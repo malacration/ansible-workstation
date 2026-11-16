@@ -1,0 +1,3 @@
+
+playbook: ai/all.yml
+rc=0

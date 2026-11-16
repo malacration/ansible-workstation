@@ -1,0 +1,3 @@
+[WARNING]: provided hosts list is empty, only localhost is available. Note that the implicit localhost does not match 'all'
+
+playbook: ai/all.yml

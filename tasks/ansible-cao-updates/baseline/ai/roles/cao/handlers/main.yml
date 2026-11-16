@@ -1,0 +1,6 @@
+---
+- name: Reiniciar servidor CAO
+  ansible.builtin.include_tasks: "{{ role_path }}/tasks/restart-service.yml"
+  when:
+    - cao_service_enabled | bool
+    - not ansible_check_mode

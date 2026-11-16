@@ -1,0 +1,18 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    ai_stack_user: "{{ ansible_facts['user_id'] }}"
+    ai_stack_home: /home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/herdr-fresh-home-5
+    ai_stack_bin_dir: "{{ ai_stack_home }}/.local/bin"
+    ai_stack_cache_dir: "{{ ai_stack_home }}/.cache/ai-stack"
+    ai_stack_upgrade: false
+    ai_stack_environment:
+      HOME: "{{ ai_stack_home }}"
+      PATH: "{{ ai_stack_bin_dir }}:/usr/local/bin:/usr/bin:/bin"
+      XDG_CONFIG_HOME: "{{ ai_stack_home }}/.config"
+      XDG_DATA_HOME: "{{ ai_stack_home }}/.local/share"
+      XDG_CACHE_HOME: "{{ ai_stack_home }}/.cache"
+  roles:
+    - role: herdr

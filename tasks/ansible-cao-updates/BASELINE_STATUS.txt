@@ -1,0 +1,10 @@
+ M README.md
+ M all.yml
+ M browser/chrome.yml
+ M sdk/git-secrets.yml
+ M sdk/sdkman.yml
+ M sdk/vim.yml
+ M sdk/zsh.yml
+?? .gitignore
+?? ai/
+?? tasks/

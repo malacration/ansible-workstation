@@ -1,0 +1,39 @@
+---
+# Validação do backend de terminal do cao-server (cao_terminal_backend).
+# Executada por ai/cao-terminal-backend.yml, que ai/all.yml importa depois de
+# ai/herdr.yml e antes de ai/cao-service.yml. Somente leitura: não altera nada.
+- name: Validar backend de terminal do CAO
+  ansible.builtin.assert:
+    that: cao_terminal_backend | default('tmux') in ['tmux', 'herdr']
+    fail_msg: >-
+      cao_terminal_backend deve ser tmux ou herdr (experimental), não
+      '{{ cao_terminal_backend | default('tmux') }}'.
+
+# O backend só é aplicado pela unidade systemd; sem serviço não há o que exigir.
+- name: Exigir herdr para o serviço CAO com backend herdr
+  when:
+    - cao_terminal_backend | default('tmux') == 'herdr'
+    - cao_service_enabled | default(false) | bool
+  block:
+    # ai_stack_home depende deste fato; numa execução avulsa ele ainda não existe.
+    - name: Consultar usuário dos agentes
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ ai_stack_user }}"
+      check_mode: false
+      when: ai_stack_user not in (ansible_facts['getent_passwd'] | default({}))
+
+    - name: Verificar comando herdr publicado
+      ansible.builtin.stat:
+        path: "{{ herdr_binary }}"
+      register: herdr_backend_command
+
+    # Em ai/all.yml o herdr.yml já rodou; no check mode a instalação é só prevista.
+    - name: Exigir herdr instalado, ou habilitado no check mode
+      ansible.builtin.assert:
+        that: >-
+          (herdr_backend_command.stat.executable | default(false)) or
+          (ansible_check_mode and herdr_enabled | default(true) | bool)
+        fail_msg: >-
+          cao_terminal_backend=herdr exige {{ herdr_binary }}. Execute
+          ai/herdr.yml (herdr_enabled=true) antes, ou use cao_terminal_backend=tmux.

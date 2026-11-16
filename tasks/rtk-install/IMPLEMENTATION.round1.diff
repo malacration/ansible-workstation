@@ -1,0 +1,1225 @@
+diff --git a/home/andrew/git/ansible-workstation/ai/roles/rtk/README.md b/home/andrew/git/ansible-workstation/ai/roles/rtk/README.md
+new file mode 100644
+index 0000000..8165f15
+--- /dev/null
++++ b/home/andrew/git/ansible-workstation/ai/roles/rtk/README.md
+@@ -0,0 +1,93 @@
++# RTK local shell filtering
++
++This role installs the official `rtk-oss` release for Linux x86_64 or aarch64
++(musl), checks its SHA256 before executing it, and integrates its native
++PreToolUse hooks with Claude Code and Codex. No proxy binary, service, remote
++pipeline, API routing or telemetry is enabled.
++
++Import `ai/common.yml` from the calling playbook first. This role uses the
++existing `ai_stack_user`, `ai_stack_home`, `ai_stack_bin_dir`,
++`ai_stack_cache_dir` and `ai_stack_environment` variables. It deliberately has
++no implicit system dependency role, allowing isolated validation without APT,
++shell startup changes or access to the real user's client settings.
++
++| Variable | Default | Behavior |
++| --- | --- | --- |
++| `rtk_version` | `'1.2.0'` | Audited release pin, or `latest` |
++| `rtk_upgrade` | `ai_stack_upgrade`, otherwise `false` | Explicit release refresh |
++| `rtk_clients` | `[claude_code, codex]` | Clients whose global hooks/instructions are merged |
++| `rtk_install_dir` | `{{ ai_stack_home }}/.local/share/ai-stack/rtk` | Private binary, helper and release receipt |
++| `rtk_binary` | `{{ ai_stack_bin_dir }}/rtk` | Public wrapper with mandatory telemetry opt-out |
++| `rtk_claude_dir` | `{{ ai_stack_home }}/.claude` | Claude global settings/instructions directory |
++| `rtk_codex_dir` | `{{ ai_stack_home }}/.codex` | Codex global hooks/instructions directory |
++| `rtk_checksum` | empty | Optional additional `sha256:HEX` archive pin |
++| `rtk_audited_checksums` | v1.2.0 Linux x86_64/aarch64 | Reviewed pins, checked against the official manifest |
++| `rtk_release_api` | GitHub RTK releases API | Metadata endpoint; override only for a trusted mirror/test fixture |
++| `rtk_release_download_url` | Official GitHub release download URL | Asset/manifest base URL |
++
++A pinned version change reconciles immediately. `latest` retains the installed
++managed release without network access until `rtk_upgrade=true` or
++`ai_stack_upgrade=true`. A missing receipt, altered binary or changed explicit
++checksum forces verification/reconciliation. The receipt records edition,
++version, architecture-specific asset, source URL, archive SHA256 and executable
++SHA256. A deliberate refresh may report changed temporary staging tasks even
++when the remote release has not changed.
++
++The public wrapper exports `RTK_TELEMETRY_DISABLED=1` and
++`RTK_ONRAMP_DISABLED=1` on every call. Existing RTK configuration files remain
++untouched, including an existing telemetry preference; the environment override
++blocks transmission through the managed command regardless of that preference.
++The raw executable in the private install directory is not the public entrypoint.
++RTK's local usage/recovery storage follows its existing config/defaults.
++
++`configure_rtk.py` invokes the installed release's real `init` in a temporary,
++empty HOME, with explicit CODEX_HOME, CLAUDE_CONFIG_DIR and XDG overrides. For
++v1.2.0 the supported calls are:
++
++```text
++rtk init -g --no-trust-filters --auto-patch
++rtk init -g --no-trust-filters --codex
++```
++
++Codex rejects `--auto-patch`. Only the generated PreToolUse hook and awareness
++text are used; generated filters, permissions and other files are not copied.
++No existing custom filters are trusted automatically.
++
++The merger reads only selected `settings.json`/`hooks.json`, `CLAUDE.md`/
++`AGENTS.md` and `RTK.md`. It retains unrelated JSON fields, hooks and instruction
++text; its instruction text lives between `BEGIN/END ANSIBLE RTK` markers. A
++native existing `rtk hook CLIENT` is updated to the public absolute wrapper
++path. Legacy rewrite scripts, duplicate RTK hooks, custom RTK matchers, malformed
++JSON/markers or symlinked paths fail before user configuration is changed.
++Existing files are backed up as `FILE.rtk-backup.FULL_SHA256`, with mode 0600;
++existing file modes are retained. JSON formatting can change on the first merge.
++
++Claude receives the release's awareness through `@RTK.md`. Codex receives inline
++awareness and explicit `rtk` usage guidance in its managed AGENTS.md block, so it
++does not depend on Markdown import behavior. Client config.toml, MCPs, auth,
++permission settings and sandbox writable roots are not rewritten. The hook
++commands use the absolute wrapper path; rewritten commands use `rtk` from PATH,
++so retain the stack's `~/.local/bin` PATH setup when launching clients/CAO.
++
++The integration requires clients supporting native PreToolUse hooks and input
++rewrites. The installed Codex CLI was 0.169.0 during validation; tests cover the
++release's native hook processors with actual event payloads, not a newly
++launched authenticated agent session. Built-in Read/Grep/Glob tools and MCP
++responses are outside this shell filter's scope. Existing CAO sessions are not
++restarted. New client sessions load the changed global hooks/instructions.
++
++Removing a client from `rtk_clients` stops managing that client's files; it does
++not uninstall its previously installed hook. `--check` predicts binary/template
++changes without downloads or init; integration merging is validated during an
++actual run. The helper offers a separate `--check` once the binary is present.
++
++Validation and the handoff plan are under
++`/home/andrew/git/ansible-workstation/tasks/rtk-install/`.
++
++Official references:
++
++- https://github.com/rtk-ai/rtk/releases/tag/v1.2.0
++- https://github.com/rtk-ai/rtk/blob/v1.2.0/src/hooks/init/claude.rs
++- https://github.com/rtk-ai/rtk/blob/v1.2.0/src/hooks/init/codex.rs
++- https://github.com/rtk-ai/rtk/blob/v1.2.0/src/core/telemetry_cmd.rs
++- https://github.com/rtk-ai/rtk/blob/v1.2.0/src/hooks/hook_cmd.rs
+diff --git a/home/andrew/git/ansible-workstation/ai/roles/rtk/defaults/main.yml b/home/andrew/git/ansible-workstation/ai/roles/rtk/defaults/main.yml
+new file mode 100644
+index 0000000..b008c81
+--- /dev/null
++++ b/home/andrew/git/ansible-workstation/ai/roles/rtk/defaults/main.yml
+@@ -0,0 +1,18 @@
++---
++# Pin auditado; latest resolve somente na instalação ou atualização explícita.
++rtk_version: '1.2.0'
++rtk_upgrade: "{{ ai_stack_upgrade | default(false) }}"
++rtk_clients: [claude_code, codex]
++rtk_install_dir: "{{ ai_stack_home }}/.local/share/ai-stack/rtk"
++rtk_binary: "{{ ai_stack_bin_dir }}/rtk"
++rtk_claude_dir: "{{ ai_stack_home }}/.claude"
++rtk_codex_dir: "{{ ai_stack_home }}/.codex"
++# Somente edição OSS: filtros/hooks locais, sem engine de pipelines.
++rtk_release_api: https://api.github.com/repos/rtk-ai/rtk/releases
++rtk_release_download_url: https://github.com/rtk-ai/rtk/releases/download
++# Pin adicional opcional, sha256:HEX. O checksum oficial é sempre obrigatório.
++rtk_checksum: ''
++rtk_audited_checksums:
++  '1.2.0':
++    x86_64: a28407dc13038bdc9c2a1f5a047b0c636e0c1d495b15523576e2adb992a06a17
++    aarch64: 9786c61dbbea704e1468ee7060930d3b45b67f79ba2babfb73463e85340628d9
+diff --git a/home/andrew/git/ansible-workstation/ai/roles/rtk/files/configure_rtk.py b/home/andrew/git/ansible-workstation/ai/roles/rtk/files/configure_rtk.py
+new file mode 100644
+index 0000000..39df46c
+--- /dev/null
++++ b/home/andrew/git/ansible-workstation/ai/roles/rtk/files/configure_rtk.py
+@@ -0,0 +1,233 @@
++#!/usr/bin/env python3
++"""Generate release-native RTK init output in isolation, then merge owned pieces.
++
++Only the selected hook JSON and instruction files are read. Client config.toml,
++credentials, MCPs, permission settings and existing RTK configs are never read.
++The public RTK wrapper forces the upstream telemetry opt-out on every call.
++"""
++
++import argparse
++import copy
++import hashlib
++import json
++import os
++from pathlib import Path
++import shlex
++import stat
++import subprocess
++import sys
++import tempfile
++
++
++START = '<!-- BEGIN ANSIBLE RTK -->'
++END = '<!-- END ANSIBLE RTK -->'
++
++
++def safe_path(home, path):
++    """Refuse links before reading, including dangling links and parent links."""
++    path = Path(os.path.abspath(path))
++    if path == home or home not in path.parents:
++        raise ValueError('RTK integration paths must be inside the selected home')
++    for candidate in [path, *path.parents]:
++        if candidate.is_symlink():
++            raise ValueError('Symlink in RTK integration path; review it manually')
++    if path.exists() and not path.is_file():
++        raise ValueError('RTK integration destination must be a regular file')
++    return path
++
++
++def merge_block(original, payload):
++    """Preserve all user text byte for byte outside our explicitly owned block."""
++    block = START + '\n' + payload.rstrip() + '\n' + END
++    if original.count(START) != original.count(END) or original.count(START) > 1:
++        raise ValueError('Unbalanced or duplicated managed RTK instruction markers')
++    if START in original:
++        before, rest = original.split(START)
++        _, after = rest.split(END)
++        return before + block + after
++    separator = '' if not original else ('\n' if original.endswith('\n') else '\n\n')
++    return original + separator + block + '\n'
++
++
++def is_rtk_hook(command, client, binary):
++    try:
++        words = shlex.split(command)
++    except ValueError:
++        return False
++    return (len(words) == 3 and words[1:] == ['hook', client]
++            and words[0] in ['rtk', str(binary)])
++
++
++def merge_hooks(original, generated, client, binary):
++    """Keep unrelated events, matchers, hooks and top-level settings intact."""
++    root = copy.deepcopy(original)
++    if not isinstance(root, dict):
++        raise ValueError('Hook JSON root must be an object')
++    events = root.setdefault('hooks', {})
++    if not isinstance(events, dict):
++        raise ValueError('hooks must be an object')
++    groups = events.setdefault('PreToolUse', [])
++    if not isinstance(groups, list):
++        raise ValueError('PreToolUse must be an array')
++    desired = copy.deepcopy(generated['hooks']['PreToolUse'])
++    if len(desired) != 1 or desired[0].get('matcher') != 'Bash':
++        raise ValueError('Unsupported RTK init hook schema; review the new release')
++    hooks = desired[0].get('hooks', [])
++    if len(hooks) != 1 or hooks[0].get('command') != 'rtk hook ' + client:
++        raise ValueError('Unsupported RTK init hook command; review the new release')
++    desired_command = shlex.quote(str(binary)) + ' hook ' + client
++    hooks[0]['command'] = desired_command
++    matches = []
++    for group in groups:
++        if not isinstance(group, dict) or not isinstance(group.get('hooks'), list):
++            raise ValueError('Invalid PreToolUse hook group')
++        for hook in group['hooks']:
++            if not isinstance(hook, dict):
++                raise ValueError('Invalid PreToolUse hook entry')
++            command = hook.get('command', '')
++            if not isinstance(command, str):
++                raise ValueError('Invalid hook command')
++            if 'rtk-rewrite' in command:
++                raise ValueError('Legacy RTK hook found; migrate it manually before applying')
++            if hook.get('type') == 'command' and is_rtk_hook(command, client, binary):
++                if group.get('matcher') != 'Bash':
++                    raise ValueError('Existing RTK hook has a custom matcher; review manually')
++                matches.append(hook)
++    if len(matches) > 1:
++        raise ValueError('Multiple RTK hooks already exist; review duplicates manually')
++    if matches:
++        matches[0]['command'] = desired_command
++    else:
++        groups.extend(desired)
++    return root
++
++
++def atomic_write(path, data, mode):
++    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
++    descriptor, name = tempfile.mkstemp(prefix='.rtk-', dir=path.parent)
++    try:
++        with os.fdopen(descriptor, 'wb') as output:
++            output.write(data)
++            os.fchmod(output.fileno(), mode)
++        os.replace(name, path)
++    finally:
++        if os.path.exists(name):
++            os.unlink(name)
++
++
++def configure(home, binary, claude_dir, codex_dir, clients, check=False):
++    home = Path(os.path.abspath(home))
++    binary = Path(os.path.abspath(binary))
++    selected = set(clients)
++    if selected - {'claude_code', 'codex'}:
++        raise ValueError('Unsupported RTK client')
++    # Validate all destinations before invoking init or opening any user files.
++    destinations = {}
++    for client, directory, hook_name, instructions in [
++        ('claude_code', claude_dir, 'settings.json', 'CLAUDE.md'),
++        ('codex', codex_dir, 'hooks.json', 'AGENTS.md'),
++    ]:
++        if client in selected:
++            destinations[client] = [safe_path(home, Path(directory) / name)
++                                    for name in [hook_name, instructions, 'RTK.md']]
++    changes = {}
++    originals = {}
++
++    def propose(path, value):
++        old = path.read_bytes() if path.exists() else None
++        new = value.encode('utf-8')
++        if old != new:
++            changes[path] = new
++            originals[path] = old
++
++    # No copy of client settings is passed to init. It can only see empty staging
++    # directories, with every relevant HOME override pinned to those directories.
++    with tempfile.TemporaryDirectory(prefix='rtk-init-') as temporary:
++        stage = Path(temporary)
++        environment = {
++            'PATH': str(binary.parent) + ':/usr/local/bin:/usr/bin:/bin',
++            'HOME': str(stage), 'CODEX_HOME': str(stage / '.codex'),
++            'CLAUDE_CONFIG_DIR': str(stage / '.claude'),
++            'XDG_CONFIG_HOME': str(stage / '.config'),
++            'XDG_DATA_HOME': str(stage / '.local/share'),
++            'XDG_CACHE_HOME': str(stage / '.cache'),
++            'RTK_TELEMETRY_DISABLED': '1', 'RTK_ONRAMP_DISABLED': '1',
++        }
++        for client, paths in destinations.items():
++            native = 'claude' if client == 'claude_code' else 'codex'
++            args = ['init', '-g', '--no-trust-filters']
++            args += ['--auto-patch'] if native == 'claude' else ['--codex']
++            subprocess.run([str(binary), *args], env=environment, cwd=stage,
++                           input='', text=True, capture_output=True, check=True,
++                           timeout=30)
++            staged_dir = stage / ('.claude' if native == 'claude' else '.codex')
++            hook_path, instructions, awareness = paths
++            generated = json.loads((staged_dir / hook_path.name).read_text())
++            original = json.loads(hook_path.read_text()) if hook_path.exists() else {}
++            merged = merge_hooks(original, generated, native, binary)
++            # Avoid reformatting a user's JSON when it already contains our hook.
++            if merged != original:
++                propose(hook_path, json.dumps(merged, indent=2, ensure_ascii=False) + '\n')
++            body = (staged_dir / 'RTK.md').read_text()
++            if body.startswith('<!-- rtk-owned:'):
++                body = body.split('\n', 1)[1].lstrip('\n')
++            old_awareness = awareness.read_text() if awareness.exists() else ''
++            propose(awareness, merge_block(old_awareness, body))
++            old_instructions = instructions.read_text() if instructions.exists() else ''
++            if native == 'claude':
++                payload = '@RTK.md'
++            else:
++                # Codex does not promise Markdown @ imports; include the awareness
++                # inline, plus explicit fallback for tools that do not trigger hooks.
++                payload = (body.rstrip() + '\n\nUse `rtk <command>` for supported shell commands. '
++                           'The local wrapper disables telemetry. Use `rtk bypass <command>` '
++                           'when unfiltered output is required.')
++            propose(instructions, merge_block(old_instructions, payload))
++
++    backups = {}
++    for path, old in originals.items():
++        if old is not None:
++            digest = hashlib.sha256(old).hexdigest()
++            backup = safe_path(home, path.with_name(path.name + '.rtk-backup.' + digest))
++            if backup.exists() and backup.read_bytes() != old:
++                raise ValueError('Existing RTK backup conflicts with current file content')
++            backups[backup] = old
++    if not check:
++        # Preserve originals before the first write. No setting values are logged.
++        for path, old in backups.items():
++            if not path.exists():
++                path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
++                with path.open('xb') as output:
++                    os.chmod(path, 0o600)
++                    output.write(old)
++        for path, new in changes.items():
++            mode = stat.S_IMODE(path.stat().st_mode) if path.exists() else 0o600
++            atomic_write(path, new, mode)
++    return {'changed': bool(changes), 'files': [str(p) for p in changes],
++            'backups': [str(p) for p in backups], 'clients': sorted(selected)}
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('--home', required=True, type=Path)
++    parser.add_argument('--binary', required=True, type=Path)
++    parser.add_argument('--claude-dir', required=True, type=Path)
++    parser.add_argument('--codex-dir', required=True, type=Path)
++    parser.add_argument('--clients', default='claude_code,codex')
++    parser.add_argument('--check', action='store_true')
++    args = parser.parse_args()
++    try:
++        result = configure(args.home, args.binary, args.claude_dir, args.codex_dir,
++                           list(filter(None, args.clients.split(','))), args.check)
++        print(json.dumps(result))
++    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
++        # Do not echo client configuration or subprocess output in error messages.
++        print('RTK integration failed: ' + type(error).__name__ + ': '
++              + (str(error) if isinstance(error, (ValueError, KeyError)) else
++                 'check file permissions and release init compatibility'), file=sys.stderr)
++        return 1
++    return 0
++
++
++if __name__ == '__main__':
++    sys.exit(main())
+diff --git a/home/andrew/git/ansible-workstation/ai/roles/rtk/meta/main.yml b/home/andrew/git/ansible-workstation/ai/roles/rtk/meta/main.yml
+new file mode 100644
+index 0000000..e27422d
+--- /dev/null
++++ b/home/andrew/git/ansible-workstation/ai/roles/rtk/meta/main.yml
+@@ -0,0 +1,3 @@
++---
++# O subplaybook deve importar ai/common.yml; testes isolados fornecem suas vars.
++dependencies: []
+diff --git a/home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/main.yml b/home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/main.yml
+new file mode 100644
+index 0000000..d3a9b43
+--- /dev/null
++++ b/home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/main.yml
+@@ -0,0 +1,114 @@
++---
++- name: Validar plataforma e parâmetros RTK
++  ansible.builtin.assert:
++    that:
++      - ansible_facts['system'] == 'Linux'
++      - ansible_facts['architecture'] in ['x86_64', 'aarch64']
++      - rtk_version == 'latest' or rtk_version is match('^[0-9]+[.][0-9]+[.][0-9]+$')
++      - rtk_clients | difference(['claude_code', 'codex']) | length == 0
++      - ai_stack_home.startswith('/') and ai_stack_home != '/'
++      - rtk_install_dir.startswith(ai_stack_home ~ '/')
++      - rtk_binary.startswith(ai_stack_home ~ '/')
++      - rtk_checksum == '' or rtk_checksum is match('^sha256:[a-fA-F0-9]{64}$')
++
++- name: Gerenciar RTK como usuário dos agentes
++  become: "{{ ansible_facts['user_id'] != ai_stack_user }}"
++  become_user: "{{ ai_stack_user }}"
++  environment: >-
++    {{ ai_stack_environment | combine({'RTK_TELEMETRY_DISABLED': '1', 'RTK_ONRAMP_DISABLED': '1'}) }}
++  block:
++    - name: Inspecionar recibo do release gerenciado
++      ansible.builtin.stat:
++        path: "{{ rtk_install_dir }}/release.json"
++      register: rtk_receipt_stat
++
++    - name: Recusar recibo simbólico
++      ansible.builtin.assert:
++        that: not rtk_receipt_stat.stat.islnk | default(false)
++
++    - name: Ler somente recibo público de proveniência RTK
++      ansible.builtin.slurp:
++        src: "{{ rtk_install_dir }}/release.json"
++      register: rtk_receipt_content
++      when: rtk_receipt_stat.stat.exists
++
++    - name: Carregar proveniência instalada
++      ansible.builtin.set_fact:
++        rtk_receipt: "{{ rtk_receipt_content.content | default('e30=') | b64decode | from_json }}"
++
++    - name: Conferir integridade atual do executável gerenciado
++      ansible.builtin.stat:
++        path: "{{ rtk_install_dir }}/bin/rtk"
++        checksum_algorithm: sha256
++      register: rtk_installed_stat
++
++    - name: Verificar versão do binário gerenciado
++      ansible.builtin.command:
++        argv: ["{{ rtk_install_dir }}/bin/rtk", --version]
++      register: rtk_current
++      changed_when: false
++      failed_when: false
++      check_mode: false
++
++    - name: Definir necessidade de consultar release
++      ansible.builtin.set_fact:
++        rtk_needs_release: >-
++          {{ rtk_current.rc != 0 or rtk_upgrade | bool or
++             rtk_receipt.get('edition') != 'oss' or
++             rtk_receipt.get('binary_sha256', '') != rtk_installed_stat.stat.checksum | default('missing') or
++             rtk_current.stdout | trim != 'rtk ' ~ rtk_receipt.get('version', '') or
++             (rtk_checksum != '' and rtk_checksum | lower != 'sha256:' ~ rtk_receipt.get('sha256', '')) or
++             (rtk_version != 'latest' and rtk_current.stdout | trim != 'rtk ' ~ rtk_version) }}
++        rtk_asset_name: "rtk-oss-{{ ansible_facts['architecture'] }}-unknown-linux-musl.tar.gz"
++
++    - name: Preparar diretórios RTK
++      ansible.builtin.file:
++        path: "{{ item }}"
++        state: directory
++        mode: '0755'
++      loop:
++        - "{{ ai_stack_bin_dir }}"
++        - "{{ ai_stack_cache_dir }}/rtk"
++        - "{{ rtk_install_dir }}"
++        - "{{ rtk_install_dir }}/bin"
++
++    - name: Instalar release oficial verificado
++      ansible.builtin.include_tasks: release.yml
++      when: rtk_needs_release | bool and not ansible_check_mode
++
++    - name: Informar instalação prevista no check mode
++      ansible.builtin.debug:
++        msg: "RTK OSS {{ rtk_version }} será resolvido, verificado e instalado na aplicação real."
++      changed_when: true
++      when: rtk_needs_release | bool and ansible_check_mode
++
++    - name: Instalar comando RTK com telemetria bloqueada
++      ansible.builtin.template:
++        src: rtk.j2
++        dest: "{{ rtk_binary }}"
++        mode: '0755'
++        backup: true
++
++    - name: Instalar mesclador das integrações RTK
++      ansible.builtin.copy:
++        src: configure_rtk.py
++        dest: "{{ rtk_install_dir }}/configure_rtk.py"
++        mode: '0755'
++
++    - name: Mesclar hooks e instruções sem alterar permissões ou MCPs
++      ansible.builtin.command:
++        argv: >-
++          {{ ['python3', rtk_install_dir ~ '/configure_rtk.py',
++              '--home', ai_stack_home, '--binary', rtk_binary,
++              '--claude-dir', rtk_claude_dir, '--codex-dir', rtk_codex_dir,
++              '--clients', rtk_clients | join(',')] }}
++      register: rtk_configured
++      changed_when: (rtk_configured.stdout | from_json).changed
++      when: not ansible_check_mode
++
++    - name: Informar limite da previsão das integrações
++      ansible.builtin.debug:
++        msg: >-
++          Check mode não executa init nem instala binários; a mesclagem validada
++          de hooks/instruções será calculada na aplicação real.
++      when: ansible_check_mode
+diff --git a/home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/release.yml b/home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/release.yml
+new file mode 100644
+index 0000000..a4e36a3
+--- /dev/null
++++ b/home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/release.yml
+@@ -0,0 +1,105 @@
++---
++- name: Consultar metadados oficiais do release solicitado
++  ansible.builtin.uri:
++    url: "{{ rtk_release_api }}/{{ 'latest' if rtk_version == 'latest' else 'tags/v' ~ rtk_version }}"
++    return_content: true
++  register: rtk_release
++
++- name: Validar release estável e artefato OSS da arquitetura
++  ansible.builtin.assert:
++    that:
++      - rtk_release.json.tag_name is match('^v[0-9]+[.][0-9]+[.][0-9]+$')
++      - not rtk_release.json.draft
++      - not rtk_release.json.prerelease
++      - rtk_version == 'latest' or rtk_release.json.tag_name == 'v' ~ rtk_version
++      - rtk_release.json.assets | selectattr('name', 'equalto', rtk_asset_name) | list | length == 1
++      - rtk_release.json.assets | selectattr('name', 'equalto', 'checksums.txt') | list | length == 1
++
++- name: Definir versão e metadados resolvidos
++  ansible.builtin.set_fact:
++    rtk_resolved_version: "{{ rtk_release.json.tag_name[1:] }}"
++    rtk_asset: "{{ rtk_release.json.assets | selectattr('name', 'equalto', rtk_asset_name) | first }}"
++
++- name: Baixar manifesto oficial SHA256
++  ansible.builtin.uri:
++    url: "{{ rtk_release_download_url }}/v{{ rtk_resolved_version }}/checksums.txt"
++    return_content: true
++  register: rtk_manifest
++
++- name: Localizar checksum exato do artefato
++  ansible.builtin.set_fact:
++    rtk_matching_hashes: >-
++      {{ rtk_manifest.content | regex_findall('(?m)^([a-fA-F0-9]{64})[ \t]+[*]?' ~
++         (rtk_asset_name | regex_escape) ~ '\r?$') }}
++
++- name: Exigir checksum oficial único e validar pins disponíveis
++  ansible.builtin.assert:
++    that:
++      - rtk_matching_hashes | length == 1
++      - rtk_checksum == '' or rtk_checksum | lower == 'sha256:' ~ rtk_matching_hashes[0] | lower
++      - >-
++        rtk_audited_checksums.get(rtk_resolved_version, {}).get(ansible_facts['architecture'], rtk_matching_hashes[0])
++        == rtk_matching_hashes[0]
++      - rtk_asset.digest | default('sha256:' ~ rtk_matching_hashes[0], true) == 'sha256:' ~ rtk_matching_hashes[0]
++    fail_msg: Manifesto/digest/pin RTK divergente ou checksum ausente; instalação interrompida.
++
++- name: Baixar arquivo OSS e conferir conteúdo antes de executar
++  ansible.builtin.get_url:
++    url: "{{ rtk_release_download_url }}/v{{ rtk_resolved_version }}/{{ rtk_asset_name }}"
++    dest: "{{ ai_stack_cache_dir }}/rtk/{{ rtk_resolved_version }}-{{ rtk_asset_name }}"
++    checksum: "sha256:{{ rtk_matching_hashes[0] }}"
++    mode: '0600'
++  register: rtk_archive
++
++- name: Extrair e validar candidato antes de substituir o binário
++  block:
++    - name: Criar diretório temporário do candidato
++      ansible.builtin.tempfile:
++        state: directory
++        path: "{{ ai_stack_cache_dir }}/rtk"
++        prefix: candidate-
++      register: rtk_candidate
++
++    - name: Extrair apenas o executável RTK
++      ansible.builtin.unarchive:
++        src: "{{ rtk_archive.dest }}"
++        dest: "{{ rtk_candidate.path }}"
++        remote_src: true
++        include: [rtk]
++
++    - name: Conferir versão declarada pelo executável
++      ansible.builtin.command:
++        argv: ["{{ rtk_candidate.path }}/rtk", --version]
++      changed_when: false
++      register: rtk_candidate_version
++      failed_when: rtk_candidate_version.stdout | trim != 'rtk ' ~ rtk_resolved_version
++
++    - name: Calcular SHA256 do executável validado
++      ansible.builtin.stat:
++        path: "{{ rtk_candidate.path }}/rtk"
++        checksum_algorithm: sha256
++      register: rtk_candidate_stat
++
++    - name: Publicar binário validado atomicamente
++      ansible.builtin.copy:
++        src: "{{ rtk_candidate.path }}/rtk"
++        dest: "{{ rtk_install_dir }}/bin/rtk"
++        remote_src: true
++        mode: '0755'
++        backup: true
++
++    - name: Registrar proveniência e integridade do release
++      ansible.builtin.copy:
++        content: >-
++          {{ {'edition': 'oss', 'version': rtk_resolved_version,
++              'asset': rtk_asset_name, 'sha256': rtk_matching_hashes[0],
++              'binary_sha256': rtk_candidate_stat.stat.checksum,
++              'source': rtk_release_download_url ~ '/v' ~ rtk_resolved_version} | to_nice_json }}
++        dest: "{{ rtk_install_dir }}/release.json"
++        mode: '0600'
++  always:
++    - name: Remover somente diretório temporário do candidato
++      ansible.builtin.file:
++        path: "{{ rtk_candidate.path }}"
++        state: absent
++      when: rtk_candidate.path is defined
+diff --git a/home/andrew/git/ansible-workstation/ai/roles/rtk/templates/rtk.j2 b/home/andrew/git/ansible-workstation/ai/roles/rtk/templates/rtk.j2
+new file mode 100644
+index 0000000..1e965ca
+--- /dev/null
++++ b/home/andrew/git/ansible-workstation/ai/roles/rtk/templates/rtk.j2
+@@ -0,0 +1,5 @@
++#!/bin/sh
++# Managed by Ansible RTK. Telemetry/proxy onboarding remain disabled in all calls.
++export RTK_TELEMETRY_DISABLED=1
++export RTK_ONRAMP_DISABLED=1
++exec {{ (rtk_install_dir ~ '/bin/rtk') | quote }} "$@"
+diff --git a/home/andrew/git/ansible-workstation/tasks/rtk-install/test_configure_rtk.py b/home/andrew/git/ansible-workstation/tasks/rtk-install/test_configure_rtk.py
+new file mode 100644
+index 0000000..b285a3c
+--- /dev/null
++++ b/home/andrew/git/ansible-workstation/tasks/rtk-install/test_configure_rtk.py
+@@ -0,0 +1,177 @@
++"""Isolated tests; never read or modify the real user's client configuration."""
++import importlib.util
++import json
++import os
++from pathlib import Path
++import subprocess
++import tempfile
++import unittest
++
++ROOT = Path(__file__).resolve().parents[2]
++SPEC = importlib.util.spec_from_file_location('configure_rtk', ROOT / 'ai/roles/rtk/files/configure_rtk.py')
++MODULE = importlib.util.module_from_spec(SPEC)
++SPEC.loader.exec_module(MODULE)
++BINARY = Path(__file__).parent / 'rtk'
++
++
++class MergeTests(unittest.TestCase):
++    def generated(self, client='claude'):
++        return {'hooks': {'PreToolUse': [{'matcher': 'Bash', 'hooks': [
++            {'type': 'command', 'command': 'rtk hook ' + client}]}]}}
++
++    def test_hooks_preserve_unrelated_settings_events_and_commands(self):
++        original = {'permissions': {'deny': ['Bash(example)']}, 'env': {'EXAMPLE': 'kept'},
++                    'hooks': {'Stop': [{'hooks': [{'command': 'other-stop'}]}],
++                              'PreToolUse': [{'matcher': 'Bash', 'hooks': [
++                                  {'type': 'command', 'command': 'other-hook'}]}]}}
++        result = MODULE.merge_hooks(original, self.generated(), 'claude', Path('/test/rtk'))
++        self.assertEqual(result['permissions'], original['permissions'])
++        self.assertEqual(result['env'], original['env'])
++        self.assertEqual(result['hooks']['Stop'], original['hooks']['Stop'])
++        self.assertEqual(result['hooks']['PreToolUse'][0], original['hooks']['PreToolUse'][0])
++        self.assertEqual(MODULE.merge_hooks(result, self.generated(), 'claude', Path('/test/rtk')), result)
++
++    def test_native_existing_hook_is_updated_without_duplicating(self):
++        original = self.generated()
++        result = MODULE.merge_hooks(original, self.generated(), 'claude', Path('/test path/rtk'))
++        self.assertEqual(len(result['hooks']['PreToolUse']), 1)
++        self.assertEqual(result['hooks']['PreToolUse'][0]['hooks'][0]['command'], "'/test path/rtk' hook claude")
++
++    def test_malformed_or_legacy_hooks_fail_without_changing_input(self):
++        for original in [[], {'hooks': []}, {'hooks': {'PreToolUse': {}}},
++                         {'hooks': {'PreToolUse': [{'hooks': ['bad']}]}},
++                         {'hooks': {'PreToolUse': [{'hooks': [{'command': 'rtk-rewrite.sh'}]}]}}]:
++            before = json.dumps(original)
++            with self.assertRaises(ValueError):
++                MODULE.merge_hooks(original, self.generated(), 'claude', Path('/test/rtk'))
++            self.assertEqual(json.dumps(original), before)
++
++    def test_duplicate_or_custom_matcher_rtk_hooks_fail(self):
++        for groups in [self.generated()['hooks']['PreToolUse'] * 2,
++                       [{'matcher': 'Write', 'hooks': [{'type': 'command', 'command': 'rtk hook claude'}]}]]:
++            with self.assertRaises(ValueError):
++                MODULE.merge_hooks({'hooks': {'PreToolUse': groups}}, self.generated(), 'claude', Path('/test/rtk'))
++
++    def test_unknown_release_hook_schema_fails(self):
++        with self.assertRaises(ValueError):
++            MODULE.merge_hooks({}, self.generated('new-client'), 'claude', Path('/test/rtk'))
++
++    def test_instruction_block_preserves_user_text_and_is_idempotent(self):
++        original = '  user instructions \n\n'
++        merged = MODULE.merge_block(original, 'body')
++        self.assertTrue(merged.startswith(original))
++        self.assertEqual(MODULE.merge_block(merged, 'body'), merged)
++        changed = MODULE.merge_block(merged, 'new')
++        self.assertTrue(changed.startswith(original))
++        self.assertNotIn('\nbody\n', changed)
++
++    def test_broken_markers_fail(self):
++        for text in [MODULE.START, MODULE.END, MODULE.START + MODULE.END + MODULE.START + MODULE.END]:
++            with self.assertRaises(ValueError):
++                MODULE.merge_block(text, 'body')
++
++    def test_symlink_and_outside_home_are_rejected(self):
++        with tempfile.TemporaryDirectory() as temporary:
++            home = Path(temporary)
++            (home / '.codex').symlink_to('/nonexistent')
++            for path in [home / '.codex/AGENTS.md', Path('/outside/AGENTS.md')]:
++                with self.assertRaises(ValueError):
++                    MODULE.safe_path(home, path)
++
++
++@unittest.skipUnless(BINARY.exists(), 'Download and verify the release binary first')
++class RealReleaseTests(unittest.TestCase):
++    def setUp(self):
++        self.temporary = tempfile.TemporaryDirectory()
++        self.addCleanup(self.temporary.cleanup)
++        self.home = Path(self.temporary.name)
++        self.binary = self.home / 'bin/rtk'
++        self.binary.parent.mkdir()
++        self.binary.write_text('#!/bin/sh\nexport RTK_TELEMETRY_DISABLED=1 RTK_ONRAMP_DISABLED=1\nexec '
++                               + str(BINARY) + ' "$@"\n')
++        self.binary.chmod(0o755)
++        self.claude = self.home / '.claude'
++        self.codex = self.home / '.codex'
++        self.claude.mkdir(); self.codex.mkdir()
++        self.original = {'permissions': {'allow': ['Bash(git status)']},
++                         'hooks': {'PreToolUse': [{'matcher': 'Bash', 'hooks': [
++                             {'type': 'command', 'command': 'echo existing'}]}]}}
++        (self.claude / 'settings.json').write_text(json.dumps(self.original))
++        (self.codex / 'hooks.json').write_text(json.dumps(self.original))
++        for path in [self.claude / 'CLAUDE.md', self.codex / 'AGENTS.md',
++                     self.claude / 'RTK.md', self.codex / 'RTK.md']:
++            path.write_text('User notes must stay.\n')
++        # Synthetic configs are left byte-identical, and are never passed to init.
++        self.configs = [self.codex / 'config.toml', self.home / '.config/rtk/config.toml']
++        for path in self.configs:
++            path.parent.mkdir(parents=True, exist_ok=True)
++            path.write_text('# preserved\n[custom]\nvalue = "keep"\n')
++
++    def configure(self, check=False):
++        return MODULE.configure(self.home, self.binary, self.claude, self.codex,
++                                ['claude_code', 'codex'], check)
++
++    def test_release_init_merge_backups_and_second_run_idempotence(self):
++        first = self.configure()
++        self.assertTrue(first['changed'])
++        self.assertEqual(len(first['files']), 6)
++        for client, name in [(self.claude, 'settings.json'), (self.codex, 'hooks.json')]:
++            result = json.loads((client / name).read_text())
++            self.assertEqual(result['permissions'], self.original['permissions'])
++            self.assertEqual(result['hooks']['PreToolUse'][0], self.original['hooks']['PreToolUse'][0])
++            self.assertEqual(len(list(client.glob(name + '.rtk-backup.*'))), 1)
++        for path in self.configs:
++            self.assertEqual(path.read_text(), '# preserved\n[custom]\nvalue = "keep"\n')
++        for path in [self.claude / 'CLAUDE.md', self.codex / 'AGENTS.md',
++                     self.claude / 'RTK.md', self.codex / 'RTK.md']:
++            self.assertTrue(path.read_text().startswith('User notes must stay.\n'))
++        before = {str(p): p.read_bytes() for p in self.home.rglob('*') if p.is_file()}
++        self.assertFalse(self.configure()['changed'])
++        self.assertEqual(before, {str(p): p.read_bytes() for p in self.home.rglob('*') if p.is_file()})
++        self.assertFalse(list(self.home.rglob('pipeline.toml')))
++
++    def test_dry_run_does_not_change_selected_home(self):
++        before = {str(p): p.read_bytes() for p in self.home.rglob('*') if p.is_file()}
++        self.assertTrue(self.configure(check=True)['changed'])
++        self.assertEqual(before, {str(p): p.read_bytes() for p in self.home.rglob('*') if p.is_file()})
++
++    def test_invalid_second_client_prevents_partial_configuration(self):
++        (self.codex / 'hooks.json').write_text('not json')
++        before = (self.claude / 'settings.json').read_bytes()
++        with self.assertRaises(ValueError):
++            self.configure()
++        self.assertEqual((self.claude / 'settings.json').read_bytes(), before)
++        self.assertFalse(list(self.home.rglob('*.rtk-backup.*')))
++
++    def test_native_hooks_rewrite_supported_shell_and_keep_other_tools(self):
++        self.configure()
++        environment = dict(os.environ, HOME=str(self.home), CODEX_HOME=str(self.codex),
++                           CLAUDE_CONFIG_DIR=str(self.claude), XDG_CONFIG_HOME=str(self.home / '.config'),
++                           XDG_DATA_HOME=str(self.home / '.local/share'))
++        for client in ['claude', 'codex']:
++            for tool in ['Bash', 'Read']:
++                payload = {'hook_event_name': 'PreToolUse', 'tool_name': tool, 'permission_mode': 'default',
++                           'tool_input': ({'command': 'git status', 'timeout': 30000}
++                                          if tool == 'Bash' else {'file_path': '/example.txt'}),
++                           'cwd': str(self.home)}
++                result = subprocess.run([str(self.binary), 'hook', client], input=json.dumps(payload),
++                                        capture_output=True, text=True, env=environment, cwd=self.home, check=True)
++                if tool == 'Bash':
++                    self.assertTrue(result.stdout.strip(), (client, tool, result.stderr))
++                    output = json.loads(result.stdout)['hookSpecificOutput']
++                    self.assertEqual(output['updatedInput']['command'], 'rtk git status')
++                    self.assertEqual(output['updatedInput']['timeout'], 30000)
++                else:
++                    self.assertEqual(result.stdout.strip(), '')
++
++    def test_wrapper_blocks_telemetry_even_with_enabled_config(self):
++        self.configs[1].write_text('[telemetry]\nenabled = true\nconsent_given = true\n')
++        environment = dict(os.environ, HOME=str(self.home), XDG_CONFIG_HOME=str(self.home / '.config'),
++                           XDG_DATA_HOME=str(self.home / '.local/share'))
++        result = subprocess.run([str(self.binary), 'telemetry', 'status'], capture_output=True,
++                                text=True, env=environment, check=True)
++        self.assertIn('RTK_TELEMETRY_DISABLED=1 (blocked)', result.stdout)
++
++
++if __name__ == '__main__':
++    unittest.main(verbosity=2)
+diff --git a/home/andrew/git/ansible-workstation/tasks/rtk-install/validate_ansible.py b/home/andrew/git/ansible-workstation/tasks/rtk-install/validate_ansible.py
+new file mode 100644
+index 0000000..a93cf03
+--- /dev/null
++++ b/home/andrew/git/ansible-workstation/tasks/rtk-install/validate_ansible.py
+@@ -0,0 +1,78 @@
++#!/usr/bin/env python3
++"""Exercise only tasks/rtk-install/ansible-home; downloads official OSS releases."""
++import hashlib
++import json
++from pathlib import Path
++import re
++import subprocess
++
++TASK = Path(__file__).resolve().parent
++PLAY = TASK / 'isolated.yml'
++HOME = TASK / 'ansible-home'
++BINARY = HOME / '.local/share/ai-stack/rtk/bin/rtk'
++RESULTS = []
++
++
++def run(name, variables=None, options=(), fail=False, unchanged=False):
++    command = ['ansible-playbook', str(PLAY), *options]
++    if variables:
++        command += ['-e', json.dumps(variables)]
++    process = subprocess.run(command, text=True, capture_output=True, cwd=TASK.parents[1])
++    (TASK / (name + '.log')).write_text(process.stdout + process.stderr)
++    recap = re.search(r'localhost\s+: ok=.*', process.stdout)
++    print(name + ': ' + (recap.group() if recap else 'no recap'), flush=True)
++    assert (process.returncode != 0) == fail, name + ' unexpected exit status'
++    if unchanged:
++        assert 'changed=0 ' in recap.group(), name + ' was not idempotent'
++    RESULTS.append({'case': name, 'returncode': process.returncode,
++                    'recap': recap.group() if recap else None})
++
++
++def version():
++    process = subprocess.run([str(BINARY), '--version'], capture_output=True,
++                             text=True, check=True, env={'HOME': str(HOME)})
++    return process.stdout.strip()
++
++
++def main():
++    run('ansible-syntax', options=['--syntax-check'])
++    run('ansible-reconcile')
++    run('ansible-second', unchanged=True)
++    run('ansible-check', options=['--check', '--diff'], unchanged=True)
++    run('ansible-pin-1.1.0', {'rtk_version': '1.1.0', 'rtk_clients': []})
++    assert version() == 'rtk 1.1.0'
++    run('ansible-latest-offline', {'rtk_version': 'latest', 'rtk_clients': [],
++                                 'rtk_release_api': 'http://127.0.0.1:9'}, unchanged=True)
++    assert version() == 'rtk 1.1.0'
++    run('ansible-explicit-upgrade', {'rtk_version': 'latest', 'rtk_upgrade': True})
++    assert version() == 'rtk 1.2.0'
++    before = hashlib.sha256(BINARY.read_bytes()).hexdigest()
++    run('ansible-bad-checksum', {'rtk_checksum': 'sha256:' + '0' * 64}, fail=True)
++    assert hashlib.sha256(BINARY.read_bytes()).hexdigest() == before
++    run('ansible-final-idempotence', unchanged=True)
++    # The wrapper, not a raw --version call, enforces the telemetry environment.
++    environment = {'HOME': str(HOME), 'XDG_CONFIG_HOME': str(HOME / '.config'),
++                   'XDG_DATA_HOME': str(HOME / '.local/share'), 'PATH': '/usr/bin:/bin'}
++    status = subprocess.run([str(HOME / '.local/bin/rtk'), 'telemetry', 'status'],
++                            capture_output=True, text=True, check=True, env=environment)
++    assert 'RTK_TELEMETRY_DISABLED=1 (blocked)' in status.stdout
++    (TASK / 'telemetry-status.txt').write_text(status.stdout)
++    # Native shell filter and bypass both execute only a disposable local Git repo.
++    repo = HOME / 'smoke-repo'
++    repo.mkdir(exist_ok=True)
++    subprocess.run(['git', 'init', '-q', str(repo)], check=True)
++    (repo / 'example.txt').write_text('local fixture\n')
++    for args in [['git', 'status'], ['bypass', 'git', 'status']]:
++        result = subprocess.run([str(HOME / '.local/bin/rtk'), *args], cwd=repo,
++                                env=environment, capture_output=True, text=True, check=True)
++        (TASK / ('smoke-' + args[0] + '.txt')).write_text(result.stdout + result.stderr)
++        assert 'example.txt' in result.stdout
++    receipt = json.loads((HOME / '.local/share/ai-stack/rtk/release.json').read_text())
++    assert receipt['binary_sha256'] == before
++    assert not list(HOME.rglob('pipeline.toml'))
++    (TASK / 'VALIDATION_RESULTS.json').write_text(json.dumps(RESULTS, indent=2) + '\n')
++    print('All isolated Ansible checks passed.', flush=True)
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/home/andrew/git/ansible-workstation/tasks/rtk-install/isolated.yml b/home/andrew/git/ansible-workstation/tasks/rtk-install/isolated.yml
+new file mode 100644
+index 0000000..6329cfe
+--- /dev/null
++++ b/home/andrew/git/ansible-workstation/tasks/rtk-install/isolated.yml
+@@ -0,0 +1,27 @@
++---
++- name: Validar apenas RTK em HOME isolado
++  hosts: localhost
++  connection: local
++  gather_facts: true
++  become: false
++  vars:
++    ai_stack_user: "{{ ansible_facts['user_id'] }}"
++    ai_stack_home: "{{ playbook_dir }}/ansible-home"
++    ai_stack_bin_dir: "{{ ai_stack_home }}/.local/bin"
++    ai_stack_cache_dir: "{{ ai_stack_home }}/.cache/ai-stack"
++    ai_stack_upgrade: false
++    ai_stack_environment:
++      HOME: "{{ ai_stack_home }}"
++      PATH: "{{ ai_stack_bin_dir }}:/usr/local/bin:/usr/bin:/bin"
++      XDG_CONFIG_HOME: "{{ ai_stack_home }}/.config"
++      XDG_DATA_HOME: "{{ ai_stack_home }}/.local/share"
++      XDG_CACHE_HOME: "{{ ai_stack_home }}/.cache"
++  pre_tasks:
++    - name: Impedir aplicação acidental no HOME real
++      ansible.builtin.assert:
++        that:
++          - ai_stack_home == playbook_dir ~ '/ansible-home'
++          - ai_stack_home != ansible_facts['env']['HOME']
++  roles:
++    - role: ../../ai/roles/rtk
++      tags: [rtk]
+diff --git a/home/andrew/git/ansible-workstation/tasks/rtk-install/isolated-empty.yml b/home/andrew/git/ansible-workstation/tasks/rtk-install/isolated-empty.yml
+new file mode 100644
+index 0000000..f01e2f8
+--- /dev/null
++++ b/home/andrew/git/ansible-workstation/tasks/rtk-install/isolated-empty.yml
+@@ -0,0 +1,27 @@
++---
++- name: Validar apenas RTK em HOME isolado
++  hosts: localhost
++  connection: local
++  gather_facts: true
++  become: false
++  vars:
++    ai_stack_user: "{{ ansible_facts['user_id'] }}"
++    ai_stack_home: "{{ playbook_dir }}/ansible-home-empty"
++    ai_stack_bin_dir: "{{ ai_stack_home }}/.local/bin"
++    ai_stack_cache_dir: "{{ ai_stack_home }}/.cache/ai-stack"
++    ai_stack_upgrade: false
++    ai_stack_environment:
++      HOME: "{{ ai_stack_home }}"
++      PATH: "{{ ai_stack_bin_dir }}:/usr/local/bin:/usr/bin:/bin"
++      XDG_CONFIG_HOME: "{{ ai_stack_home }}/.config"
++      XDG_DATA_HOME: "{{ ai_stack_home }}/.local/share"
++      XDG_CACHE_HOME: "{{ ai_stack_home }}/.cache"
++  pre_tasks:
++    - name: Impedir aplicação acidental no HOME real
++      ansible.builtin.assert:
++        that:
++          - ai_stack_home == playbook_dir ~ '/ansible-home-empty'
++          - ai_stack_home != ansible_facts['env']['HOME']
++  roles:
++    - role: /home/andrew/git/ansible-workstation/ai/roles/rtk
++      tags: [rtk]
+diff --git a/home/andrew/git/ansible-workstation/tasks/rtk-install/rtk.yml.example b/home/andrew/git/ansible-workstation/tasks/rtk-install/rtk.yml.example
+new file mode 100644
+index 0000000..4779c52
+--- /dev/null
++++ b/home/andrew/git/ansible-workstation/tasks/rtk-install/rtk.yml.example
+@@ -0,0 +1,14 @@
++---
++# Copy to ai/rtk.yml after review; this file is not applied by the RTK worker.
++- name: Prepare shared AI stack prerequisites for RTK
++  ansible.builtin.import_playbook: common.yml
++  tags: [rtk, ai_common]
++
++- name: Install RTK OSS local shell filtering
++  hosts: localhost
++  connection: local
++  become: false
++  gather_facts: true
++  roles:
++    - role: rtk
++      tags: [rtk]
+diff --git a/home/andrew/git/ansible-workstation/tasks/rtk-install/REPORT.md b/home/andrew/git/ansible-workstation/tasks/rtk-install/REPORT.md
+new file mode 100644
+index 0000000..0d6d781
+--- /dev/null
++++ b/home/andrew/git/ansible-workstation/tasks/rtk-install/REPORT.md
+@@ -0,0 +1,107 @@
++# RTK implementation and isolated validation
++
++Status: complete for independent review. No real-HOME installation was applied.
++Only `ai/roles/rtk/` and `tasks/rtk-install/` were written by this worker. No shared
++playbook, README, ai_stack role, CAO code, index entry or pre-existing user edit
++was modified by this worker. No client/server/session was restarted.
++
++## Source and release verification
++
++Official latest redirected to https://github.com/rtk-ai/rtk/releases/tag/v1.2.0
++on 2026-11-16. GitHub metadata reports publication on 2026-11-08. The role defaults
++to the reviewed pin `1.2.0`; `latest` remains available with explicit updates.
++
++Selected edition: `rtk-oss`, containing local shell filters/native hooks without
++the engine. No installer script was executed. Downloads were taken from the
++official release, checked against `checksums.txt`, GitHub asset digests and the
++role's audited pins. The role also accepts an additional explicit archive pin.
++
++| Asset | SHA256 |
++| --- | --- |
++| checksums.txt | cb6c58f0a063ee1ec2313d61d3ba7da6b4af95edf7a333739a692c099af4f48e |
++| rtk-oss-x86_64-unknown-linux-musl.tar.gz | a28407dc13038bdc9c2a1f5a047b0c636e0c1d495b15523576e2adb992a06a17 |
++| rtk-oss-aarch64-unknown-linux-musl.tar.gz | 9786c61dbbea704e1468ee7060930d3b45b67f79ba2babfb73463e85340628d9 |
++
++The x86_64 executable reports `rtk 1.2.0`; its ELF machine is 62 and SHA256 is
++`4625c86e6eab82911e25a340657450e9d45a3e992871580946e25e7a3f20bca7`.
++ARM64 archive content/checksum and ELF machine 183 were verified; ARM64 execution
++was not attempted on this x86_64 host.
++
++The real release accepts `init -g --no-trust-filters --auto-patch` for Claude and
++`init -g --no-trust-filters --codex` for Codex. Codex rejects `--auto-patch`.
++Source snapshots from the v1.2.0 tag and actual CLI output are retained in this
++task directory. Master-only behavior was not assumed.
++
++## Implemented behavior
++
++The role installs a checksum-validated candidate and verifies its declared
++version before copying it atomically into the managed bin directory. A receipt
++records archive and executable SHA256, edition, source and version. Pin changes,
++missing receipts, altered binaries or changed optional checksum pins trigger
++reconciliation. `latest` does not query the network without explicit upgrade.
++`rtk_upgrade` inherits the shared `ai_stack_upgrade` convention.
++
++The public wrapper blocks telemetry and proxy onboarding with the upstream
++supported environment variables. Existing RTK config/filters are not read or
++rewritten. No proxy binary, service, remote pipeline or provider URL was added.
++
++The merger invokes real init inside an empty temporary HOME and merges only the
++native hook and awareness text into the selected destination files. It preserves
++unrelated JSON values/hooks, existing instruction text and file modes; originals
++receive private content-addressed backups. It refuses ambiguous legacy/duplicate
++hooks, malformed input or symlinked integration paths before changing configs.
++Codex config.toml, auth, MCPs, sandbox permissions and writable roots are untouched.
++
++## Validation evidence
++
++All commands below use absolute task paths or the supplied guarded fixture:
++
++```bash
++python3 -m unittest discover -s /home/andrew/git/ansible-workstation/tasks/rtk-install -p test_configure_rtk.py -v
++python3 /home/andrew/git/ansible-workstation/tasks/rtk-install/validate_ansible.py
++ansible-playbook /home/andrew/git/ansible-workstation/tasks/rtk-install/isolated-empty.yml --check --diff
++```
++
++- 13 unit/integration tests passed. They cover preserving existing hooks,
++  permissions, configs/instructions and backups; idempotence; invalid schemas,
++  duplicate/legacy hooks, malformed markers, symlinks, dry-run/no partial changes;
++  actual Claude/Codex hook rewrites and telemetry opt-out even with consent enabled.
++- Ansible syntax passed. First isolated install passed. Second/final runs and
++  existing-install check mode all reported `changed=0`.
++- Clean-install check mode passed with predicted changes and no installation.
++- A real pinned 1.1.0 install passed. `latest` with an intentionally unreachable
++  API retained 1.1.0 with `changed=0`, proving no implicit refresh.
++- Explicit upgrade resolved latest and installed 1.2.0 successfully.
++- A wrong explicit checksum failed at the checksum assertion (`failed=1`, expected),
++  and the already installed executable SHA256 stayed unchanged.
++- The installed wrapper ran the local Git status filter and bypass successfully
++  in a disposable repository. Telemetry status reported the environment block.
++- ARM64 archive checksum/ELF validation passed, without cross-architecture execution.
++
++Full recaps are in `VALIDATION_RESULTS.json`; command output is in the named logs.
++Ansible-lint is not installed in this environment. Syntax, real isolated runs and
++negative checksum validation were used. The role and tests require only the
++existing stack prerequisites and Python standard library.
++
++## Scope and operational limits
++
++The guarded Ansible fixture used only:
++`/home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-home/`.
++The initial binary/init probes used `probe-home/` in that same task directory;
++unit tests used disposable temporary HOMEs. The native-hook tests exercised
++actual release processors with realistic event payloads. No newly launched,
++authenticated Claude/Codex/CAO session was used. Installed Codex CLI reported
++0.169.0. Native client hook support is required for automatic shell interception;
++inline instructions provide explicit RTK usage guidance. Built-in non-shell
++and MCP tools do not pass through this filter.
++
++Check mode does not execute init or download/install a release. It reports that
++integration merging occurs on a real run. Removing a client from rtk_clients
++stops managing it without uninstalling previously configured hooks. Existing
++RTK local usage/recovery storage policy is retained. The managed public command,
++not direct invocation of the private binary, enforces the telemetry opt-out.
++
++No blocker remains for the requested implementation/review handoff. Shared-file
++integration and real-HOME application remain assigned to the supervisor/CAO
++owner after review. Follow `INTEGRATION.md`; do not apply the whole workstation
++playbook or restart active sessions as part of this RTK task.
+diff --git a/home/andrew/git/ansible-workstation/tasks/rtk-install/INTEGRATION.md b/home/andrew/git/ansible-workstation/tasks/rtk-install/INTEGRATION.md
+new file mode 100644
+index 0000000..0ea8791
+--- /dev/null
++++ b/home/andrew/git/ansible-workstation/tasks/rtk-install/INTEGRATION.md
+@@ -0,0 +1,54 @@
++# Shared-file integration handoff
++
++Owner of the shared CAO integration: terminal `ff025942`, coordinated by
++supervisor `14a03d1f`. The RTK worker changed only:
++
++- `/home/andrew/git/ansible-workstation/ai/roles/rtk/`
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/`
++
++The role did not exist at preflight. Existing tracked and untracked work was
++preserved. No AGENTS.md was found in the target repo or the inspected ancestor
++chain. The supplied coordination rules governed the implementation. There is
++no `ai/playbook.yml` in the current checkout; the existing entrypoint is
++`/home/andrew/git/ansible-workstation/ai/all.yml`.
++
++After reviewing the RTK role, the shared-file owner should:
++
++1. Create `/home/andrew/git/ansible-workstation/ai/rtk.yml` using the content of
++   `/home/andrew/git/ansible-workstation/tasks/rtk-install/rtk.yml.example`.
++   Importing common.yml supplies the existing stack defaults, prerequisite tools
++   and PATH initialization. Do not apply the isolated fixture as a real installer.
++2. Add an `import_playbook: rtk.yml` entry to
++   `/home/andrew/git/ansible-workstation/ai/all.yml`, after the client installers
++   and before launching/syncing CAO if convenient, with `tags: [rtk]` and optional
++   `when: rtk_enabled | default(true) | bool`. RTK does not require changes to
++   CAO providers, MCP synchronization, ai_stack, systemd or client authentication.
++3. Document the component in `/home/andrew/git/ansible-workstation/ai/README.md`
++   and optionally `/home/andrew/git/ansible-workstation/ai/vars.example.yml`:
++   the OSS release is pinned to 1.2.0, clients default to `[claude_code, codex]`,
++   `rtk_upgrade` inherits `ai_stack_upgrade`, native hooks cover only shell tools,
++   and RTK never changes provider URLs, MCPs or sandbox permissions.
++4. Validate syntax/tasks for `ai/rtk.yml` and `ai/all.yml` after integration.
++   Review generated hook changes before applying to the actual workstation.
++
++Commands after integration and review (not executed on the real HOME):
++
++```bash
++cd /home/andrew/git/ansible-workstation
++ansible-playbook ai/rtk.yml --syntax-check
++ansible-playbook ai/all.yml --list-tasks --tags rtk
++ansible-playbook ai/rtk.yml --check --diff -K
++# Real application is reserved for the supervisor after review:
++ansible-playbook ai/rtk.yml -K
++# Change to a new reviewed pin, or explicitly refresh latest:
++ansible-playbook ai/rtk.yml -K -e rtk_version=latest -e rtk_upgrade=true
++# Stack-wide upgrade flag also refreshes RTK:
++ansible-playbook ai/rtk.yml -K -e rtk_version=latest -e ai_stack_upgrade=true
++```
++
++Do not restart active client/CAO sessions as part of this handoff. New sessions
++load the merged hooks. Existing unselected hooks and instructions are retained.
++The native hooks' replacement commands use `rtk` from PATH; ensure CAO/client
++launch environments include the stack's bin directory. No live authenticated
++agent end-to-end test has been performed; isolated payload and local shell
++filter tests passed.
+diff --git a/home/andrew/git/ansible-workstation/tasks/rtk-install/REVIEW_TASK.md b/home/andrew/git/ansible-workstation/tasks/rtk-install/REVIEW_TASK.md
+new file mode 100644
+index 0000000..0a10fa2
+--- /dev/null
++++ b/home/andrew/git/ansible-workstation/tasks/rtk-install/REVIEW_TASK.md
+@@ -0,0 +1,69 @@
++# Independent review: RTK Ansible role
++
++Review the completed RTK change in `/home/andrew/git/ansible-workstation`.
++The worker was authorized to write only these directories:
++
++- `/home/andrew/git/ansible-workstation/ai/roles/rtk/`
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/`
++
++Do not apply the role to the real HOME, change shared files, run the workstation
++playbook or restart sessions during review. Another developer (`ff025942`) owns
++CAO/shared-file integration; coordinate findings through supervisor `14a03d1f`.
++Existing repository changes predated this task and must be preserved.
++
++## Files to inspect
++
++- `/home/andrew/git/ansible-workstation/ai/roles/rtk/defaults/main.yml`
++- `/home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/main.yml`
++- `/home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/release.yml`
++- `/home/andrew/git/ansible-workstation/ai/roles/rtk/templates/rtk.j2`
++- `/home/andrew/git/ansible-workstation/ai/roles/rtk/files/configure_rtk.py`
++- `/home/andrew/git/ansible-workstation/ai/roles/rtk/meta/main.yml`
++- `/home/andrew/git/ansible-workstation/ai/roles/rtk/README.md`
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/test_configure_rtk.py`
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/isolated.yml`
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/validate_ansible.py`
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/REPORT.md`
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/INTEGRATION.md`
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/rtk.yml.example`
++
++## Review priorities
++
++1. Verify the official v1.2.0 OSS source, architecture selection and mandatory
++   checksum validation; wrong/missing checksum must not replace the installed
++   executable. Check receipt-based binary integrity, version pin behavior and
++   explicit latest refresh (`rtk_upgrade`/`ai_stack_upgrade`).
++2. Check that init runs only in an empty temporary HOME with all relevant home
++   overrides, telemetry disabled, no custom-filter trust and no proxy onboarding.
++   Codex must not receive the unsupported --auto-patch flag.
++3. Verify preservation of unrelated hooks/JSON fields/instruction text/modes,
++   private backups, idempotence, symlink/legacy/duplicate handling, and absence
++   of edits to auth, MCPs, permissions, client config.toml or RTK configs.
++4. Confirm the integration handoff follows the existing common.yml/all.yml
++   stack structure and leaves shared integration/application to the owner.
++
++## Verification already completed
++
++13 tests passed. Ansible syntax, initial installation, second-run/final
++idempotence, existing/empty check mode, real 1.1.0 -> 1.2.0 explicit upgrade,
++offline latest retention, expected checksum rejection, native hook payloads,
++telemetry blocking and local Git filtering/bypass passed in isolation. See:
++
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/unit-tests.log`
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-validation.log`
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/VALIDATION_RESULTS.json`
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/ansible-check-empty.log`
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/ARCHITECTURE_VERIFICATION.json`
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/UPSTREAM_RELEASE.json`
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/checksums.txt`
++- `/home/andrew/git/ansible-workstation/tasks/rtk-install/telemetry-status.txt`
++
++Rerun unit tests with the command in REPORT.md. The validation runner installs
++only into its guarded task-local HOME and downloads official OSS releases.
++ARM64 content/ELF was verified but not executed; no authenticated agent session
++was launched. Ansible-lint was unavailable. No real-HOME changes were applied.
++
++Return findings by severity with absolute file/line references, distinguishing
++code defects from deferred shared integration or explicitly documented limits.
++Technical review records and agent instructions should be written in English;
++user-facing communication should be Portuguese.
+diff --git a/home/andrew/git/ansible-workstation/tasks/rtk-install/SPECIFICATION.md b/home/andrew/git/ansible-workstation/tasks/rtk-install/SPECIFICATION.md
+new file mode 100644
+index 0000000..c7bfdae
+--- /dev/null
++++ b/home/andrew/git/ansible-workstation/tasks/rtk-install/SPECIFICATION.md
+@@ -0,0 +1,5 @@
++# Instalação RTK por Ansible
++
++Implementar somente ai/roles/rtk/ e tasks/rtk-install/. Preservar trabalho preexistente. Role ausente na inspeção inicial; nenhum AGENTS.md encontrado no repo ou ancestrais consultados.
++
++Instalação e atualização explícita parametrizáveis usando releases oficiais, validar arquitetura/checksum/init real; filtro shell local, sem proxy, pipelines externos ou telemetria. Mesclar configurações/hooks existentes e testar em HOME isolado. Não aplicar ao HOME real. Entregar instruções de integração e REVIEW_TASK.md ao supervisor 14a03d1f.

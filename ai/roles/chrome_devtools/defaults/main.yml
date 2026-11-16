@@ -1,0 +1,7 @@
+---
+chrome_devtools_version: latest
+chrome_devtools_clients: [codex, claude_code]
+chrome_devtools_install_browser: true
+chrome_devtools_install_dir: "{{ ai_stack_home }}/.local/share/ai-stack/chrome-devtools"
+chrome_devtools_command: "{{ ai_stack_bin_dir }}/chrome-devtools-mcp"
+chrome_devtools_args: []

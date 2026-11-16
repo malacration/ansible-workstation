@@ -1,0 +1,40 @@
+---
+- name: Consultar registro global do Chrome DevTools no Claude
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - -c
+      - |
+        import json, pathlib, sys
+        path = pathlib.Path(sys.argv[1])
+        config = json.loads(path.read_text()) if path.exists() else {}
+        servers = config.get('mcpServers', {})
+        current = servers.get('chrome-devtools', {})
+        print(json.dumps({'exists': 'chrome-devtools' in servers,
+                         'matches': current.get('command') == sys.argv[2] and
+                         current.get('args', []) == json.loads(sys.argv[3])}))
+      - "{{ ai_stack_home }}/.claude.json"
+      - "{{ chrome_devtools_command }}"
+      - "{{ chrome_devtools_args | to_json }}"
+  register: chrome_devtools_claude_current
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Atualizar registro global do Chrome DevTools no Claude
+  when:
+    - not ansible_check_mode
+    - not (chrome_devtools_claude_current.stdout | from_json).matches
+  block:
+    - name: Remover registro anterior do mesmo MCP no escopo do usuário
+      ansible.builtin.command:
+        argv: ["{{ ai_stack_bin_dir }}/claude", mcp, remove, --scope, user, chrome-devtools]
+      changed_when: true
+      when: (chrome_devtools_claude_current.stdout | from_json).exists
+
+    - name: Registrar executável do MCP no escopo do usuário
+      ansible.builtin.command:
+        argv: >-
+          {{ [ai_stack_bin_dir ~ '/claude', 'mcp', 'add', '--scope', 'user', 'chrome-devtools', '--', chrome_devtools_command]
+             + chrome_devtools_args }}
+      changed_when: true

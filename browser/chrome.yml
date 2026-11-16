@@ -3,27 +3,78 @@
   hosts: localhost
   become: yes
   tasks:
-    - name: Add Google Chrome signing key
-      apt_key:
-        url: https://dl.google.com/linux/linux_signing_key.pub
-        state: present
+    - name: Ensure the APT keyring directory exists
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
 
-    - name: Add Google Chrome repository
-      apt_repository:
-        repo: "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main"
+    - name: Download and refresh the Google Linux signing key
+      ansible.builtin.get_url:
+        url: https://dl.google.com/linux/linux_signing_key.pub
+        dest: /etc/apt/keyrings/google-linux.asc
+        mode: '0644'
+        force: true
+
+    - name: Find one-line APT source files
+      ansible.builtin.find:
+        paths: /etc/apt/sources.list.d
+        patterns: '*.list'
+      register: chrome_source_files
+
+    - name: Check for the main APT source file
+      ansible.builtin.stat:
+        path: /etc/apt/sources.list
+      register: chrome_main_sources
+
+    # Normalize only the legacy Chrome stable source before any APT update.
+    - name: Remove duplicate legacy Chrome sources
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '^[ \t]*deb[ \t]+(?:\[[^\]\n]*\][ \t]+)?https?://dl\.google\.com/linux/chrome/deb/?[ \t]+stable[ \t]+main[ \t]*(?:#.*)?$\n?'
+        replace: ''
+      loop: "{{ (chrome_source_files.files | map(attribute='path') | reject('equalto', '/etc/apt/sources.list.d/google-chrome.list') | list) + (['/etc/apt/sources.list'] if chrome_main_sources.stat.exists else []) }}"
+
+    # Chrome's package may also configure this distinct stable repository.
+    - name: Find deb822 APT source files
+      ansible.builtin.find:
+        paths: /etc/apt/sources.list.d
+        patterns: '*.sources'
+      register: chrome_deb822_files
+
+    - name: Refresh the keyring reference in the Chrome stable source
+      ansible.builtin.replace:
+        path: "{{ item.path }}"
+        regexp: '(?m)(^URIs:[ \t]*https?://dl\.google\.com/linux/chrome-stable/deb/?[ \t]*\n(?:(?![ \t]*$)[^\n]*\n)*?Signed-By:[ \t]*)[^\n]+'
+        replace: '\g<1>/etc/apt/keyrings/google-linux.asc'
+      loop: "{{ chrome_deb822_files.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: Configure the Chrome repository
+      ansible.builtin.lineinfile:
+        path: /etc/apt/sources.list.d/google-chrome.list
+        regexp: '^[ \t]*deb[ \t]+(?:\[[^\]\n]*\][ \t]+)?https?://dl\.google\.com/linux/chrome/deb/?[ \t]+stable[ \t]+main[ \t]*(?:#.*)?$'
+        line: 'deb [arch=amd64 signed-by=/etc/apt/keyrings/google-linux.asc] https://dl.google.com/linux/chrome/deb/ stable main'
+        create: true
+        mode: '0644'
+
+    - name: Instalar dependências do repositório do Chrome
+      ansible.builtin.apt:
+        name: [ca-certificates, gnupg, python3-apt]
         state: present
-        filename: "google-chrome"
-        update_cache: yes
+        update_cache: true
 
     - name: Install Google Chrome
-      apt:
+      ansible.builtin.apt:
         name: google-chrome-stable
         state: present
 
     - name: Ensure Google Chrome is installed
-      command: google-chrome --version
+      ansible.builtin.command: google-chrome --version
       register: chrome_version
+      changed_when: false
 
     - name: Display installed Google Chrome version
-      debug:
+      ansible.builtin.debug:
         msg: "Google Chrome version installed: {{ chrome_version.stdout }}"

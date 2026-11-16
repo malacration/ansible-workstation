@@ -1,0 +1,34 @@
+---
+# Renders cao-server.service.j2 (baseline copy and current) into render/ only.
+- name: Renderizar unidade CAO para comparação
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    ai_stack_user: fixture-user
+    ai_stack_home: /home/fixture-user
+    ai_stack_bin_dir: /home/fixture-user/.local/bin
+    ai_stack_environment:
+      PATH: /home/fixture-user/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      XDG_CONFIG_HOME: /home/fixture-user/.config
+      XDG_DATA_HOME: /home/fixture-user/.local/share
+      XDG_CACHE_HOME: /home/fixture-user/.cache
+  tasks:
+    - name: Renderizar baseline (antes da mudança)
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/baseline/cao-server.service.j2"
+        dest: "{{ playbook_dir }}/render/baseline.service"
+        mode: '0644'
+    - name: Renderizar template atual com tmux e herdr
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../../ai/roles/cao/templates/cao-server.service.j2"
+        dest: "{{ playbook_dir }}/render/{{ item }}.service"
+        mode: '0644'
+      vars:
+        cao_terminal_backend: "{{ item }}"
+      loop: [tmux, herdr, screen]
+    - name: Renderizar template atual sem cao_terminal_backend definido
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../../ai/roles/cao/templates/cao-server.service.j2"
+        dest: "{{ playbook_dir }}/render/undefined.service"
+        mode: '0644'

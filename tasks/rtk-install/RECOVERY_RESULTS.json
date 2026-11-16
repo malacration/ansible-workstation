@@ -1,0 +1,108 @@
+{
+  "assertions": [
+    {
+      "case": "mismatch-check",
+      "marker_written": false,
+      "original_preserved": true
+    },
+    {
+      "case": "mismatch-normal",
+      "marker_written": false,
+      "verified_replacement": true
+    },
+    {
+      "case": "symlink-check",
+      "marker_written": false,
+      "target_unchanged": true
+    },
+    {
+      "case": "symlink-normal",
+      "marker_written": false,
+      "target_unchanged": true,
+      "link_preserved": true
+    },
+    {
+      "case": "directory-normal",
+      "verified_replacement": true,
+      "directory_preserved": true
+    },
+    {
+      "case": "malformed-receipt-normal",
+      "verified_replacement": true
+    }
+  ],
+  "ansible": [
+    {
+      "case": "recovery-bootstrap",
+      "returncode": 0,
+      "recap": "localhost                  : ok=30   changed=6    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   "
+    },
+    {
+      "case": "recovery-initial-idempotence",
+      "returncode": 0,
+      "recap": "localhost                  : ok=14   changed=0    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   "
+    },
+    {
+      "case": "recovery-mismatch-check",
+      "returncode": 0,
+      "recap": "localhost                  : ok=12   changed=1    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   "
+    },
+    {
+      "case": "recovery-mismatch-normal",
+      "returncode": 0,
+      "recap": "localhost                  : ok=30   changed=4    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   "
+    },
+    {
+      "case": "recovery-symlink-check",
+      "returncode": 0,
+      "recap": "localhost                  : ok=12   changed=1    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   "
+    },
+    {
+      "case": "recovery-symlink-normal",
+      "returncode": 0,
+      "recap": "localhost                  : ok=30   changed=5    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   "
+    },
+    {
+      "case": "recovery-directory-check",
+      "returncode": 0,
+      "recap": "localhost                  : ok=12   changed=1    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   "
+    },
+    {
+      "case": "recovery-directory-normal",
+      "returncode": 0,
+      "recap": "localhost                  : ok=30   changed=5    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   "
+    },
+    {
+      "case": "recovery-malformed-receipt-check",
+      "returncode": 0,
+      "recap": "localhost                  : ok=12   changed=1    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   "
+    },
+    {
+      "case": "recovery-malformed-receipt-normal",
+      "returncode": 0,
+      "recap": "localhost                  : ok=30   changed=4    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   "
+    },
+    {
+      "case": "recovery-final-idempotence",
+      "returncode": 0,
+      "recap": "localhost                  : ok=14   changed=0    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   "
+    },
+    {
+      "case": "recovery-final-check",
+      "returncode": 0,
+      "recap": "localhost                  : ok=12   changed=0    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   "
+    }
+  ],
+  "cached_official_fixture_requests": [
+    "/releases/tags/v1.2.0",
+    "/download/v1.2.0/checksums.txt",
+    "/releases/tags/v1.2.0",
+    "/download/v1.2.0/checksums.txt",
+    "/releases/tags/v1.2.0",
+    "/download/v1.2.0/checksums.txt",
+    "/releases/tags/v1.2.0",
+    "/download/v1.2.0/checksums.txt",
+    "/releases/tags/v1.2.0",
+    "/download/v1.2.0/checksums.txt"
+  ]
+}

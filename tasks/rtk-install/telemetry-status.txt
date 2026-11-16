@@ -1,0 +1,8 @@
+Telemetry status:
+  consent:       never asked
+  enabled:       no
+  env override:  RTK_TELEMETRY_DISABLED=1 (blocked)
+  device hash:   (blocked by RTK_TELEMETRY_DISABLED)
+
+Data controller: RTK AI Labs, contact@rtk-ai.app
+Details: https://github.com/rtk-ai/rtk/blob/master/docs/TELEMETRY.md

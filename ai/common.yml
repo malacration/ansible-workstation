@@ -1,0 +1,8 @@
+---
+- name: Preparar Ubuntu para a stack de IA
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: true
+  roles:
+    - ai_stack

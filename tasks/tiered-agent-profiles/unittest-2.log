@@ -1,0 +1,33 @@
+test_auxiliary_alias_does_not_advance_branch_without_upgrade (test_install_cao.IsolatedInstallTests.test_auxiliary_alias_does_not_advance_branch_without_upgrade) ... ok
+test_install_repeat_pin_upgrade_and_git_source_preserve_extras (test_install_cao.IsolatedInstallTests.test_install_repeat_pin_upgrade_and_git_source_preserve_extras) ... ok
+test_stored_constraints_reject_upgrade_and_source_change_without_mutation (test_install_cao.IsolatedInstallTests.test_stored_constraints_reject_upgrade_and_source_change_without_mutation) ... ok
+test_direct_sources (test_install_cao.ReceiptTests.test_direct_sources) ... ok
+test_pinned_requirement_with_extra_and_marker (test_install_cao.ReceiptTests.test_pinned_requirement_with_extra_and_marker) ... ok
+test_requirement_aliases_extras_and_specifiers_compare_semantically (test_install_cao.ReceiptTests.test_requirement_aliases_extras_and_specifiers_compare_semantically) ... ok
+test_unknown_or_ambiguous_fields_fail (test_install_cao.ReceiptTests.test_unknown_or_ambiguous_fields_fail) ... ok
+test_unknown_receipt_resolution_state_is_rejected (test_install_cao.ReceiptTests.test_unknown_receipt_resolution_state_is_rejected) ... ok
+test_actual_entrypoints_preserve_extra_variable_overrides (test_rtk_entrypoint.RtkEntrypointTests.test_actual_entrypoints_preserve_extra_variable_overrides) ... ok
+test_actual_entrypoints_preserve_inventory_overrides (test_rtk_entrypoint.RtkEntrypointTests.test_actual_entrypoints_preserve_inventory_overrides) ... ok
+test_actual_entrypoints_resolve_shared_defaults (test_rtk_entrypoint.RtkEntrypointTests.test_actual_entrypoints_resolve_shared_defaults) ... ok
+test_real_profile_loader_and_provider_delivery (test_sync_mcps.CaoCompatibilityTests.test_real_profile_loader_and_provider_delivery) ... ok
+test_all_definitions_render_and_validate (test_sync_mcps.RenderedProfilesTests.test_all_definitions_render_and_validate) ... ok
+test_base_dir_precedes_local_and_builtin (test_sync_mcps.SyncMcpsTests.test_base_dir_precedes_local_and_builtin) ... ok
+test_check_mode_writes_nothing (test_sync_mcps.SyncMcpsTests.test_check_mode_writes_nothing) ... ok
+test_cli_options (test_sync_mcps.SyncMcpsTests.test_cli_options) ... ok
+test_codex_http_grants_are_preserved_for_explicit_delegation (test_sync_mcps.SyncMcpsTests.test_codex_http_grants_are_preserved_for_explicit_delegation) ... ok
+test_codex_http_inherits_global_config_and_preserves_role_grants (test_sync_mcps.SyncMcpsTests.test_codex_http_inherits_global_config_and_preserves_role_grants) ... ok
+test_codex_profile_http_missing_from_global_config_is_rejected (test_sync_mcps.SyncMcpsTests.test_codex_profile_http_missing_from_global_config_is_rejected) ... ok
+test_disabled_claude_servers_are_not_imported (test_sync_mcps.SyncMcpsTests.test_disabled_claude_servers_are_not_imported) ... ok
+test_existing_custom_profile_is_not_overwritten (test_sync_mcps.SyncMcpsTests.test_existing_custom_profile_is_not_overwritten) ... ok
+test_idempotence_and_removal_after_client_configuration_changes (test_sync_mcps.SyncMcpsTests.test_idempotence_and_removal_after_client_configuration_changes) ... ok
+test_invalid_source_fails_before_any_profile_is_written (test_sync_mcps.SyncMcpsTests.test_invalid_source_fails_before_any_profile_is_written) ... ok
+test_missing_configs_still_provide_internal_coordination (test_sync_mcps.SyncMcpsTests.test_missing_configs_still_provide_internal_coordination) ... ok
+test_provider_isolation_originals_and_coordinator_are_preserved (test_sync_mcps.SyncMcpsTests.test_provider_isolation_originals_and_coordinator_are_preserved) ... ok
+test_provider_specific_configuration (test_sync_mcps.SyncMcpsTests.test_provider_specific_configuration) ... ok
+test_prune_only_managed_and_check_is_non_destructive (test_sync_mcps.SyncMcpsTests.test_prune_only_managed_and_check_is_non_destructive) ... ok
+test_prune_symlink_other_clients_legacy_and_binary (test_sync_mcps.SyncMcpsTests.test_prune_symlink_other_clients_legacy_and_binary) ... ok
+
+----------------------------------------------------------------------
+Ran 28 tests in 6.033s
+
+OK

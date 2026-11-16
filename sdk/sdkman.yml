@@ -1,7 +1,7 @@
 ---
 - hosts: localhost
   vars:
-    - home: /home/"{{ ansible_env.USER.split('@')[0] }}"
+    home: "{{ ansible_env.HOME }}"
 
   pre_tasks:
     - name: Installing SDKMAn dependencies

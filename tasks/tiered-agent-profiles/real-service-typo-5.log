@@ -1,0 +1,50 @@
+
+PLAY [Validar backend de terminal do CAO] **************************************
+
+TASK [Gathering Facts] *********************************************************
+[WARNING]: Host 'localhost' is using the discovered Python interpreter at '/home/andrew/miniforge3/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.21/reference_appendices/interpreter_discovery.html for more information.
+ok: [localhost]
+
+TASK [ai_stack : Validar sistema e usuário de instalação da stack] *************
+skipping: [localhost]
+
+TASK [ai_stack : Consultar o diretório home do usuário de instalação] **********
+skipping: [localhost]
+
+TASK [ai_stack : Validar o diretório home] *************************************
+skipping: [localhost]
+
+TASK [ai_stack : Instalar dependências do Ubuntu] ******************************
+skipping: [localhost]
+
+TASK [ai_stack : Preparar diretórios do usuário] *******************************
+skipping: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/service-amend-home-5/bin) 
+skipping: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/service-amend-home-5/.cache/ai-stack) 
+skipping: [localhost] => (item=/home/andrew/git/ansible-workstation/tasks/tiered-agent-profiles/service-amend-home-5/.config/ai-stack) 
+skipping: [localhost]
+
+TASK [ai_stack : Adicionar os executáveis ao PATH do Bash e Zsh] ***************
+skipping: [localhost] => (item=.profile) 
+skipping: [localhost] => (item=.bashrc) 
+skipping: [localhost] => (item=.zshrc) 
+skipping: [localhost]
+
+TASK [herdr : Validar backend de terminal do CAO] ******************************
+[ERROR]: Task failed: Action failed: cao_terminal_backend deve ser tmux ou herdr (experimental), não 'herdrr'.
+Origin: /home/andrew/git/ansible-workstation/ai/roles/herdr/tasks/backend.yml:5:3
+
+3 # Executada por ai/cao-terminal-backend.yml, que ai/all.yml importa depois de
+4 # ai/herdr.yml e antes de ai/cao-service.yml. Somente leitura: não altera nada.
+5 - name: Validar backend de terminal do CAO
+    ^ column 3
+
+fatal: [localhost]: FAILED! => {
+    "assertion": "cao_terminal_backend | default('tmux') in ['tmux', 'herdr']",
+    "changed": false,
+    "evaluated_to": false,
+    "msg": "cao_terminal_backend deve ser tmux ou herdr (experimental), não 'herdrr'."
+}
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=1    changed=0    unreachable=0    failed=1    skipped=6    rescued=0    ignored=0   
+

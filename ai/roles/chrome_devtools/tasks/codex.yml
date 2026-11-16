@@ -1,0 +1,23 @@
+---
+- name: Consultar registro atual do Chrome DevTools no Codex
+  ansible.builtin.command:
+    argv: ["{{ ai_stack_bin_dir }}/codex", mcp, get, chrome-devtools, --json]
+  register: chrome_devtools_codex_current
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Adicionar ou atualizar MCP global no Codex
+  ansible.builtin.command:
+    argv: >-
+      {{ [ai_stack_bin_dir ~ '/codex', 'mcp', 'add', 'chrome-devtools', '--', chrome_devtools_command]
+         + chrome_devtools_args }}
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - >-
+      chrome_devtools_codex_current.rc != 0 or
+      (chrome_devtools_codex_current.stdout | from_json).transport.command | default('') != chrome_devtools_command or
+      (chrome_devtools_codex_current.stdout | from_json).transport.args | default([], true) != chrome_devtools_args or
+      not (chrome_devtools_codex_current.stdout | from_json).enabled

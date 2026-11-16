@@ -1,0 +1,21 @@
+Hook processors for LLM CLI tools (Gemini CLI, Copilot, etc.)
+
+Usage: rtk hook [OPTIONS] <COMMAND>
+
+Commands:
+  claude       Process Claude Code PreToolUse hook (reads JSON from stdin)
+  trae         Process Trae PreToolUse hook (reads JSON from stdin)
+  codex        Process Codex CLI PreToolUse hook (reads JSON from stdin)
+  cursor       Process Cursor Agent hook (reads JSON from stdin)
+  gemini       Process Gemini CLI BeforeTool hook (reads JSON from stdin)
+  copilot      Process Copilot preToolUse hook (VS Code + Copilot CLI, reads JSON from stdin)
+  droid        Process Factory Droid PreToolUse hook (reads JSON from stdin)
+  antigravity  Process Google Antigravity PreToolUse hook (reads JSON from stdin)
+  vibe         Process Mistral Vibe CLI pre_tool hook (reads JSON from stdin)
+  opencode     Answer for OpenCode's plugin: the rewrite as JSON, or `{}` when rewriting would change what OpenCode's own permission rules decide
+  check        Check how a command would be rewritten by the hook engine (dry-run)
+  help         Print this message or the help of the given subcommand(s)
+
+Options:
+      --skip-env  Set SKIP_ENV_VALIDATION=1 for child processes (Next.js, tsc, lint, prisma)
+  -h, --help      Print help

@@ -1,0 +1,185 @@
+[WARNING]: provided hosts list is empty, only localhost is available. Note that the implicit localhost does not match 'all'
+
+playbook: ai/all.yml
+
+  play #1 (localhost): Verificar antecipadamente a migração do serviço CAO	TAGS: [always]
+    tasks:
+      ai_stack : Validar sistema e usuário de instalação da stack	TAGS: [always]
+      ai_stack : Consultar o diretório home do usuário de instalação	TAGS: [always]
+      ai_stack : Validar o diretório home	TAGS: [always]
+      ai_stack : Instalar dependências do Ubuntu	TAGS: [always]
+      ai_stack : Preparar diretórios do usuário	TAGS: [always]
+      ai_stack : Adicionar os executáveis ao PATH do Bash e Zsh	TAGS: [always]
+      cao : Validar versões solicitadas para CAO e Python	TAGS: [always]
+      cao : Validar versão solicitada do uv	TAGS: [always]
+      cao : Consultar versão atual do uv	TAGS: [always]
+      cao : Baixar instalador oficial do uv	TAGS: [always]
+      cao : Executar instalador do uv	TAGS: [always]
+      cao : Instalar CAO em ambiente Python isolado	TAGS: [always]
+      cao : Verificar executáveis do CAO	TAGS: [always]
+      Preparar Node.js para compilar a Web UI do CAO	TAGS: [always]
+      cao : Consultar diretório dos ambientes uv	TAGS: [always]
+      cao : Identificar pacote e commit do CAO instalado	TAGS: [always]
+      cao : Definir caminhos da Web UI do CAO	TAGS: [always]
+      cao : Validar commit do CAO instalado	TAGS: [always]
+      cao : Ler commit da Web UI instalada	TAGS: [always]
+      cao : Obter fonte do CAO no commit instalado	TAGS: [always]
+      cao : Instalar dependências da Web UI	TAGS: [always]
+      cao : Compilar Web UI	TAGS: [always]
+      cao : Remover Web UI anterior	TAGS: [always]
+      cao : Copiar Web UI para o pacote instalado	TAGS: [always]
+      cao : Registrar commit da Web UI instalada	TAGS: [always]
+      Consultar usuário de instalação	TAGS: [always]
+      Validar disponibilidade do systemd para o serviço opcional	TAGS: [always]
+      Validar nomes das unidades	TAGS: [always]
+      Inspecionar unidades legadas sem seguir links	TAGS: [always]
+      Recusar arquivos legados que não sejam regulares	TAGS: [always]
+      Ler unidades legadas regulares	TAGS: [always]
+      Confirmar identidade das unidades legadas	TAGS: [always]
+      Consultar estado das unidades legadas	TAGS: [always]
+      Consultar cgroup da sessão tmux	TAGS: [always]
+      Impedir interrupção da própria sessão CAO	TAGS: [always]
+      Exigir janela de manutenção para unidades legadas ativas	TAGS: [always]
+
+  play #2 (localhost): Preparar Ubuntu para a stack de IA	TAGS: [ai_common]
+    tasks:
+
+  play #3 (localhost): Instalar Codex CLI no Ubuntu	TAGS: [codex]
+    tasks:
+
+  play #4 (localhost): Instalar Claude Code no Ubuntu	TAGS: [claude]
+    tasks:
+
+  play #5 (localhost): Preparar Ubuntu para a stack de IA	TAGS: [ai_common,rtk]
+    tasks:
+
+  play #6 (localhost): Install RTK OSS local shell filtering	TAGS: [rtk]
+    tasks:
+
+  play #7 (localhost): Preparar Ubuntu para a stack de IA	TAGS: [ai_common,herdr]
+    tasks:
+
+  play #8 (localhost): Instalar herdr (backend experimental de terminal do CAO)	TAGS: [herdr]
+    tasks:
+
+  play #9 (localhost): Preparar Ubuntu para a stack de IA	TAGS: [chrome_devtools]
+    tasks:
+
+  play #10 (localhost): Instalar Codex CLI no Ubuntu	TAGS: [chrome_devtools]
+    tasks:
+
+  play #11 (localhost): Instalar Claude Code no Ubuntu	TAGS: [chrome_devtools]
+    tasks:
+
+  play #12 (localhost): Preparar Node.js para os MCPs	TAGS: [chrome_devtools]
+    tasks:
+
+  play #13 (localhost): Install Google Chrome on Ubuntu	TAGS: [chrome_devtools]
+    tasks:
+
+  play #14 (localhost): Instalar e registrar Chrome DevTools MCP	TAGS: [chrome_devtools]
+    tasks:
+
+  play #15 (localhost): Preparar Ubuntu para a stack de IA	TAGS: [playwright_mcp]
+    tasks:
+
+  play #16 (localhost): Instalar Codex CLI no Ubuntu	TAGS: [playwright_mcp]
+    tasks:
+
+  play #17 (localhost): Instalar Claude Code no Ubuntu	TAGS: [playwright_mcp]
+    tasks:
+
+  play #18 (localhost): Preparar Node.js para os MCPs	TAGS: [playwright_mcp]
+    tasks:
+
+  play #19 (localhost): Install Google Chrome on Ubuntu	TAGS: [playwright_mcp]
+    tasks:
+
+  play #20 (localhost): Instalar e registrar Playwright MCP	TAGS: [playwright_mcp]
+    tasks:
+
+  play #21 (localhost): Instalar uv no Ubuntu	TAGS: [uv]
+    tasks:
+
+  play #22 (localhost): Instalar CLI Agent Orchestrator no Ubuntu	TAGS: [cao]
+    tasks:
+
+  play #23 (localhost): Compartilhar MCPs do Codex e Claude com o CAO	TAGS: [mcp]
+    tasks:
+
+  play #24 (localhost): Validar backend de terminal do CAO	TAGS: [cao_service,herdr]
+    tasks:
+      ai_stack : Validar sistema e usuário de instalação da stack	TAGS: [cao_service, herdr]
+      ai_stack : Consultar o diretório home do usuário de instalação	TAGS: [cao_service, herdr]
+      ai_stack : Validar o diretório home	TAGS: [cao_service, herdr]
+      ai_stack : Instalar dependências do Ubuntu	TAGS: [cao_service, herdr]
+      ai_stack : Preparar diretórios do usuário	TAGS: [cao_service, herdr]
+      ai_stack : Adicionar os executáveis ao PATH do Bash e Zsh	TAGS: [cao_service, herdr]
+      herdr : Validar backend de terminal do CAO	TAGS: [cao_service, herdr]
+      herdr : Consultar usuário dos agentes	TAGS: [cao_service, herdr]
+      herdr : Verificar comando herdr publicado	TAGS: [cao_service, herdr]
+      herdr : Exigir herdr instalado, ou habilitado no check mode	TAGS: [cao_service, herdr]
+
+  play #25 (localhost): Verificar antecipadamente a migração do serviço CAO	TAGS: [cao_service]
+    tasks:
+      ai_stack : Validar sistema e usuário de instalação da stack	TAGS: [cao_service]
+      ai_stack : Consultar o diretório home do usuário de instalação	TAGS: [cao_service]
+      ai_stack : Validar o diretório home	TAGS: [cao_service]
+      ai_stack : Instalar dependências do Ubuntu	TAGS: [cao_service]
+      ai_stack : Preparar diretórios do usuário	TAGS: [cao_service]
+      ai_stack : Adicionar os executáveis ao PATH do Bash e Zsh	TAGS: [cao_service]
+      cao : Validar versões solicitadas para CAO e Python	TAGS: [cao_service]
+      cao : Validar versão solicitada do uv	TAGS: [cao_service]
+      cao : Consultar versão atual do uv	TAGS: [cao_service]
+      cao : Baixar instalador oficial do uv	TAGS: [cao_service]
+      cao : Executar instalador do uv	TAGS: [cao_service]
+      cao : Instalar CAO em ambiente Python isolado	TAGS: [cao_service]
+      cao : Verificar executáveis do CAO	TAGS: [cao_service]
+      Preparar Node.js para compilar a Web UI do CAO	TAGS: [cao_service]
+      cao : Consultar diretório dos ambientes uv	TAGS: [cao_service]
+      cao : Identificar pacote e commit do CAO instalado	TAGS: [cao_service]
+      cao : Definir caminhos da Web UI do CAO	TAGS: [cao_service]
+      cao : Validar commit do CAO instalado	TAGS: [cao_service]
+      cao : Ler commit da Web UI instalada	TAGS: [cao_service]
+      cao : Obter fonte do CAO no commit instalado	TAGS: [cao_service]
+      cao : Instalar dependências da Web UI	TAGS: [cao_service]
+      cao : Compilar Web UI	TAGS: [cao_service]
+      cao : Remover Web UI anterior	TAGS: [cao_service]
+      cao : Copiar Web UI para o pacote instalado	TAGS: [cao_service]
+      cao : Registrar commit da Web UI instalada	TAGS: [cao_service]
+      Consultar usuário de instalação	TAGS: [cao_service]
+      Validar disponibilidade do systemd para o serviço opcional	TAGS: [cao_service]
+      Validar nomes das unidades	TAGS: [cao_service]
+      Inspecionar unidades legadas sem seguir links	TAGS: [cao_service]
+      Recusar arquivos legados que não sejam regulares	TAGS: [cao_service]
+      Ler unidades legadas regulares	TAGS: [cao_service]
+      Confirmar identidade das unidades legadas	TAGS: [cao_service]
+      Consultar estado das unidades legadas	TAGS: [cao_service]
+      Consultar cgroup da sessão tmux	TAGS: [cao_service]
+      Impedir interrupção da própria sessão CAO	TAGS: [cao_service]
+      Exigir janela de manutenção para unidades legadas ativas	TAGS: [cao_service]
+
+  play #26 (localhost): Configurar serviço opcional do CAO	TAGS: [cao_service]
+    tasks:
+      ai_stack : Validar sistema e usuário de instalação da stack	TAGS: [cao_service]
+      ai_stack : Consultar o diretório home do usuário de instalação	TAGS: [cao_service]
+      ai_stack : Validar o diretório home	TAGS: [cao_service]
+      ai_stack : Instalar dependências do Ubuntu	TAGS: [cao_service]
+      ai_stack : Preparar diretórios do usuário	TAGS: [cao_service]
+      ai_stack : Adicionar os executáveis ao PATH do Bash e Zsh	TAGS: [cao_service]
+      cao : Validar disponibilidade do systemd para o serviço opcional	TAGS: [cao_service]
+      cao : Validar nomes das unidades	TAGS: [cao_service]
+      cao : Inspecionar unidades legadas sem seguir links	TAGS: [cao_service]
+      cao : Recusar arquivos legados que não sejam regulares	TAGS: [cao_service]
+      cao : Ler unidades legadas regulares	TAGS: [cao_service]
+      cao : Confirmar identidade das unidades legadas	TAGS: [cao_service]
+      cao : Consultar estado das unidades legadas	TAGS: [cao_service]
+      cao : Consultar cgroup da sessão tmux	TAGS: [cao_service]
+      cao : Impedir interrupção da própria sessão CAO	TAGS: [cao_service]
+      cao : Exigir janela de manutenção para unidades legadas ativas	TAGS: [cao_service]
+      cao : Informar migração prevista em modo de verificação	TAGS: [cao_service]
+      cao : Parar e desabilitar unidades legadas	TAGS: [cao_service]
+      cao : Remover arquivos das unidades legadas	TAGS: [cao_service]
+      cao : Recarregar systemd após remoção das unidades legadas	TAGS: [cao_service]
+      cao : Instalar unidade systemd do CAO	TAGS: [cao_service]
+      cao : Habilitar e iniciar servidor CAO	TAGS: [cao_service]

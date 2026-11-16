@@ -1,0 +1,26 @@
+{
+  "round": 2,
+  "uv_receipt_sha256": "17425ecb3fc005de46f6b7a986d6f94c193f67638fec96f22ef64289a50d7ab3",
+  "code_files_sha256": {
+    "/home/andrew/git/ansible-workstation/ai/README.md": "6f80b329e4b8078a00d60a7405caa13483970b6ae70b81bf2dc74813381a0239",
+    "/home/andrew/git/ansible-workstation/ai/vars.example.yml": "243b6cc582e90f4a8dc6bfd1ec79b75282a4b47da832f23912a55ce406a94359",
+    "/home/andrew/git/ansible-workstation/ai/roles/cao/defaults/main.yml": "adf8f13111cdd56441c7c01ab4c6d4d9ac9f340cfd332729b2b34844df3282c7",
+    "/home/andrew/git/ansible-workstation/ai/roles/cao/handlers/main.yml": "fce68b9103858898d4aeca8f45a2404f0950b62f2966ad6c162cdc52dcb0d877",
+    "/home/andrew/git/ansible-workstation/ai/roles/cao/tasks/main.yml": "7e2e411de5789af097df0e8dbc5cf10260ab09f7d3663ddbbffd783d239ccad3",
+    "/home/andrew/git/ansible-workstation/ai/all.yml": "f88a097692cf6dd12f3c87ade02e389ca607ca617da4e810edd5d7b464557df3",
+    "/home/andrew/git/ansible-workstation/ai/cao-update.yml": "e6c8916399d8059793fbe9e784fac3c7014daad09c68ecef4049e0b711e6f9e8",
+    "/home/andrew/git/ansible-workstation/ai/roles/cao/files/install_cao.py": "b138580adc129f7a2eae50774a023116e85d1e42b993e3b8ab92d3aedb177998",
+    "/home/andrew/git/ansible-workstation/ai/tests/test_install_cao.py": "69847697d1e9ecd369ddf6a13f30f373ad4c15c5fb0f5ccf64764747121803fe",
+    "/home/andrew/git/ansible-workstation/ai/rtk.yml": "6c5200c53c9f338522183025134ea2a2d1c8ca5956021419c466f89a7c05fb1d"
+  },
+  "rtk_role_files_sha256": {
+    "/home/andrew/git/ansible-workstation/ai/roles/rtk/README.md": "220607c54397bcb40bf7e9b3af1d526d31ea04414f978c1d09796b969a4c9f32",
+    "/home/andrew/git/ansible-workstation/ai/roles/rtk/defaults/main.yml": "4b8de896291e401d0ac56dded59ca31a0f9d30609d36381e87958b70fefbe324",
+    "/home/andrew/git/ansible-workstation/ai/roles/rtk/files/configure_rtk.py": "e2defa61670989efcb42a1082f14bc765e273b8577ccfe4e22b1f5c132a8a5e5",
+    "/home/andrew/git/ansible-workstation/ai/roles/rtk/meta/main.yml": "40c407353bdc672aa412bc39317c5c1cab145fda4d1eaa2c17f9cad1da397b52",
+    "/home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/main.yml": "c5f88519cb7026fad223bc42422e4365aa8cb092be6916d6d2322969c621488b",
+    "/home/andrew/git/ansible-workstation/ai/roles/rtk/tasks/release.yml": "3cef9f9aa0f650ee141373d0a41b1fe772603b16237ee5f10f0d0df3b46f4a19",
+    "/home/andrew/git/ansible-workstation/ai/roles/rtk/templates/rtk.j2": "f8dccc91f4854d1fcba4b91576d95d1de75e658d4e8be11c96f420737d710968"
+  },
+  "validation": "19 tests, four syntax checks and three task listings passed; Python AST and ten individual diff whitespace checks passed; live CAO receipt and RTK role unchanged"
+}

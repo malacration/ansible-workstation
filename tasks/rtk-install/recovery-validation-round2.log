@@ -1,0 +1,13 @@
+recovery-bootstrap: localhost                  : ok=30   changed=6    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   
+recovery-initial-idempotence: localhost                  : ok=14   changed=0    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   
+recovery-mismatch-check: localhost                  : ok=12   changed=1    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   
+recovery-mismatch-normal: localhost                  : ok=30   changed=4    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   
+recovery-symlink-check: localhost                  : ok=12   changed=1    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   
+recovery-symlink-normal: localhost                  : ok=30   changed=5    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   
+recovery-directory-check: localhost                  : ok=12   changed=1    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   
+recovery-directory-normal: localhost                  : ok=30   changed=5    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   
+recovery-malformed-receipt-check: localhost                  : ok=12   changed=1    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   
+recovery-malformed-receipt-normal: localhost                  : ok=30   changed=4    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   
+recovery-final-idempotence: localhost                  : ok=14   changed=0    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   
+recovery-final-check: localhost                  : ok=12   changed=0    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   
+Full-role recovery checks passed without executing an invalid binary.

@@ -1,0 +1,125 @@
+---
+- name: Validar clientes e perfis para compartilhamento dos MCPs
+  ansible.builtin.assert:
+    that:
+      - cao_mcp_clients | length > 0
+      - cao_mcp_clients | difference(['codex', 'claude_code']) | length == 0
+      - cao_mcp_profiles | length > 0
+      - cao_mcp_profile_prefix is match('^[a-zA-Z0-9_-]{1,32}$')
+
+- name: Validar perfis selecionados e prefixos legados
+  ansible.builtin.assert:
+    that:
+      - cao_mcp_profiles | difference(cao_profile_definitions | map(attribute='name') | list) | length == 0
+      - cao_mcp_prune_prefixes | reject('match', '^[A-Za-z0-9_-]{1,32}$') | list | length == 0
+    fail_msg: "Selecione apenas perfis definidos e prefixos legados com 1 a 32 letras, números, hífen ou sublinhado."
+
+- name: Validar estrutura de esforços e modelos
+  ansible.builtin.assert:
+    that:
+      - cao_profile_efforts is mapping
+      - cao_profile_models is mapping
+      - cao_profile_efforts.keys() | list | difference(cao_profile_definitions | map(attribute='name') | list) | length == 0
+      - cao_profile_models.keys() | list | difference(cao_profile_definitions | map(attribute='name') | list) | length == 0
+    fail_msg: "cao_profile_efforts e cao_profile_models devem conter apenas perfis definidos."
+
+- name: Validar esforços e modelos para cada definição
+  ansible.builtin.assert:
+    that:
+      - item.name in cao_profile_efforts
+      - item.name in cao_profile_models
+      - cao_profile_efforts[item.name] is mapping
+      - cao_profile_models[item.name] is mapping
+      - cao_profile_efforts[item.name].keys() | list | sort == ['claude', 'codex']
+      - cao_profile_models[item.name].keys() | list | sort == ['claude', 'codex']
+      - cao_profile_efforts[item.name].codex in ['minimal', 'low', 'medium', 'high', 'xhigh']
+      - cao_profile_efforts[item.name].claude in ['low', 'medium', 'high', 'xhigh']
+      - cao_profile_models[item.name].codex is none or (cao_profile_models[item.name].codex is string and cao_profile_models[item.name].codex | length > 0)
+      - cao_profile_models[item.name].claude is none or (cao_profile_models[item.name].claude is string and cao_profile_models[item.name].claude | length > 0)
+    fail_msg: "Informe codex e claude válidos para {{ item.name }} em cao_profile_efforts e cao_profile_models."
+  loop: "{{ cao_profile_definitions }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Preparar sincronização dos MCPs como usuário dos agentes
+  become: "{{ ansible_facts['user_id'] != ai_stack_user }}"
+  become_user: "{{ ai_stack_user }}"
+  environment: "{{ ai_stack_environment }}"
+  block:
+    - name: Verificar disponibilidade do uv
+      ansible.builtin.stat:
+        path: "{{ ai_stack_bin_dir }}/uv"
+      register: cao_mcp_uv
+
+    - name: Consultar diretório dos ambientes uv
+      ansible.builtin.command:
+        argv: ["{{ ai_stack_bin_dir }}/uv", tool, dir]
+      register: cao_mcp_uv_tools_dir
+      changed_when: false
+      check_mode: false
+      when: cao_mcp_uv.stat.executable | default(false)
+
+    - name: Preparar diretório do sincronizador
+      ansible.builtin.file:
+        path: "{{ ai_stack_home }}/.local/share/ai-stack"
+        state: directory
+        mode: '0700'
+
+    - name: Preparar diretório privado das definições de perfis
+      ansible.builtin.file:
+        path: "{{ ai_stack_home }}/.local/share/ai-stack/profiles"
+        state: directory
+        mode: '0700'
+
+    - name: Instalar definições de perfis gerenciadas
+      ansible.builtin.template:
+        src: "profiles/{{ item.template }}.md.j2"
+        dest: "{{ ai_stack_home }}/.local/share/ai-stack/profiles/{{ item.name }}.md"
+        mode: '0600'
+      loop: "{{ cao_profile_definitions | selectattr('name', 'in', cao_mcp_profiles) | list }}"
+      register: cao_mcp_definitions_result
+
+    - name: Instalar sincronizador dos MCPs
+      ansible.builtin.copy:
+        src: sync_mcps.py
+        dest: "{{ ai_stack_home }}/.local/share/ai-stack/sync_mcps.py"
+        mode: '0600'
+      register: cao_mcp_script_result
+
+    - name: Instalar comando de sincronização dos MCPs
+      ansible.builtin.template:
+        src: ai-stack-sync-mcps.j2
+        dest: "{{ ai_stack_bin_dir }}/ai-stack-sync-mcps"
+        mode: '0700'
+      register: cao_mcp_wrapper_result
+      when: cao_mcp_uv.stat.executable | default(false)
+
+    - name: Verificar se o sincronizador já existe
+      ansible.builtin.stat:
+        path: "{{ ai_stack_bin_dir }}/ai-stack-sync-mcps"
+      register: cao_sync_wrapper
+
+    - name: Sincronizar MCPs e gerar perfis do CAO
+      ansible.builtin.command:
+        argv: "{{ [ai_stack_bin_dir ~ '/ai-stack-sync-mcps', '--prune'] + (['--check'] if ansible_check_mode else []) + (cao_mcp_prune_prefixes | map('regex_replace', '^(.*)$', '--prune-prefix=\\1') | list) }}"
+      register: cao_mcp_sync_result
+      changed_when: (cao_mcp_sync_result.stdout | from_json).changed
+      check_mode: false
+      when: >-
+        not ansible_check_mode or
+        (cao_mcp_uv.stat.executable | default(false) and cao_sync_wrapper.stat.exists and not cao_mcp_script_result.changed and
+         not cao_mcp_wrapper_result.changed and not cao_mcp_definitions_result.changed)
+
+    - name: Informar indisponibilidade da previsão
+      ansible.builtin.debug:
+        msg: "preview unavailable: synchronizer will be updated on a real run"
+      when:
+        - ansible_check_mode
+        - cao_mcp_sync_result.skipped | default(false)
+
+    - name: Informar perfis e definições removidos ou previstos para remoção
+      ansible.builtin.debug:
+        var: "(cao_mcp_sync_result.stdout | from_json).removed"
+      when:
+        - not (cao_mcp_sync_result.skipped | default(false))
+        - (cao_mcp_sync_result.stdout | from_json).removed | length > 0

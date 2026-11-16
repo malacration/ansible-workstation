@@ -1,0 +1,67 @@
+---
+- name: Validar clientes para Chrome DevTools MCP
+  ansible.builtin.assert:
+    that:
+      - chrome_devtools_clients | difference(['codex', 'claude_code']) | length == 0
+      - chrome_devtools_clients | length > 0
+      - ai_node_resolved_binary is defined
+      - not chrome_devtools_install_browser | bool or ansible_facts['architecture'] == 'x86_64'
+    fail_msg: >-
+      A instalação automática do Chrome requer x86_64. Em ARM64, configure
+      chrome_devtools_install_browser=false e chrome_devtools_args com --browser-url.
+
+- name: Instalar Chrome DevTools MCP como usuário dos agentes
+  become: "{{ ansible_facts['user_id'] != ai_stack_user }}"
+  become_user: "{{ ai_stack_user }}"
+  environment: >-
+    {{ ai_stack_environment | combine({'PATH': (ai_node_resolved_binary | dirname) ~ ':' ~ ai_stack_environment.PATH}) }}
+  block:
+    - name: Consultar versão instalada do Chrome DevTools MCP
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_node_resolved_binary }}"
+          - -e
+          - 'console.log(JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8")).version)'
+          - "{{ chrome_devtools_install_dir }}/node_modules/chrome-devtools-mcp/package.json"
+      register: chrome_devtools_current
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      when: not ansible_check_mode
+
+    - name: Instalar pacote npm do Chrome DevTools MCP
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_node_resolved_binary | dirname }}/npm"
+          - install
+          - --prefix
+          - "{{ chrome_devtools_install_dir }}"
+          - --no-audit
+          - --no-fund
+          - "chrome-devtools-mcp@{{ chrome_devtools_version }}"
+      changed_when: true
+      when:
+        - not ansible_check_mode
+        - >-
+          chrome_devtools_current.rc != 0 or ai_stack_upgrade | bool or
+          (chrome_devtools_version != 'latest' and chrome_devtools_current.stdout | trim != chrome_devtools_version)
+
+    - name: Instalar comando estável com o Node.js selecionado
+      ansible.builtin.template:
+        src: chrome-devtools-mcp.j2
+        dest: "{{ chrome_devtools_command }}"
+        mode: '0700'
+
+    - name: Verificar executável do Chrome DevTools MCP
+      ansible.builtin.command:
+        argv: ["{{ chrome_devtools_command }}", --version]
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Registrar Chrome DevTools MCP no Codex
+      ansible.builtin.import_tasks: codex.yml
+      when: "'codex' in chrome_devtools_clients"
+
+    - name: Registrar Chrome DevTools MCP no Claude Code
+      ansible.builtin.import_tasks: claude.yml
+      when: "'claude_code' in chrome_devtools_clients"

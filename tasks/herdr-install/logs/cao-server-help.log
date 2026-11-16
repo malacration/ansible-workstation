@@ -1,0 +1,18 @@
+usage: cao-server [-h] [--agents-dir AGENTS_DIR] [--host HOST] [--port PORT]
+                  [--terminal {tmux,herdr}] [--decision DECISION]
+
+CLI Agent Orchestrator Server
+
+options:
+  -h, --help            show this help message and exit
+  --agents-dir AGENTS_DIR
+                        Path to agents directory (overrides CAO_AGENTS_DIR env
+                        var)
+  --host HOST           Server host
+  --port PORT           Server port
+  --terminal {tmux,herdr}
+                        Terminal backend to use, overriding terminal_backend
+                        in config.json
+  --decision DECISION   Point state override: <point>=off|shadow|on
+                        (repeatable)
+rc=0

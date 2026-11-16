@@ -1,0 +1,17 @@
+---
+# Valida cao_terminal_backend (tmux|herdr) e, com o serviço habilitado e herdr,
+# a presença do comando herdr. Não altera arquivos nem serviços.
+- name: Validar backend de terminal do CAO
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: true
+  roles:
+    # Expõe ai_stack_user/ai_stack_bin_dir e cao_terminal_backend sem executar a role.
+    - role: ai_stack
+      when: false
+  tasks:
+    - name: Validar backend e disponibilidade do herdr
+      ansible.builtin.import_role:
+        name: herdr
+        tasks_from: backend

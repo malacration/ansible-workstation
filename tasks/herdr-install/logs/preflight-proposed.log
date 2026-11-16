@@ -1,0 +1,272 @@
+### extra: 
+
+PLAY [Verificar antecipadamente a migração do serviço CAO] *********************
+
+TASK [Gathering Facts] *********************************************************
+ok: [localhost]
+
+TASK [Aplicar padrão da opção de serviço quando ausente] ***********************
+skipping: [localhost]
+
+TASK [Determinar usuário padrão dos agentes] ***********************************
+ok: [localhost]
+
+TASK [Consultar usuário de instalação] *****************************************
+ok: [localhost]
+
+TASK [Determinar diretório padrão dos agentes] *********************************
+ok: [localhost]
+
+TASK [Determinar diretório padrão de executáveis] ******************************
+ok: [localhost]
+
+TASK [Determinar nome padrão da unidade] ***************************************
+ok: [localhost]
+
+TASK [Determinar nomes legados padrão] *****************************************
+skipping: [localhost]
+
+TASK [Determinar política padrão de reinício] **********************************
+ok: [localhost]
+
+TASK [Validar backend de terminal do CAO] **************************************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [Verificar comando herdr para o backend herdr] ****************************
+skipping: [localhost]
+
+TASK [Exigir herdr instalado ou habilitado para o backend herdr] ***************
+skipping: [localhost]
+
+TASK [Validar disponibilidade do systemd para o serviço opcional] **************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [Validar nomes das unidades] **********************************************
+ok: [localhost] => (item=cao-server) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": "cao-server",
+    "msg": "All assertions passed"
+}
+
+TASK [Inspecionar unidades legadas sem seguir links] ***************************
+skipping: [localhost]
+
+TASK [Recusar arquivos legados que não sejam regulares] ************************
+skipping: [localhost]
+
+TASK [Ler unidades legadas regulares] ******************************************
+skipping: [localhost]
+
+TASK [Confirmar identidade das unidades legadas] *******************************
+skipping: [localhost]
+
+TASK [Consultar estado das unidades legadas] ***********************************
+skipping: [localhost]
+
+TASK [Exigir janela de manutenção para unidades legadas ativas] ****************
+skipping: [localhost]
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=10   changed=0    unreachable=0    failed=0    skipped=10   rescued=0    ignored=0   
+
+rc=0
+### extra: -e cao_terminal_backend=herdr
+
+PLAY [Verificar antecipadamente a migração do serviço CAO] *********************
+
+TASK [Gathering Facts] *********************************************************
+ok: [localhost]
+
+TASK [Aplicar padrão da opção de serviço quando ausente] ***********************
+skipping: [localhost]
+
+TASK [Determinar usuário padrão dos agentes] ***********************************
+ok: [localhost]
+
+TASK [Consultar usuário de instalação] *****************************************
+ok: [localhost]
+
+TASK [Determinar diretório padrão dos agentes] *********************************
+ok: [localhost]
+
+TASK [Determinar diretório padrão de executáveis] ******************************
+ok: [localhost]
+
+TASK [Determinar nome padrão da unidade] ***************************************
+ok: [localhost]
+
+TASK [Determinar nomes legados padrão] *****************************************
+skipping: [localhost]
+
+TASK [Determinar política padrão de reinício] **********************************
+ok: [localhost]
+
+TASK [Validar backend de terminal do CAO] **************************************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [Verificar comando herdr para o backend herdr] ****************************
+ok: [localhost]
+
+TASK [Exigir herdr instalado ou habilitado para o backend herdr] ***************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [Validar disponibilidade do systemd para o serviço opcional] **************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [Validar nomes das unidades] **********************************************
+ok: [localhost] => (item=cao-server) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": "cao-server",
+    "msg": "All assertions passed"
+}
+
+TASK [Inspecionar unidades legadas sem seguir links] ***************************
+skipping: [localhost]
+
+TASK [Recusar arquivos legados que não sejam regulares] ************************
+skipping: [localhost]
+
+TASK [Ler unidades legadas regulares] ******************************************
+skipping: [localhost]
+
+TASK [Confirmar identidade das unidades legadas] *******************************
+skipping: [localhost]
+
+TASK [Consultar estado das unidades legadas] ***********************************
+skipping: [localhost]
+
+TASK [Exigir janela de manutenção para unidades legadas ativas] ****************
+skipping: [localhost]
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=12   changed=0    unreachable=0    failed=0    skipped=8    rescued=0    ignored=0   
+
+rc=0
+### extra: -e cao_terminal_backend=herdr -e herdr_enabled=false
+
+PLAY [Verificar antecipadamente a migração do serviço CAO] *********************
+
+TASK [Gathering Facts] *********************************************************
+ok: [localhost]
+
+TASK [Aplicar padrão da opção de serviço quando ausente] ***********************
+skipping: [localhost]
+
+TASK [Determinar usuário padrão dos agentes] ***********************************
+ok: [localhost]
+
+TASK [Consultar usuário de instalação] *****************************************
+ok: [localhost]
+
+TASK [Determinar diretório padrão dos agentes] *********************************
+ok: [localhost]
+
+TASK [Determinar diretório padrão de executáveis] ******************************
+ok: [localhost]
+
+TASK [Determinar nome padrão da unidade] ***************************************
+ok: [localhost]
+
+TASK [Determinar nomes legados padrão] *****************************************
+skipping: [localhost]
+
+TASK [Determinar política padrão de reinício] **********************************
+ok: [localhost]
+
+TASK [Validar backend de terminal do CAO] **************************************
+ok: [localhost] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [Verificar comando herdr para o backend herdr] ****************************
+ok: [localhost]
+
+TASK [Exigir herdr instalado ou habilitado para o backend herdr] ***************
+[ERROR]: Task failed: Action failed: cao_terminal_backend=herdr exige herdr instalado em /home/andrew/.local/bin/herdr ou herdr_enabled=true; use cao_terminal_backend=tmux caso contrário.
+Origin: /tmp/claude-1001/-home-andrew-git-ansible-workstation/96326b4c-0c6f-49f0-8218-2b0d8219250d/scratchpad/aicopy/ai/roles/cao/tasks/service-preflight.yml:16:3
+
+14   when: cao_service_enabled | bool and cao_terminal_backend | default('tmux') == 'herdr'
+15
+16 - name: Exigir herdr instalado ou habilitado para o backend herdr
+     ^ column 3
+
+fatal: [localhost]: FAILED! => {
+    "assertion": "(cao_herdr_command.stat.executable | default(false)) or (herdr_enabled | default(true) | bool)",
+    "changed": false,
+    "evaluated_to": false,
+    "msg": "cao_terminal_backend=herdr exige herdr instalado em /home/andrew/.local/bin/herdr ou herdr_enabled=true; use cao_terminal_backend=tmux caso contrário."
+}
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=9    changed=0    unreachable=0    failed=1    skipped=2    rescued=0    ignored=0   
+
+rc=2
+### extra: -e cao_terminal_backend=screen
+
+PLAY [Verificar antecipadamente a migração do serviço CAO] *********************
+
+TASK [Gathering Facts] *********************************************************
+ok: [localhost]
+
+TASK [Aplicar padrão da opção de serviço quando ausente] ***********************
+skipping: [localhost]
+
+TASK [Determinar usuário padrão dos agentes] ***********************************
+ok: [localhost]
+
+TASK [Consultar usuário de instalação] *****************************************
+ok: [localhost]
+
+TASK [Determinar diretório padrão dos agentes] *********************************
+ok: [localhost]
+
+TASK [Determinar diretório padrão de executáveis] ******************************
+ok: [localhost]
+
+TASK [Determinar nome padrão da unidade] ***************************************
+ok: [localhost]
+
+TASK [Determinar nomes legados padrão] *****************************************
+skipping: [localhost]
+
+TASK [Determinar política padrão de reinício] **********************************
+ok: [localhost]
+
+TASK [Validar backend de terminal do CAO] **************************************
+[ERROR]: Task failed: Action failed: cao_terminal_backend deve ser tmux ou herdr (experimental), não 'screen'.
+Origin: /tmp/claude-1001/-home-andrew-git-ansible-workstation/96326b4c-0c6f-49f0-8218-2b0d8219250d/scratchpad/aicopy/ai/roles/cao/tasks/service-preflight.yml:5:3
+
+3 # da role ai_stack e ANTES de ai/herdr.yml em ai/all.yml; por isso usa default('tmux')
+4 # e aceita herdr habilitado. service.yml exige o comando instalado depois do herdr.yml.
+5 - name: Validar backend de terminal do CAO
+    ^ column 3
+
+fatal: [localhost]: FAILED! => {
+    "assertion": "cao_terminal_backend | default('tmux') in ['tmux', 'herdr']",
+    "changed": false,
+    "evaluated_to": false,
+    "msg": "cao_terminal_backend deve ser tmux ou herdr (experimental), não 'screen'."
+}
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=7    changed=0    unreachable=0    failed=1    skipped=2    rescued=0    ignored=0   
+
+rc=2

@@ -1,0 +1,15 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - role: ai_stack
+      when: false
+    - role: herdr
+      when: false
+    - role: cao
+      when: false
+  tasks:
+    - name: Conferir variável compartilhada das roles
+      ansible.builtin.assert:
+        that: cao_terminal_backend == expected_backend
