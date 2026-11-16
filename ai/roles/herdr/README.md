@@ -57,10 +57,19 @@ herdr-pastor [--session NOME] [--no-attach] [DIR]
    dividem a anterior para baixo, com alturas iguais. Cada painel vira
    `🐑 <agente>` e recebe `agent start <agente>-<workspace> --kind <agente>`. Se o
    herdr não suportar o tipo (saída 2), usa `pane run <painel> <agente>`.
-   `agent_not_ready` (diálogo de confiança ou atualização na abertura) só gera
-   aviso: o agente continua em execução no painel.
+   `agent_not_ready` ou `timeout` (diálogo de confiança ou atualização na
+   abertura) só gera aviso: o agente continua em execução no painel. Uma ovelha
+   repetida (`[claude, claude]`) vira `🐑 claude 2` / `claude-2-<workspace>`,
+   para que nomes de agente não colidam.
 5. Devolve o foco ao editor (`pane focus --direction left --pane <1ª ovelha>`).
    Fora do herdr, anexa com `herdr --session NOME` (exceto com `--no-attach`).
+
+Qualquer outra falha do herdr (split, rename, editor, `agent start`, `pane run`,
+foco) interrompe o comando com saída 1 e a mensagem do herdr no stderr, sem
+anexar. Se o workspace já existir, o aviso indica como fechá-lo
+(`herdr --session NOME workspace close <id>`). Os únicos casos tolerados são
+os listados acima: ovelha fora do PATH, tipo não suportado e agente ainda não
+pronto.
 
 Comportamento conferido no herdr 0.9.5 numa sessão descartável. `--ratio` é a
 fração mantida pelo painel original. A razão é sempre formatada com

@@ -205,8 +205,10 @@ herdr-pastor --no-attach         # não anexar ao final
 O workspace recebe o rótulo `🧑‍🌾 <nome do diretório>`. O editor é
 `${VISUAL:-${EDITOR:-vi}}`. As ovelhas vêm de `herdr_pastor_sheep`
 (`[claude, codex]`). Agentes suportados pelo herdr são iniciados com
-`herdr agent start` (nomes `claude-wN`, `codex-wN`), e os demais com
-`herdr pane run`. Uma ovelha fora do PATH é ignorada com aviso. Sem
+`herdr agent start` (nomes `claude-wN`, `codex-wN`; uma ovelha repetida vira
+`claude-2-wN`), e os demais com `herdr pane run`. Uma ovelha fora do PATH é
+ignorada com aviso; qualquer outra falha do herdr interrompe o comando com
+saída 1 e a mensagem de erro. Sem
 `--session`, o comando usa a sessão atual quando executado dentro do herdr, ou a
 sessão `default`. Ele nunca usa a sessão `cao` do CAO, a menos que você peça
 com `--session cao`. Se o servidor da sessão não estiver em execução, o comando
@@ -218,7 +220,7 @@ servidor nem altera `~/.config/herdr`. Para remover o comando, use
 ### Escolher o backend do cao-server
 
 A escolha vale para cada processo `cao-server`, nesta ordem:
-`cao-server --terminal <tmux|herdr>` > variável `CAO_TERMINAL_BACKEND` >
+`cao-server --terminal <tmux|herdr|herdr-app>` > variável `CAO_TERMINAL_BACKEND` >
 `terminal.backend` nas configurações do CAO > `tmux`.
 
 Antes de trocar o backend:
@@ -253,10 +255,10 @@ ansible-playbook ai/cao-service.yml -K -e cao_service_enabled=true -e cao_termin
 
 Com `tmux` (padrão), a unidade não recebe `--terminal` e permanece idêntica à
 anterior; `CAO_TERMINAL_BACKEND` em `~/.config/ai-stack/environment` ou as
-configurações do CAO continuam valendo. Com `herdr`, o `ExecStart` recebe
-`--terminal herdr`, que prevalece sobre esses valores. Em `ai/all.yml`,
-`ai/cao-terminal-backend.yml` roda antes do serviço: valores diferentes de `tmux`
-e `herdr` são recusados nessa etapa. Com o serviço habilitado, `herdr` exige o
+configurações do CAO continuam valendo. Com `herdr` ou `herdr-app`, o `ExecStart` recebe
+`--terminal <backend>`, que prevalece sobre esses valores. Em `ai/all.yml`,
+`ai/cao-terminal-backend.yml` roda antes do serviço: valores diferentes de `tmux`,
+`herdr` e `herdr-app` são recusados nessa etapa. Com o serviço habilitado, `herdr` exige o
 comando instalado; no `--check`, basta `herdr_enabled=true`. Para uma execução
 avulsa de `ai/cao-service.yml`, a validação também é executada automaticamente.
 Opcionalmente, valide o backend isoladamente:
@@ -276,6 +278,49 @@ pelo serviço, incluindo o servidor herdr, terminam junto com a unidade.
 
 Para voltar ao tmux pelo playbook, use `-e cao_terminal_backend=tmux` (ou remova
 o override) e reinicie o serviço da mesma forma.
+
+
+### Usar o aplicativo gráfico Herdr com o CAO
+
+O fork fixado inclui o backend experimental `herdr-app` do
+[PR #1356](https://github.com/awslabs/cli-agent-orchestrator/pull/1356), além das
+variáveis por perfil do PR #665. Cada sessão nova do CAO aparece como um espaço,
+com uma aba por terminal e os status nativos dos agentes. O backend `herdr`
+continua disponível para a interface de terminal antiga.
+
+O backend gráfico exige **herdr-core 0.1.21+** (`hc --version`), instalado com o
+aplicativo Herdr. A role `herdr` deste repositório instala a interface antiga;
+ela não instala o aplicativo gráfico nem o core. O preflight verifica o `hc`
+em `herdr_core_binary` (padrão `~/.local/bin/hc`), sem iniciar sessão e inclusive
+em `--check`. Ter apenas o binário `herdr` não satisfaz esse requisito.
+
+Primeiro atualize a instalação do CAO para o commit fixado:
+
+```bash
+ansible-playbook ai/cao.yml -K
+```
+
+Para configurar a unidade, após encerrar as sessões e parar o servidor na janela
+de manutenção descrita acima:
+
+```bash
+ansible-playbook ai/cao-service.yml -K -e cao_service_enabled=true -e cao_terminal_backend=herdr-app
+```
+
+Também é possível iniciar manualmente com `cao-server --terminal herdr-app`.
+O core usa uma sessão separada chamada `cao`
+(`terminal.herdr_app_session` / `CAO_HERDR_APP_SESSION`). Para mostrá-la no
+aplicativo instalado na mesma máquina:
+
+```bash
+hc machine add --via "sh -c" --name cao-local --session cao
+```
+
+Em outra máquina, use `hc machine add <host-ssh> --session cao`. Crie sessões
+novas do CAO nesse backend; os processos existentes no herdr antigo não são
+transferidos. O script upstream `scripts/herdr_tui_to_app.py` é opcional para
+trabalho pessoal na TUI e ignora a sessão `cao` por padrão. A aplicação destes
+playbooks mantém `cao_restart_on_change=false` e o backend padrão `tmux`.
 
 
 ## Instalar Chrome DevTools MCP e suas dependências
@@ -582,8 +627,8 @@ ansible-playbook ai/all.yml -K -e @ai/vars.example.yml
 | `claude_version` | `stable` | Versão numérica, `stable` ou `latest` |
 | `cao_uv_version` | `latest` | Versão do uv: numérica ou `latest` |
 | `cao_source` | `git` | Origem do CAO: `git` ou `pypi` |
-| `cao_git_url` | Repositório oficial AWS Labs | URL Git do CAO |
-| `cao_git_ref` | `3e30ea3ed6e7fb607b13358d81123afff5a8e69f` | Commit upstream verificado em 2026-11-16; aceita tag/branch/SHA |
+| `cao_git_url` | `https://github.com/malacration/cli-agent-orchestrator.git` | Fork com os PRs #665 e #1356 |
+| `cao_git_ref` | `ab50597f0caddf8efb30a466cb1fe02a1c9809b0` | Merge verificado dos PRs #665 e #1356 no fork; aceita tag/branch/SHA |
 | `cao_version` | `latest` | Versão PyPI, usada apenas com `cao_source=pypi` |
 | `cao_upgrade` | Valor de `ai_stack_upgrade` | Consultar atualizações apenas do pacote CAO |
 | `cao_extras` | `[]` | Acrescentar extras aos já declarados no recibo uv |
@@ -600,7 +645,8 @@ ansible-playbook ai/all.yml -K -e @ai/vars.example.yml
 | `herdr_checksum` | vazio | Pin adicional opcional `sha256:HEX` do binário |
 | `herdr_pastor_enabled` | `true` | Instalar o comando `herdr-pastor` (`false` o remove) |
 | `herdr_pastor_sheep` | `[claude, codex]` | Agentes (ovelhas) à direita do editor, de cima para baixo |
-| `cao_terminal_backend` | `tmux` | Backend do serviço: `tmux` ou `herdr` (experimental) |
+| `cao_terminal_backend` | `tmux` | Backend do serviço: `tmux`, `herdr` (TUI) ou `herdr-app` (core), experimentais |
+| `herdr_core_binary` | `~/.local/bin/hc` | Executável herdr-core 0.1.21+ exigido pelo backend gráfico |
 | `cao_mcp_sync_enabled` | `true` | Gerar perfis CAO com os MCPs dos clientes |
 | `cao_mcp_clients` | `[codex, claude_code]` | Clientes cujos MCPs serão reutilizados |
 | `cao_mcp_profiles` | Seis perfis da tabela acima | Perfis base a sincronizar |
@@ -633,7 +679,7 @@ posteriores feitas pelo próprio CLI.
 publicava `2.5.4`; o commit upstream padrão deste playbook também declara `2.5.4`,
 mas já transporta esforço decidido no plano de lançamento para agentes efêmeros
 com `effort: "auto"`. A release PyPI não tem esse consumidor. Veja a
-[documentação no commit fixado](https://github.com/awslabs/cli-agent-orchestrator/blob/3e30ea3ed6e7fb607b13358d81123afff5a8e69f/docs/decisions.md).
+[documentação no commit fixado](https://github.com/malacration/cli-agent-orchestrator/blob/ab50597f0caddf8efb30a466cb1fe02a1c9809b0/docs/decisions.md).
 Lançamentos de perfis instalados continuam sem consultar `effort.route` nesse
 commit. Instalar esse core não instala um classificador nem habilita decisões;
 uma validação funcional posterior precisa conferir o consumidor e os providers.

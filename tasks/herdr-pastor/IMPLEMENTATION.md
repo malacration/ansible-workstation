@@ -120,3 +120,66 @@ I checked these using only the installed binary's `--help` and `api schema --jso
   3. Only a private socket protocol reaches it, so the script would need python3 or `nc -U` plus JSON building, instead of the stable CLI.
 - **Plugins:** `herdr plugin install <OWNER/REPO[/SUBDIR]>` installs from GitHub. `plugin list --json` shows no plugins installed. Neither `--help` nor the schema names an official layout plugin or example. Finding one would mean fetching URLs, which the task forbids, and installing a third-party plugin is a supply-chain decision for the user.
 - **Decision:** I kept the CLI implementation (`workspace create` / `pane split` / `pane run` / `agent start`), which was already verified end-to-end. The 3-node `layout.apply` tree is a possible future change if herdr adds a `layout apply` CLI command. **No code was changed in this follow-up.**
+
+## Round 1 fixes (2026-11-16)
+
+Developer: mala_developer_high_claude (Claude Opus 5.5). Nothing committed. Files touched:
+`ai/roles/herdr/templates/herdr-pastor.j2`, `ai/tests/test_herdr_pastor.py`, the herdr-pastor
+sections of `ai/roles/herdr/README.md` and `ai/README.md`. `tasks/pastor.yml`, defaults,
+`ai/roles/cao/*` and `~/.config/herdr/` were not touched. No herdr server or real session was
+used; the only real-binary calls were `herdr agent start --help` and `herdr workspace close --help`.
+
+### P2 #1: herdr failures were ignored (template ex-:142)
+
+- New helpers `must WHAT herdr-args…` (runs `h …` capturing stdout+stderr in `$out`) and
+  `abort WHAT OUTPUT`: prints `herdr-pastor: falha ao WHAT: <herdr output>` to stderr and
+  exits 1. Once the workspace exists, it also prints
+  `workspace wN ficou incompleto; feche-o com: herdr --session S workspace close wN`
+  (form checked with `herdr workspace close --help`). It never attaches and never prints "pronto".
+- Now fatal: `workspace create` (and an unparsable response), root pane rename, editor
+  `pane run`, every `pane split` (non-zero exit or no `pane_id` in the reply; this was `break`),
+  sheep pane rename, `agent start` with any exit other than 0/2 and no soft marker, the
+  `pane run` fallback after exit 2, and the final `pane focus`.
+- Soft cases kept, as documented: sheep missing from PATH → warning/skip; `agent start` exit 2
+  (unsupported kind) → `pane run` fallback; `agent_not_ready` → warning. I also kept
+  `"timeout"` as a warning (the original implementation already did). `agent start --help`
+  describes `--timeout` as "wait for interactive readiness", so a timeout means the agent was
+  launched and herdr stopped waiting, which is the same situation as `agent_not_ready`. The
+  header comment and README now list exactly these soft cases.
+
+### P2 #2: `[claude, claude]` collided on `claude-wN`
+
+- Repeated sheep get an ordinal. The first occurrence keeps `claude-wN` / `🐑 claude` (unchanged
+  for the common case); later ones become `claude-2-wN` / `🐑 claude 2`, `claude-3-wN`, and
+  so on. The ordinal counts only sheep actually placed (after the PATH filter).
+- Name length: the sheep regex still allows 24 chars, so `24 + "-N" + "-wNN"` stays ≤ 32
+  (herdr's limit) for up to 9 repeats and workspace ids below w100. Same edge as before.
+
+### Tests
+
+- The fake herdr now prints errors the real way (`{"id","error":{"code","message"}}` on stderr,
+  exit 1). It supports `FAKE_HERDR_FAIL=<argv prefix>` for failure injection and rejects a
+  reused agent name (`agent_name_taken`), like a server that already has that agent.
+- New tests:
+  - `test_unexpected_herdr_failures_abort` (8 subtests: first/second split, editor run, pastor
+    rename, sheep rename, generic `agent start` failure, `pane run` fallback failure, final
+    focus). Each asserts exit 1, the `falha ao …` message plus herdr's error text, the
+    `workspace close w7` hint, no attach, and that the call sequence stops exactly at the
+    failing call.
+  - `test_workspace_create_failure_aborts`: exit 1, no "incompleto" hint.
+  - `test_repeated_sheep_get_unique_names`: renders `[claude, claude, codex]` and asserts the
+    labels `🐑 claude`/`🐑 claude 2`/`🐑 codex`, the agents `claude-w7`/`claude-2-w7`/`codex-w7`,
+    the equal-height ratios and the final focus.
+- Regression check: with the HEAD (pre-fix) template temporarily restored, the new tests
+  fail (`FAILED (failures=9)`: all 8 failure subtests plus the duplicate test). The fixed
+  template was put back afterwards.
+
+Commands and results:
+
+```
+python3 -m unittest ai/tests/test_herdr_pastor.py -v   # Ran 13 tests in ~16s — OK
+ansible-playbook ai/herdr.yml --syntax-check           # playbook: ai/herdr.yml (OK)
+```
+
+Limitation: when the script aborts mid-way it does not close the half-built workspace. It
+leaves the workspace for inspection and prints the close command instead.

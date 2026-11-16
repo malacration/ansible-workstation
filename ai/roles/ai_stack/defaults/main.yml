@@ -13,7 +13,7 @@ ai_stack_environment:
   XDG_CACHE_HOME: "{{ ai_stack_home }}/.cache"
 # latest/stable são resolvidos na primeira instalação. Atualização é explícita.
 ai_stack_upgrade: false
-# Backend de terminal do cao-server gerenciado pelo systemd: tmux ou herdr (experimental).
+# Backend do serviço: tmux, herdr (TUI) ou herdr-app (herdr-core), experimentais.
 # Fica aqui por ser lido pela role cao (serviço) e pela validação do herdr.
 # Com tmux, a unidade não recebe --terminal e permanece igual à anterior.
 cao_terminal_backend: tmux

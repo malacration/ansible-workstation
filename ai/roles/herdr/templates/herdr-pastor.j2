@@ -13,6 +13,11 @@
 # pane, `agent start` exits 2 for an unsupported kind and 1 with
 # agent_not_ready when the agent is waiting on a startup dialog (it keeps
 # running), and `--session NAME` overrides the inherited HERDR_SOCKET_PATH.
+#
+# Any other herdr failure aborts with exit 1 and herdr's message; the only
+# soft cases are a sheep missing from PATH (skipped), an agent kind herdr does
+# not support (exit 2 -> `pane run`) and an agent launched but not ready yet
+# (agent_not_ready / timeout -> warning).
 set -u
 
 PROG=herdr-pastor
@@ -90,6 +95,23 @@ json_str() { grep -o "\"$1\": *\"[^\"]*\"" | head -n 1 | cut -d '"' -f 4; }
 
 server_running() { h status server --json 2>/dev/null | grep -q '"running": *true'; }
 
+workspace=''
+# Aborts after a failed herdr call ($1: what failed, $2: herdr's output),
+# pointing at the half-built workspace so the user can close it.
+abort() {
+	warn "falha ao $1${2:+: $2}"
+	[ -z "$workspace" ] ||
+		warn "workspace $workspace ficou incompleto; feche-o com: herdr --session $session workspace close $workspace"
+	exit 1
+}
+
+# Runs a herdr call that must succeed; its stdout+stderr end up in $out.
+must() {
+	what=$1
+	shift
+	out=$(h "$@" 2>&1) || abort "$what" "$out"
+}
+
 if ! server_running; then
 	warn "iniciando servidor herdr da sessão '$session'"
 	if command -v setsid >/dev/null 2>&1; then
@@ -117,53 +139,71 @@ for sheep in $SHEEP; do
 	fi
 done
 
-out=$(h workspace create --cwd "$dir" --label "🧑‍🌾 $(basename -- "$dir")" --focus) ||
-	die "falha ao criar workspace: $out"
-workspace=$(printf '%s\n' "$out" | json_str workspace_id)
-pastor=$(printf '%s\n' "$out" | json_str pane_id)
-[ -n "$workspace" ] && [ -n "$pastor" ] || die "resposta inesperada de workspace create: $out"
+must 'criar workspace' workspace create --cwd "$dir" --label "🧑‍🌾 $(basename -- "$dir")" --focus
+created=$out
+workspace=$(printf '%s\n' "$created" | json_str workspace_id)
+pastor=$(printf '%s\n' "$created" | json_str pane_id)
+if [ -z "$workspace" ] || [ -z "$pastor" ]; then
+	workspace=''
+	abort 'interpretar a resposta de workspace create' "$created"
+fi
 
-h pane rename "$pastor" '🧑‍🌾 pastor' >/dev/null || warn 'falha ao renomear o painel do pastor'
-h pane run "$pastor" "${VISUAL:-${EDITOR:-vi}}" >/dev/null || warn 'falha ao iniciar o editor'
+must 'renomear o painel do pastor' pane rename "$pastor" '🧑‍🌾 pastor'
+must 'iniciar o editor' pane run "$pastor" "${VISUAL:-${EDITOR:-vi}}"
 
 first=''
 previous=''
+placed=''
 remaining=$count
 for sheep in $flock; do
+	# Repeated sheep ([claude, claude]) get an ordinal so pane labels and
+	# agent names stay unique: claude-w3, claude-2-w3, claude-3-w3.
+	nth=1
+	for other in $placed; do
+		[ "$other" != "$sheep" ] || nth=$((nth + 1))
+	done
+	placed="$placed $sheep"
+	if [ "$nth" = 1 ]; then
+		label="🐑 $sheep"
+		agent="$sheep-$workspace"
+	else
+		label="🐑 $sheep $nth"
+		agent="$sheep-$nth-$workspace"
+	fi
+
 	if [ -z "$previous" ]; then
-		out=$(h pane split "$pastor" --direction right --ratio "$EDITOR_SHARE" --cwd "$dir" --no-focus)
+		must "criar painel para '$sheep'" pane split "$pastor" --direction right --ratio "$EDITOR_SHARE" --cwd "$dir" --no-focus
 	else
 		# Equal heights: the split pane keeps 1/(sheep still to place + 1).
 		# LC_ALL=C: a pt_BR locale would print 0,3333, which herdr rejects.
 		ratio=$(LC_ALL=C awk -v n="$remaining" 'BEGIN { printf "%.4f", 1 / (n + 1) }')
-		out=$(h pane split "$previous" --direction down --ratio "$ratio" --cwd "$dir" --no-focus)
+		must "criar painel para '$sheep'" pane split "$previous" --direction down --ratio "$ratio" --cwd "$dir" --no-focus
 	fi
 	pane=$(printf '%s\n' "$out" | json_str pane_id)
-	if [ -z "$pane" ]; then
-		warn "falha ao criar painel para '$sheep': $out"
-		break
-	fi
+	[ -n "$pane" ] || abort "interpretar o painel criado para '$sheep'" "$out"
 	[ -n "$first" ] || first=$pane
 	previous=$pane
 	remaining=$((remaining - 1))
-	h pane rename "$pane" "🐑 $sheep" >/dev/null || warn "falha ao renomear painel de '$sheep'"
+	must "renomear o painel de '$sheep'" pane rename "$pane" "$label"
 
-	# Agent names are unique per server: suffix the workspace id (claude-w3).
-	out=$(h agent start "$sheep-$workspace" --kind "$sheep" --pane "$pane" 2>&1)
+	# Agent names are unique per server: suffix the workspace id.
+	out=$(h agent start "$agent" --kind "$sheep" --pane "$pane" 2>&1)
 	case $? in
 		0) ;;
 		2) # Kind not supported by herdr: run it as a plain command.
-			h pane run "$pane" "$sheep" >/dev/null || warn "falha ao iniciar '$sheep'" ;;
+			must "iniciar '$sheep'" pane run "$pane" "$sheep" ;;
 		*) case $out in
+				# Launched, but herdr gave up waiting for its prompt (startup
+				# dialog or slow start): the agent keeps running in the pane.
 				*agent_not_ready*|*'"timeout"'*)
 					warn "'$sheep' iniciado, aguardando interação no painel $pane" ;;
-				*) warn "falha ao iniciar '$sheep': $out" ;;
+				*) abort "iniciar '$sheep' ($agent)" "$out" ;;
 			esac ;;
 	esac
 done
 
 if [ -n "$first" ]; then
-	h pane focus --direction left --pane "$first" >/dev/null || warn 'falha ao focar o editor'
+	must 'focar o editor' pane focus --direction left --pane "$first"
 fi
 
 if [ "$inside" = 0 ]; then

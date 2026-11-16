@@ -6,6 +6,8 @@ herdr_upgrade: "{{ ai_stack_upgrade | default(false) }}"
 # Payload privado (binário + recibo) e comando público estável.
 herdr_install_dir: "{{ ai_stack_home }}/.local/share/ai-stack/herdr"
 herdr_binary: "{{ ai_stack_bin_dir }}/herdr"
+# herdr-core ships with the desktop app; this role manages only the legacy TUI.
+herdr_core_binary: "{{ ai_stack_bin_dir }}/hc"
 # Canal oficial: releases GitHub de herdrdev/herdr (antigo ogulcancelik/herdr).
 herdr_release_api: https://api.github.com/repos/herdrdev/herdr/releases
 herdr_release_download_url: https://github.com/herdrdev/herdr/releases/download

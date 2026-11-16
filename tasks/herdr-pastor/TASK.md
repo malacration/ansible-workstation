@@ -80,3 +80,9 @@ command and its result. Then report back.
   only its own herdr-pastor edits.
 - 2026-11-16: worker had already finished (10 tests OK, syntax-check OK) before the cancel
   arrived. Revert put ON HOLD pending user decision; not reviewed yet.
+- 2026-11-16: user chose to keep it. Review round 1 (Codex b6a13d4f): CHANGES_REQUESTED
+  (2× P2). Fixes delegated per FIX_ROUND1.md to a new mala_developer_high_claude terminal.
+- 2026-11-16: fixes done by 66cd2d67 (13 tests OK, syntax-check OK). Review round 2 sent
+  to b6a13d4f (REVIEW_TASK_ROUND2.md).
+- 2026-11-16: APPROVED in round 2 (report /tmp/herdr-pastor-review-round2-20261116.md).
+  Terminals b6a13d4f and 66cd2d67 deleted. Uncommitted; awaiting user to commit/apply.

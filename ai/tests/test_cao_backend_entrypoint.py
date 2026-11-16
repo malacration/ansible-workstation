@@ -24,6 +24,7 @@ class BackendEntrypointTests(unittest.TestCase):
             'ai_stack_home': str(self.home),
             'ai_stack_bin_dir': str(self.binary.parent),
             'herdr_binary': str(self.binary),
+            'herdr_core_binary': str(self.binary.parent / 'hc'),
         }
 
     def run_entry(self, extra=None, check=True):
@@ -51,6 +52,43 @@ class BackendEntrypointTests(unittest.TestCase):
         result = self.run_entry({'cao_terminal_backend': 'invalid'})
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('tmux ou herdr', result.stdout)
+
+    def test_herdr_app_requires_core_even_with_legacy_herdr(self):
+        self.binary.write_text('#!/bin/sh\nexit 0\n')
+        self.binary.chmod(0o755)
+        result = self.run_entry({'cao_terminal_backend': 'herdr-app'})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('exige herdr-core', result.stdout)
+
+    def test_herdr_app_checks_core_version_without_starting_it(self):
+        core = Path(self.options['herdr_core_binary'])
+        audit = self.home / 'core-arguments'
+        for version, expected in [('0.1.20', False), ('0.1.21', True), ('0.2.0', True)]:
+            core.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "' + str(audit) +
+                            '"\nprintf "hc ' + version + '\\n"\n')
+            core.chmod(0o755)
+            result = self.run_entry({'cao_terminal_backend': 'herdr-app'})
+            self.assertEqual(result.returncode == 0, expected, result.stdout + result.stderr)
+        self.assertEqual(audit.read_text().splitlines(), ['--version'] * 3)
+
+    def test_disabled_service_does_not_require_core(self):
+        result = self.run_entry({'cao_terminal_backend': 'herdr-app',
+                                 'cao_service_enabled': False})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_service_template_selects_herdr_app_and_preserves_tmux(self):
+        from jinja2 import Environment, FileSystemLoader
+        template = Environment(loader=FileSystemLoader(ENTRY.parent / 'roles/cao/templates')).get_template('cao-server.service.j2')
+        variables = dict(self.options, ai_stack_environment={'PATH': '/usr/bin',
+                         'XDG_CONFIG_HOME': '/tmp/config', 'XDG_DATA_HOME': '/tmp/data',
+                         'XDG_CACHE_HOME': '/tmp/cache'})
+        for backend in ['tmux', 'herdr', 'herdr-app']:
+            unit = template.render(**dict(variables, cao_terminal_backend=backend))
+            command = next(line for line in unit.splitlines() if line.startswith('ExecStart='))
+            if backend == 'tmux':
+                self.assertNotIn('--terminal', command)
+            else:
+                self.assertTrue(command.endswith('--terminal ' + backend), command)
 
     def test_real_standalone_service_rejects_backend_before_units(self):
         # Selecting the herdr tag runs the real entry point while ensuring a

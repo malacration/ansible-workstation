@@ -24,7 +24,10 @@ PLAY = '''---
 # Records argv (without the global --session) and mimics herdr 0.9.5 responses
 # observed on the real binary: workspace create -> .result.root_pane,
 # pane split -> .result.pane, agent start exit 2 for an unknown kind and exit 1
-# with agent_not_ready when the agent waits on a startup dialog.
+# with agent_not_ready when the agent waits on a startup dialog. Errors go to
+# stderr as {"id","error":{"code","message"}} with exit 1. FAKE_HERDR_FAIL
+# (argv prefix joined by spaces) makes a matching call fail; a reused agent
+# name fails like a server that already has that agent.
 FAKE_HERDR = r'''#!PYTHON
 import json, os, sys
 from pathlib import Path
@@ -40,6 +43,14 @@ with open(state / 'calls.jsonl', 'a') as log:
 def reply(result, code=0):
     print(json.dumps({'id': 'cli:fake', 'result': result}, ensure_ascii=False, separators=(',', ':')))
     sys.exit(code)
+
+def error(code, message):
+    print(json.dumps({'id': 'cli:fake', 'error': {'code': code, 'message': message}}), file=sys.stderr)
+    sys.exit(1)
+
+fail = os.environ.get('FAKE_HERDR_FAIL')
+if fail and ' '.join(argv).startswith(fail):
+    error('injected_failure', 'fake failure for ' + fail)
 
 running = state / ('running-' + (session or 'default'))
 if argv == ['status', 'server', '--json']:
@@ -61,6 +72,12 @@ if argv[:2] == ['pane', 'split']:
     reply({'type': 'pane_info', 'pane': {'pane_id': 'w7:p%d' % number, 'workspace_id': 'w7'}})
 if argv[:2] == ['agent', 'start']:
     kind = argv[argv.index('--kind') + 1]
+    names = state / 'agents'
+    taken = names.read_text().split() if names.exists() else []
+    if argv[2] in taken:
+        error('agent_name_taken', 'agent name already in use: ' + argv[2])
+    with open(names, 'a') as handle:
+        handle.write(argv[2] + '\n')
     if kind not in ('claude', 'codex'):
         print('unsupported interactive agent kind: ' + kind, file=sys.stderr)
         sys.exit(2)
@@ -158,6 +175,13 @@ class ScriptTests(unittest.TestCase):
         if result.returncode:
             raise AssertionError(result.stdout + result.stderr)
         cls.script = home / 'bin/herdr-pastor'
+        # Same agent twice: names and labels must not collide.
+        twins = root / 'twins'
+        twins.mkdir()
+        result = run_play(root, twins, {'herdr_pastor_sheep': ['claude', 'claude', 'codex']})
+        if result.returncode:
+            raise AssertionError(result.stdout + result.stderr)
+        cls.twins_script = twins / 'bin/herdr-pastor'
 
     @classmethod
     def tearDownClass(cls):
@@ -181,13 +205,13 @@ class ScriptTests(unittest.TestCase):
             path.write_text('#!/bin/sh\nexit 0\n')
             path.chmod(0o755)
 
-    def run_script(self, *args, env=None):
+    def run_script(self, *args, env=None, script=None):
         environment = {key: value for key, value in os.environ.items()
                        if not key.startswith('HERDR_') and key not in ('VISUAL', 'EDITOR')}
         environment.update(PATH=str(self.fakebin) + ':/usr/bin:/bin', FAKE_HERDR_STATE=str(self.state),
                            EDITOR='myeditor', LC_ALL='pt_BR.UTF-8')  # decimal comma locale
         environment.update(env or {})
-        result = subprocess.run([str(self.script), *args], cwd=self.project, env=environment,
+        result = subprocess.run([str(script or self.script), *args], cwd=self.project, env=environment,
                                 text=True, capture_output=True, timeout=30)
         log = self.state / 'calls.jsonl'
         calls = [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
@@ -226,8 +250,8 @@ class ScriptTests(unittest.TestCase):
     def test_session_option_is_propagated_to_every_call(self):
         for args in (['--session', 'meu'], ['--session=meu']):
             with self.subTest(args=args):
-                (self.state / 'calls.jsonl').unlink(missing_ok=True)
-                (self.state / 'panes').unlink(missing_ok=True)
+                for name in ('calls.jsonl', 'panes', 'agents'):
+                    (self.state / name).unlink(missing_ok=True)
                 result, calls = self.run_script(*args, str(self.project))
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual({call['session'] for call in calls}, {'meu'})
@@ -275,6 +299,58 @@ class ScriptTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         argv = [call['argv'] for call in calls]
         self.assertEqual(argv, self.expected(str(self.project))[:4])
+
+    def test_unexpected_herdr_failures_abort(self):
+        expected = self.expected(str(self.project))
+        cases = {
+            'pane split w7:p1': ('criar painel para \'claude\'', 4),
+            'pane split w7:p2': ('criar painel para \'mytool\'', 7),
+            'pane run w7:p1': ('iniciar o editor', 3),
+            'pane rename w7:p1': ('renomear o painel do pastor', 2),
+            'pane rename w7:p3': ('renomear o painel de \'mytool\'', 8),
+            'agent start claude-w7': ('iniciar \'claude\' (claude-w7)', 6),
+            'pane run w7:p3': ('iniciar \'mytool\'', 10),
+            'pane focus': ('focar o editor', 14),
+        }
+        for fail, (message, index) in cases.items():
+            with self.subTest(fail=fail):
+                for name in ('calls.jsonl', 'panes', 'agents'):
+                    (self.state / name).unlink(missing_ok=True)
+                result, calls = self.run_script(env={'FAKE_HERDR_FAIL': fail})
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertIn('herdr-pastor: falha ao ' + message, result.stderr)
+                self.assertIn('fake failure for ' + fail, result.stderr)
+                self.assertIn('workspace w7 ficou incompleto', result.stderr)
+                self.assertIn('herdr --session default workspace close w7', result.stderr)
+                self.assertNotIn('pronto', result.stderr)
+                # Stops at the failing call: nothing after it, no attach.
+                self.assertEqual([call['argv'] for call in calls], expected[:index + 1])
+
+    def test_workspace_create_failure_aborts(self):
+        result, calls = self.run_script(env={'FAKE_HERDR_FAIL': 'workspace create'})
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn('falha ao criar workspace', result.stderr)
+        self.assertIn('injected_failure', result.stderr)
+        self.assertNotIn('ficou incompleto', result.stderr)
+        self.assertEqual([call['argv'] for call in calls], self.expected(str(self.project))[:2])
+
+    def test_repeated_sheep_get_unique_names(self):
+        project = str(self.project)
+        result, calls = self.run_script('--no-attach', script=self.twins_script)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual([call['argv'] for call in calls][4:], [
+            ['pane', 'split', 'w7:p1', '--direction', 'right', '--ratio', '0.65', '--cwd', project, '--no-focus'],
+            ['pane', 'rename', 'w7:p2', '🐑 claude'],
+            ['agent', 'start', 'claude-w7', '--kind', 'claude', '--pane', 'w7:p2'],
+            ['pane', 'split', 'w7:p2', '--direction', 'down', '--ratio', '0.3333', '--cwd', project, '--no-focus'],
+            ['pane', 'rename', 'w7:p3', '🐑 claude 2'],
+            ['agent', 'start', 'claude-2-w7', '--kind', 'claude', '--pane', 'w7:p3'],
+            ['pane', 'split', 'w7:p3', '--direction', 'down', '--ratio', '0.5000', '--cwd', project, '--no-focus'],
+            ['pane', 'rename', 'w7:p4', '🐑 codex'],
+            ['agent', 'start', 'codex-w7', '--kind', 'codex', '--pane', 'w7:p4'],
+            ['pane', 'focus', '--direction', 'left', '--pane', 'w7:p2'],
+        ])
+        self.assertEqual((self.state / 'agents').read_text().split(), ['claude-w7', 'claude-2-w7', 'codex-w7'])
 
     def test_help_and_errors_do_not_call_herdr(self):
         result, calls = self.run_script('--help')

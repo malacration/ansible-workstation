@@ -3,12 +3,12 @@ cao_uv_version: latest
 cao_uv_installer_url: "https://astral.sh/uv/{{ '' if cao_uv_version == 'latest' else cao_uv_version ~ '/' }}install.sh"
 cao_uv_installer_checksum: ''
 # PyPI latest (2.5.4) não contém os consumidores de effort:auto deste commit.
-# Fork temporário: awslabs main 3e30ea3 + PR awslabs/cli-agent-orchestrator#665
-# (env: por perfil, necessário para cao_claude_accounts). Volte para
-# https://github.com/awslabs/cli-agent-orchestrator.git quando o #665 for integrado.
+# Fork includes upstream main, profile env (#665), and herdr-app/core (#1356).
+# The new backend also forwards profile env for separate Claude accounts.
+# Return to upstream once both pull requests have been integrated there.
 cao_source: git
 cao_git_url: https://github.com/malacration/cli-agent-orchestrator.git
-cao_git_ref: 17ffbce6f03737756990d6840126ed21da297fcb
+cao_git_ref: ab50597f0caddf8efb30a466cb1fe02a1c9809b0
 cao_version: latest  # Somente para cao_source=pypi.
 cao_upgrade: "{{ ai_stack_upgrade }}"
 cao_extras: []

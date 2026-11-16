@@ -4,9 +4,9 @@
 # ai/herdr.yml e antes de ai/cao-service.yml. Somente leitura: não altera nada.
 - name: Validar backend de terminal do CAO
   ansible.builtin.assert:
-    that: cao_terminal_backend | default('tmux') in ['tmux', 'herdr']
+    that: cao_terminal_backend | default('tmux') in ['tmux', 'herdr', 'herdr-app']
     fail_msg: >-
-      cao_terminal_backend deve ser tmux ou herdr (experimental), não
+      cao_terminal_backend deve ser tmux ou herdr ou herdr-app (experimentais), não
       '{{ cao_terminal_backend | default('tmux') }}'.
 
 # O backend só é aplicado pela unidade systemd; sem serviço não há o que exigir.
@@ -37,3 +37,46 @@
         fail_msg: >-
           cao_terminal_backend=herdr exige {{ herdr_binary }}. Execute
           ai/herdr.yml (herdr_enabled=true) antes, ou use cao_terminal_backend=tmux.
+
+# herdr-app talks to hc, not the legacy herdr binary. Version checks must not
+# start or attach to a core, including during an Ansible check-mode run.
+- name: Exigir herdr-core compatível para o serviço CAO com backend herdr-app
+  when:
+    - cao_terminal_backend | default('tmux') == 'herdr-app'
+    - cao_service_enabled | default(false) | bool
+  block:
+    - name: Consultar usuário dos agentes para o herdr-core
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ ai_stack_user }}"
+      check_mode: false
+      when: ai_stack_user not in (ansible_facts['getent_passwd'] | default({}))
+
+    - name: Verificar comando hc publicado
+      ansible.builtin.stat:
+        path: "{{ herdr_core_binary }}"
+      register: herdr_core_backend_command
+
+    - name: Exigir herdr-core instalado
+      ansible.builtin.assert:
+        that: herdr_core_backend_command.stat.executable | default(false)
+        fail_msg: >-
+          cao_terminal_backend=herdr-app exige herdr-core 0.1.21+ em
+          {{ herdr_core_binary }} (instalado com o aplicativo Herdr).
+          O binário herdr da interface de terminal não substitui o hc.
+
+    - name: Consultar versão do herdr-core sem iniciar sessão
+      ansible.builtin.command:
+        argv: ["{{ herdr_core_binary }}", --version]
+      register: herdr_core_backend_version
+      changed_when: false
+      check_mode: false
+
+    - name: Exigir versão do herdr-core compatível com o backend
+      ansible.builtin.assert:
+        that:
+          - herdr_core_backend_version.stdout is match('^(hc|herdr-core) [0-9]+\.[0-9]+\.[0-9]+$')
+          - (herdr_core_backend_version.stdout.split() | last) is version('0.1.21', '>=')
+        fail_msg: >-
+          O backend herdr-app exige herdr-core 0.1.21+; encontrado
+          '{{ herdr_core_backend_version.stdout }}'.

@@ -64,3 +64,15 @@ test command + result, the captured render. Then report back.
 ## Log
 
 - 2026-11-16: created after the user picked "Pasture, local only"; herdr-pastor cancelled.
+- 2026-11-16: user later chose to KEEP herdr-pastor (review round 1 sent to Codex, terminal b6a13d4f).
+- 2026-11-16: supervisor hit usage limit; worker 5767df2f told to save progress in
+  IMPLEMENTATION.md and pause. Resume from there; not reviewed yet.
+- 2026-11-16: Claude limit reset; worker 5767df2f told to resume pasture (same provider, limit
+  was temporary). Review of herdr-pastor resent to b6a13d4f (first message was not picked up).
+- 2026-11-16: pasture done by 5767df2f (18 tests OK, headless render verified in throwaway
+  session). Review round 1 sent to a new mala_reviewer_advanced_codex terminal (REVIEW_TASK.md).
+- 2026-11-16: round 1 CHANGES_REQUESTED by d7aeeccf (1 HIGH escape-injection, 3 MEDIUM).
+  Fixes sent to 5767df2f per FIX_ROUND1.md.
+- 2026-11-16: fixes done (32 tests OK). Review round 2 sent to d7aeeccf (REVIEW_TASK_ROUND2.md).
+- 2026-11-16: APPROVED in round 2 (/tmp/herdr-pasture-review-round2-33107b13.md).
+  Terminals d7aeeccf and 5767df2f deleted. Task complete.
