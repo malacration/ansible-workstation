@@ -41,6 +41,19 @@
   loop_control:
     label: "{{ item.name }}"
 
+- name: Validar contas Claude extras
+  ansible.builtin.assert:
+    that:
+      - cao_claude_accounts is sequence and cao_claude_accounts is not string
+      - cao_claude_accounts | length == 0 or 'claude_code' in cao_mcp_clients
+      - cao_claude_accounts | map(attribute='name') | unique | list | length == cao_claude_accounts | length
+      - cao_claude_accounts | map(attribute='name') | reject('match', '^[a-z0-9]{1,16}$') | list | length == 0
+      - cao_claude_accounts | map(attribute='config_dir') | reject('match', '^/') | list | length == 0
+      - (ai_stack_home ~ '/.claude') not in (cao_claude_accounts | map(attribute='config_dir') | list)
+    fail_msg: >-
+      cao_claude_accounts exige claude_code em cao_mcp_clients, nomes únicos com 1 a 16
+      letras minúsculas ou números e config_dir absoluto diferente de ~/.claude.
+
 - name: Preparar sincronização dos MCPs como usuário dos agentes
   become: "{{ ansible_facts['user_id'] != ai_stack_user }}"
   become_user: "{{ ai_stack_user }}"
@@ -70,6 +83,85 @@
         path: "{{ ai_stack_home }}/.local/share/ai-stack/profiles"
         state: directory
         mode: '0700'
+
+    - name: Verificar suporte do CAO a env por perfil
+      ansible.builtin.command:
+        argv:
+          - "{{ cao_mcp_uv_tools_dir.stdout | trim }}/cli-agent-orchestrator/bin/python"
+          - -I
+          - -c
+          - |
+            from cli_agent_orchestrator.models.agent_profile import AgentProfile
+            raise SystemExit(0 if 'env' in AgentProfile.model_fields else 1)
+      register: cao_profile_env_support
+      changed_when: false
+      failed_when: cao_profile_env_support.rc not in [0, 1]
+      check_mode: false
+      when:
+        - cao_claude_accounts | length > 0
+        - cao_mcp_uv_tools_dir.stdout is defined
+
+    - name: Exigir CAO com env por perfil para contas Claude extras
+      ansible.builtin.assert:
+        that: cao_profile_env_support.rc == 0
+        fail_msg: >-
+          O CAO instalado ignora env: nos perfis, e as contas extras usariam ~/.claude.
+          Instale um CAO com awslabs/cli-agent-orchestrator#665 (cao_git_url/cao_git_ref)
+          ou defina cao_claude_accounts: [].
+      when:
+        - cao_claude_accounts | length > 0
+        - cao_profile_env_support.rc is defined
+
+    - name: Preparar diretórios das contas Claude extras
+      ansible.builtin.file:
+        path: "{{ item.config_dir }}"
+        state: directory
+        mode: '0700'
+      loop: "{{ cao_claude_accounts }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Ler configurações das contas Claude extras
+      ansible.builtin.slurp:
+        src: "{{ item.config_dir }}/settings.json"
+      register: cao_claude_account_settings
+      failed_when: false
+      loop: "{{ cao_claude_accounts }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    # CAO só grava skipDangerousModePermissionPrompt em ~/.claude/settings.json.
+    - name: Dispensar confirmação do modo sem permissões nas contas extras
+      ansible.builtin.copy:
+        content: >-
+          {{ ((item.content | b64decode | from_json) if item.content is defined else {})
+             | combine({'skipDangerousModePermissionPrompt': true}) | to_nice_json }}
+        dest: "{{ item.item.config_dir }}/settings.json"
+        mode: '0600'
+      loop: "{{ cao_claude_account_settings.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      when: >-
+        item.content is not defined or
+        (item.content | b64decode | from_json).skipDangerousModePermissionPrompt | default(false) is not true
+
+    - name: Verificar login das contas Claude extras
+      ansible.builtin.stat:
+        path: "{{ item.config_dir }}/.credentials.json"
+      register: cao_claude_account_credentials
+      loop: "{{ cao_claude_accounts }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Avisar contas Claude extras sem login
+      ansible.builtin.debug:
+        msg: >-
+          A conta Claude {{ item.item.name }} ainda não tem login. Execute uma vez:
+          CLAUDE_CONFIG_DIR={{ item.item.config_dir }} claude /login
+      loop: "{{ cao_claude_account_credentials.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      when: not item.stat.exists
 
     - name: Instalar definições de perfis gerenciadas
       ansible.builtin.template:

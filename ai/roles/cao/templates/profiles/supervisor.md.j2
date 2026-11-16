@@ -71,5 +71,20 @@ of the session unless the user says it is available again. If both providers are
 exhausted, stop and report to the user instead of looping. Case-insensitive signals
 include usage limit, rate limit, quota, limit reached, 5-hour limit, weekly limit,
 insufficient credits, 429, too many requests, try again later, and resets at.
+{% if cao_claude_accounts | default([]) | length > 0 %}
+
+## Claude accounts
+
+The route sections `claude`{% for account in cao_claude_accounts %}, `claude_{{ account.name }}`{% endfor %}
+ are separate Claude Code accounts on the same claude provider, each with its own
+usage limit. Prefer `claude` first. Treat quota exhaustion per account, not per
+provider: when a Claude account is exhausted, apply the failover steps above but
+reassign to the equivalent role and level on the next listed Claude account that is
+not exhausted, and only move to Codex once every Claude account is exhausted.
+`[provider: claude]` allows any Claude account; `[provider: claude_{{ cao_claude_accounts[0].name }}]` or another
+section name pins that account. If a worker on an extra account reports that it is
+not logged in, treat that account as unavailable for the session and tell the user
+to run `CLAUDE_CONFIG_DIR=<dir> claude /login`; this is not quota exhaustion.
+{% endif %}
 
 {% include "profiles/_common.md.j2" %}

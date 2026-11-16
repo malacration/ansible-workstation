@@ -24,6 +24,7 @@ MARKER = '<!-- Managed by ai-stack-sync-mcps; regenerate instead of editing. -->
 CLIENT_LABELS = {'codex': 'codex', 'claude_code': 'claude'}
 DEFAULT_PROFILES = ['supervisor', 'developer_low', 'developer_medium', 'developer_high', 'reviewer_basic', 'reviewer_advanced']
 SAFE_NAME = re.compile(r'^[A-Za-z0-9_-]+$')
+ACCOUNT_NAME = re.compile(r'^[a-z0-9]{1,16}$')
 RELATIVE_STORE = Path('.aws/cli-agent-orchestrator/agent-store')
 
 
@@ -109,10 +110,38 @@ def role_allowed_tools(metadata, server_names):
     return resolve_allowed_tools(None, metadata.get('role'), server_names)
 
 
-def render_profile(base, target, client, imported, names):
+def parse_claude_account(value):
+    name, separator, directory = value.partition('=')
+    if not separator or not ACCOUNT_NAME.fullmatch(name):
+        raise ValueError('Use NOME=DIRETÓRIO com nome de 1 a 16 letras minúsculas ou números')
+    path = Path(directory)
+    if not path.is_absolute() or os.path.normpath(directory) != directory:
+        # CAO passes env values verbatim: no shell or ~ expansion.
+        raise ValueError(f'O diretório da conta Claude {name} deve ser um caminho absoluto normalizado')
+    return name, path
+
+
+def profile_variants(clients, claude_accounts):
+    """Each generated profile family: (label, client, env, account)."""
+    variants = [(CLIENT_LABELS[client], client, None, None) for client in dict.fromkeys(clients)]
+    names = [name for name, _ in claude_accounts]
+    if len(set(names)) != len(names):
+        raise ValueError('Nomes de contas Claude repetidos')
+    if claude_accounts and 'claude_code' not in clients:
+        raise ValueError('Contas Claude extras exigem o cliente claude_code')
+    for name, directory in claude_accounts:
+        variants.append((f'claude_{name}', 'claude_code', {'CLAUDE_CONFIG_DIR': str(directory)}, name))
+    return variants
+
+
+def render_profile(base, target, client, imported, names, label=None, env=None, account=None):
+    label = label or CLIENT_LABELS[client]
     metadata = deepcopy(base.metadata)
     metadata['name'] = target
     metadata['provider'] = client
+    if env:
+        # CAO >= awslabs/cli-agent-orchestrator#665: scoped to this agent's terminal.
+        metadata['env'] = dict(env)
     models = metadata.pop('aiStackModels', None)
     if models is None:
         models = {}
@@ -134,6 +163,8 @@ def render_profile(base, target, client, imported, names):
             metadata['tags'] = [tag for tag in metadata['tags'] if not tag.startswith('effort-')]
             metadata['tags'].append(f'effort-{effort}')
         metadata['tags'].append(CLIENT_LABELS[client])
+        if account:
+            metadata['tags'].append(f'account-{account}')
     metadata.pop('claudeConfig' if client == 'codex' else 'codexConfig', None)
     servers = deepcopy(metadata.get('mcpServers') or {})
     coordinator = deepcopy(servers.get('cao-mcp-server') or {
@@ -169,15 +200,23 @@ def render_profile(base, target, client, imported, names):
     if body.startswith(MARKER):
         body = body[len(MARKER):].lstrip('\n')
     sections = []
-    for provider, provider_names in names.items():
+    for route_label, provider_names in names.items():
         routes = '\n'.join(f'- {original}: `{generated}`' for original, generated in provider_names.items())
-        sections.append(f'### {CLIENT_LABELS[provider]}\n\n{routes}')
+        sections.append(f'### {route_label}\n\n{routes}')
+    accounts = [route_label for route_label in names if route_label.startswith('claude_')]
+    runs_on = f'`{client}` (Claude account `{account}`)' if account else f'`{client}`'
+    account_note = (
+        'Sections `claude` and ' + ', '.join(f'`{a}`' for a in accounts) + ' are separate '
+        'Claude Code accounts with separate usage limits; all of them are the claude provider.\n\n'
+        if accounts else ''
+    )
     body = (
         f'{MARKER}\n\n{body}\n\n'
         '## AI stack: provider and delegation\n\n'
-        f'This profile runs on `{client}`. Supervisors may delegate across providers '
+        f'This profile runs on {runs_on}. Supervisors may delegate across providers '
         'by choosing a profile below; each profile runs on its fixed provider. '
         'Only the providers listed below are installed; if the preferred provider is not listed, use a listed one and record why.\n\n'
+        + account_note
         + '\n\n'.join(sections) + '\n'
     )
     return frontmatter.dumps(frontmatter.Post(body, **metadata)) + '\n'
@@ -196,7 +235,7 @@ def write_private(path, text):
             os.unlink(temporary)
 
 
-def synchronize(home, clients, profiles, prefix='mala', check=False, base_dir=None, prune=False, prune_prefixes=(), definitions_only=False):
+def synchronize(home, clients, profiles, prefix='mala', check=False, base_dir=None, prune=False, prune_prefixes=(), definitions_only=False, claude_accounts=()):
     if not SAFE_NAME.fullmatch(prefix) or len(prefix) > 32:
         raise ValueError('Prefixo de perfis inválido')
     if not clients or any(client not in CLIENT_LABELS for client in clients):
@@ -209,15 +248,20 @@ def synchronize(home, clients, profiles, prefix='mala', check=False, base_dir=No
     if definitions_only and (base_dir is None or any(not (base_dir / f'{name}.md').is_file() for name in profiles)):
         raise ValueError('Todas as definições de perfis devem existir no diretório configurado')
     store = home / RELATIVE_STORE
-    all_names = {client: {name: f'{prefix}_{name}_{CLIENT_LABELS[client]}' for name in profiles}
-                 for client in dict.fromkeys(clients)}
+    variants = profile_variants(clients, claude_accounts)
+    all_names = {label: {name: f'{prefix}_{name}_{label}' for name in profiles}
+                 for label, _, _, _ in variants}
     planned = []
     summary = []
     removals = []
+    imported_by_client = {}
     # Build and validate the full plan before writing any profile.
-    for client in dict.fromkeys(clients):
-        imported = client_servers(home, client)
-        names = all_names[client]
+    for label, client, env, account in variants:
+        # Extra Claude accounts reuse the user's global Claude MCP list.
+        if client not in imported_by_client:
+            imported_by_client[client] = client_servers(home, client)
+        imported = imported_by_client[client]
+        names = all_names[label]
         if any(len(name) > 64 for name in names.values()):
             raise ValueError('O nome completo de cada perfil deve ter até 64 caracteres')
         for original, target in names.items():
@@ -227,13 +271,16 @@ def synchronize(home, clients, profiles, prefix='mala', check=False, base_dir=No
             existing = destination.read_text(encoding='utf-8') if destination.exists() else None
             if existing is not None and MARKER not in existing:
                 raise ValueError(f'O perfil {target} já existe e não pertence à stack')
-            text = render_profile(profile_definition(home, original, base_dir), target, client, imported, all_names)
+            text = render_profile(profile_definition(home, original, base_dir), target, client, imported, all_names, label, env, account)
             changed = existing != text or (
                 destination.exists() and stat.S_IMODE(destination.stat().st_mode) != 0o600
             )
             if changed:
                 planned.append((destination, text))
-            summary.append({'name': target, 'provider': client, 'servers': sorted(imported)})
+            entry = {'name': target, 'provider': client, 'servers': sorted(imported)}
+            if account:
+                entry['account'] = account
+            summary.append(entry)
 
     if prune:
         # Only remove regular, marker-bearing files. Explicit legacy prefixes
@@ -273,9 +320,12 @@ def main():
     parser.add_argument('--prune', action='store_true')
     parser.add_argument('--prune-prefix', action='append', default=[])
     parser.add_argument('--definitions-only', action='store_true')
+    parser.add_argument('--claude-account', action='append', default=[], metavar='NOME=DIRETÓRIO',
+                        help='Conta Claude extra (CLAUDE_CONFIG_DIR absoluto); requer CAO com env: por perfil')
     args = parser.parse_args()
     try:
-        result = synchronize(args.home, args.clients, args.profiles, args.prefix, args.check, args.base_dir, args.prune, args.prune_prefix, args.definitions_only)
+        accounts = [parse_claude_account(value) for value in args.claude_account]
+        result = synchronize(args.home, args.clients, args.profiles, args.prefix, args.check, args.base_dir, args.prune, args.prune_prefix, args.definitions_only, accounts)
     except (OSError, ValueError) as error:
         # Configuration payloads and authentication tokens are never logged.
         print(f'Falha ao sincronizar MCPs: {error}', file=sys.stderr)

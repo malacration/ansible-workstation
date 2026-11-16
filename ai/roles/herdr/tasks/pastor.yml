@@ -1,0 +1,39 @@
+---
+# herdr-pastor: script de layout instalado no PATH da stack. Só escreve o
+# comando; não inicia servidor herdr nem toca em ~/.config/herdr.
+- name: Validar parâmetros do herdr-pastor
+  ansible.builtin.assert:
+    that:
+      - herdr_pastor_binary.startswith(ai_stack_home ~ '/')
+      - herdr_pastor_sheep is sequence and herdr_pastor_sheep is not string
+      - herdr_pastor_sheep | reject('match', '^[a-z][a-z0-9_-]{0,23}$') | list | length == 0
+      - (herdr_pastor_editor_share | float) > 0 and (herdr_pastor_editor_share | float) < 1
+    fail_msg: >-
+      herdr_pastor_sheep deve ser uma lista de nomes de comando ([a-z][a-z0-9_-], até 24
+      caracteres) e herdr_pastor_editor_share um número entre 0 e 1.
+  when: herdr_pastor_enabled | bool
+
+- name: Gerenciar herdr-pastor como usuário dos agentes
+  become: "{{ ansible_facts['user_id'] != ai_stack_user }}"
+  become_user: "{{ ai_stack_user }}"
+  environment: "{{ ai_stack_environment }}"
+  block:
+    - name: Preparar diretório do comando herdr-pastor
+      ansible.builtin.file:
+        path: "{{ herdr_pastor_binary | dirname }}"
+        state: directory
+        mode: '0755'
+      when: herdr_pastor_enabled | bool
+
+    - name: Instalar comando herdr-pastor no PATH da stack
+      ansible.builtin.template:
+        src: herdr-pastor.j2
+        dest: "{{ herdr_pastor_binary }}"
+        mode: '0755'
+      when: herdr_pastor_enabled | bool
+
+    - name: Remover comando herdr-pastor desabilitado
+      ansible.builtin.file:
+        path: "{{ herdr_pastor_binary }}"
+        state: absent
+      when: not herdr_pastor_enabled | bool

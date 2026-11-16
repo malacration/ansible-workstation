@@ -23,12 +23,49 @@ em HOME isolado.
 | `herdr_release_api` | API de releases de `herdrdev/herdr` | Metadados; altere só para mirror/fixture confiável |
 | `herdr_release_download_url` | Download oficial dos releases GitHub | Base dos binários |
 | `herdr_manifest_url` | `https://herdr.dev/latest.json` | Manifesto oficial de SHA256 |
+| `herdr_pastor_enabled` | `true` | Instalar `herdr-pastor`; `false` remove o comando |
+| `herdr_pastor_binary` | `{{ ai_stack_bin_dir }}/herdr-pastor` | Caminho do comando |
+| `herdr_pastor_sheep` | `[claude, codex]` | Ovelhas de cima para baixo (`[a-z][a-z0-9_-]`, até 24 caracteres) |
+| `herdr_pastor_editor_share` | `0.65` | Fração da largura mantida pelo editor |
 
 `tasks/backend.yml` (via `ai/cao-terminal-backend.yml`) valida
 `cao_terminal_backend` em `tmux|herdr` e, com `cao_service_enabled=true` e
 `herdr`, exige `herdr_binary` executável (no check mode basta `herdr_enabled`).
 É somente leitura; `ai/all.yml` o executa depois de `ai/herdr.yml` e antes do
 serviço.
+
+## herdr-pastor
+
+`tasks/pastor.yml` instala `herdr-pastor` (template `herdr-pastor.j2`, POSIX sh)
+no PATH da stack, como `ai_stack_user`. Com `herdr_pastor_enabled=false` o
+comando é removido. A instalação só grava o script.
+
+```
+herdr-pastor [--session NOME] [--no-attach] [DIR]
+```
+
+1. Escolhe a sessão: `--session`; senão a sessão atual, quando executado dentro
+   do herdr (`HERDR_PANE_ID`), exceto `cao`; senão `default`. Todas as chamadas
+   passam `--session`, que tem precedência sobre o `HERDR_SOCKET_PATH` herdado.
+2. Se `herdr status server --json` não indicar `running`, inicia
+   `herdr --session NOME server` em segundo plano e aguarda até 10 s.
+3. `workspace create --cwd DIR --label '🧑‍🌾 <basename DIR>' --focus`. Renomeia o
+   painel raiz para `🧑‍🌾 pastor` e executa `${VISUAL:-${EDITOR:-vi}}` nele
+   (`pane run`).
+4. Para cada ovelha no PATH: a primeira divide o editor à direita
+   (`--ratio herdr_pastor_editor_share`, fração mantida pelo editor). As demais
+   dividem a anterior para baixo, com alturas iguais. Cada painel vira
+   `🐑 <agente>` e recebe `agent start <agente>-<workspace> --kind <agente>`. Se o
+   herdr não suportar o tipo (saída 2), usa `pane run <painel> <agente>`.
+   `agent_not_ready` (diálogo de confiança ou atualização na abertura) só gera
+   aviso: o agente continua em execução no painel.
+5. Devolve o foco ao editor (`pane focus --direction left --pane <1ª ovelha>`).
+   Fora do herdr, anexa com `herdr --session NOME` (exceto com `--no-attach`).
+
+Comportamento conferido no herdr 0.9.5 numa sessão descartável. `--ratio` é a
+fração mantida pelo painel original. A razão é sempre formatada com
+`LC_ALL=C`, porque o herdr rejeita `0,5`. Testes:
+`python3 -m unittest ai/tests/test_herdr_pastor.py`.
 
 ## Cadeia de confiança
 

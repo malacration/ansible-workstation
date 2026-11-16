@@ -19,3 +19,13 @@ herdr_audited_checksums:
   '0.9.5':
     x86_64: 14d9e8bc8b4a9e0118d77c32266f76d461f09b40342eb23752960bd89f59929d
     aarch64: 17d7536f2da50859523680ef279dffcac8e4a235f4e46fe8da6c2ec44141897c
+# herdr-pastor: comando que abre um workspace com o editor ($EDITOR) como
+# "pastor" e os agentes como "ovelhas" à direita. Não inicia servidor herdr nem
+# altera ~/.config/herdr na instalação. false remove o comando.
+herdr_pastor_enabled: true
+herdr_pastor_binary: "{{ ai_stack_bin_dir }}/herdr-pastor"
+# Ordem de cima para baixo; tipos suportados pelo herdr usam `herdr agent start`,
+# os demais `herdr pane run`. Ovelhas ausentes do PATH são ignoradas com aviso.
+herdr_pastor_sheep: [claude, codex]
+# Fração da largura mantida pelo editor (0 < x < 1).
+herdr_pastor_editor_share: 0.65

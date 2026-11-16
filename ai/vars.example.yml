@@ -6,8 +6,10 @@ codex_version: latest
 claude_version: stable
 cao_uv_version: latest
 cao_source: git  # pypi para releases publicadas; latest não significa main.
-cao_git_url: https://github.com/awslabs/cli-agent-orchestrator.git
-cao_git_ref: 3e30ea3ed6e7fb607b13358d81123afff5a8e69f  # main para branch móvel.
+# Fork com awslabs/cli-agent-orchestrator#665 (env: por perfil), exigido por
+# cao_claude_accounts. Sem contas extras, o upstream awslabs também serve.
+cao_git_url: https://github.com/malacration/cli-agent-orchestrator.git
+cao_git_ref: 17ffbce6f03737756990d6840126ed21da297fcb  # main para branch móvel.
 cao_version: latest  # Aplicável apenas a cao_source=pypi.
 cao_upgrade: false  # Atualização apenas do CAO; não atualiza uv/outros CLIs.
 cao_extras: []  # Acrescenta aos extras já declarados no recibo uv.
@@ -35,6 +37,8 @@ cao_profile_models:
   reviewer_basic: {codex: null, claude: null}
   reviewer_advanced: {codex: null, claude: null}
 cao_mcp_profile_prefix: mala
+cao_claude_accounts:  # Contas Claude extras; [] desativa.
+  - {name: b, config_dir: "{{ ai_stack_home }}/.claude-b"}
 cao_mcp_prune_prefixes: [ai_stack]
 
 # Chrome DevTools MCP chama os subplaybooks de Node.js e Chrome.
@@ -58,6 +62,10 @@ herdr_enabled: true
 herdr_version: '0.9.5'          # pin auditado; ou latest
 # herdr_upgrade: true           # reconsultar/reverificar (herda ai_stack_upgrade)
 # herdr_checksum: 'sha256:HEX'  # pin adicional opcional do binário
+# herdr-pastor: editor à esquerda, agentes ("ovelhas") empilhados à direita.
+# herdr_pastor_enabled: true              # false remove ~/.local/bin/herdr-pastor
+# herdr_pastor_sheep: [claude, codex]     # ausentes do PATH são ignoradas
+# herdr_pastor_editor_share: 0.65         # fração da largura do editor
 
 # Backend do cao-server na unidade systemd opcional: tmux (padrão) ou herdr.
 # Com tmux a unidade não muda. Trocar exige reiniciar o cao-server sem sessões

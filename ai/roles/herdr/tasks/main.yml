@@ -20,3 +20,7 @@
 - name: Gerenciar herdr como usuário dos agentes
   ansible.builtin.include_tasks: install.yml
   when: ansible_facts['architecture'] in ['x86_64', 'aarch64']
+
+- name: Gerenciar comando herdr-pastor
+  ansible.builtin.include_tasks: pastor.yml
+  when: ansible_facts['architecture'] in ['x86_64', 'aarch64']

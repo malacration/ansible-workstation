@@ -7,4 +7,7 @@ exec {{ (cao_mcp_uv_tools_dir.stdout ~ '/cli-agent-orchestrator/bin/python') | q
   --prefix {{ cao_mcp_profile_prefix | quote }} \
   --clients {% for client in cao_mcp_clients %}{{ client | quote }} {% endfor %}\
   --profiles {% for profile in cao_mcp_profiles %}{{ profile | quote }} {% endfor %}\
+{% for account in cao_claude_accounts %}
+  --claude-account {{ (account.name ~ '=' ~ account.config_dir) | quote }} \
+{% endfor %}
   "$@"

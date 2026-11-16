@@ -266,6 +266,76 @@ class SyncMcpsTests(unittest.TestCase):
         self.assertEqual(json.loads(result.stdout)['removed'], [str(old)])
         self.assertTrue(old.exists())
 
+    def test_extra_claude_account_profiles(self):
+        account_dir = self.home / '.claude-b'
+        result = self.run_sync(claude_accounts=[('b', account_dir)])
+        self.assertEqual(len(result['profiles']), 9)
+        self.assertEqual({p['account'] for p in result['profiles'] if 'account' in p}, {'b'})
+        for path, original in self.originals.items():
+            self.assertEqual(path.read_bytes(), original)
+        self.assertFalse(account_dir.exists())
+        default = self.profile('claude')
+        extra = self.profile('claude_b')
+        self.assertEqual(extra['provider'], 'claude_code')
+        self.assertEqual(extra['env'], {'CLAUDE_CONFIG_DIR': str(account_dir)})
+        self.assertNotIn('env', default.metadata)
+        self.assertNotIn('env', self.profile('codex').metadata)
+        # Same global Claude MCPs, policies and coordinator as the default account.
+        self.assertEqual(extra['mcpServers'], default['mcpServers'])
+        self.assertEqual(extra['allowedTools'], default['allowedTools'])
+        self.assertIn('Claude account `b`', extra.content)
+        for profile in (default, extra, self.profile('codex')):
+            self.assertIn('### claude_b', profile.content)
+            self.assertIn('mala_developer_claude_b', profile.content)
+            self.assertIn('separate usage limits', profile.content)
+        self.assertFalse(self.run_sync(claude_accounts=[('b', account_dir)])['changed'])
+
+    def test_extra_claude_account_tags_and_model(self):
+        self.base.metadata.update(tags=['coding'], aiStackModels={'codex': None, 'claude': 'opus'},
+                                  claudeConfig={'effort': 'high'})
+        self.run_sync(claude_accounts=[('b', self.home / '.claude-b')])
+        extra = self.profile('claude_b')
+        self.assertEqual(extra['model'], 'opus')
+        self.assertEqual(extra['tags'], ['coding', 'effort-high', 'claude', 'account-b'])
+        self.assertEqual(self.profile('claude')['tags'], ['coding', 'effort-high', 'claude'])
+
+    def test_removed_claude_account_profiles_are_pruned(self):
+        self.run_sync(claude_accounts=[('b', self.home / '.claude-b')])
+        stale = self.store / 'mala_developer_claude_b.md'
+        self.assertTrue(stale.exists())
+        result = self.run_sync(prune=True)
+        self.assertIn(str(stale), result['removed'])
+        self.assertFalse(stale.exists())
+        self.assertNotIn('claude_b', self.profile('claude').content)
+
+    def test_invalid_claude_accounts_are_rejected_before_writing(self):
+        absolute = self.home / '.claude-b'
+        for accounts in ([('b', absolute), ('b', absolute)],):
+            with self.assertRaises(ValueError):
+                self.run_sync(claude_accounts=accounts)
+        with self.assertRaises(ValueError):
+            sync.synchronize(self.home, ['codex'], ['developer'], claude_accounts=[('b', absolute)])
+        for value in ('b', 'B=/x', 'b_2=/x', 'b=relative', 'b=~/.claude-b', 'b=/x/../y', 'b=/x/'):
+            with self.assertRaises(ValueError, msg=value):
+                sync.parse_claude_account(value)
+        self.assertEqual(sync.parse_claude_account('b2=/home/u/.claude-b'), ('b2', Path('/home/u/.claude-b')))
+        self.assertFalse(self.store.exists())
+
+    def test_cli_claude_account_option(self):
+        definitions = self.home / 'definitions'
+        definitions.mkdir()
+        (definitions / 'custom.md').write_text('---\ndescription: Test\n---\nPrompt')
+        args = [sys.executable, str(SCRIPT), '--home', str(self.home), '--base-dir', str(definitions),
+                '--clients', 'claude_code', '--profiles', 'custom', '--definitions-only']
+        result = subprocess.run(args + ['--claude-account', f'b={self.home}/.claude-b'],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(frontmatter.load(self.store / 'mala_custom_claude_b.md')['env'],
+                         {'CLAUDE_CONFIG_DIR': f'{self.home}/.claude-b'})
+        result = subprocess.run(args + ['--claude-account', 'b=relative'], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('caminho absoluto', result.stderr)
+
 
 class RenderedProfilesTests(unittest.TestCase):
     def test_all_definitions_render_and_validate(self):
@@ -281,19 +351,22 @@ class RenderedProfilesTests(unittest.TestCase):
             definitions = home / 'definitions'
             definitions.mkdir()
             defaults['cao_profile_models']['developer_high']['codex'] = 'test-model-id'
+            accounts = [{'name': 'b', 'config_dir': str(home / '.claude-b')}]
             for item in defaults['cao_profile_definitions']:
                 template = env.get_template('profiles/' + item['template'] + '.md.j2')
                 (definitions / (item['name'] + '.md')).write_text(template.render(
                     item=item, cao_profile_efforts=defaults['cao_profile_efforts'],
-                    cao_profile_models=defaults['cao_profile_models']))
+                    cao_profile_models=defaults['cao_profile_models'], cao_claude_accounts=accounts))
+            claude_accounts = [(a['name'], Path(a['config_dir'])) for a in accounts]
             legacy = home / sync.RELATIVE_STORE / 'ai_stack_codex_developer.md'
             legacy.parent.mkdir(parents=True)
             legacy.write_text(sync.MARKER)
             result = sync.synchronize(home, list(sync.CLIENT_LABELS), sync.DEFAULT_PROFILES,
-                                      base_dir=definitions, prune=True, prune_prefixes=['ai_stack'])
+                                      base_dir=definitions, prune=True, prune_prefixes=['ai_stack'],
+                                      claude_accounts=claude_accounts)
             self.assertEqual(result['removed'], [str(legacy)])
             paths = sorted(legacy.parent.glob('*.md'))
-            self.assertEqual(len(paths), 12)
+            self.assertEqual(len(paths), 18)
             for path in paths:
                 profile = frontmatter.load(path)
                 AgentProfile.model_validate(profile.metadata)
@@ -306,12 +379,19 @@ class RenderedProfilesTests(unittest.TestCase):
                 if path.name == 'mala_developer_high_codex.md':
                     self.assertEqual(profile['codexConfig']['model'], 'test-model-id')
                     self.assertNotIn('model', profile.metadata)
-                if 'developer' in path.name and path.stem.endswith('_claude'):
+                if 'developer' in path.name and path.stem.endswith(('_claude', '_claude_b')):
                     self.assertEqual(profile['model'], 'opus')
+                if path.stem.endswith('_claude_b'):
+                    loaded = AgentProfile.model_validate(profile.metadata)
+                    self.assertEqual(loaded.env, {'CLAUDE_CONFIG_DIR': str(home / '.claude-b')})
+                if path.name == 'mala_supervisor_claude.md':
+                    self.assertIn('## Claude accounts', profile.content)
+                    self.assertIn('`claude_b`', profile.content)
                 self.assertIn('mala_supervisor_claude', profile.content)
                 self.assertIn('mala_supervisor_codex', profile.content)
             self.assertFalse(sync.synchronize(home, list(sync.CLIENT_LABELS), sync.DEFAULT_PROFILES,
-                base_dir=definitions, prune=True, prune_prefixes=['ai_stack'])['changed'])
+                base_dir=definitions, prune=True, prune_prefixes=['ai_stack'],
+                claude_accounts=claude_accounts)['changed'])
 
 
 

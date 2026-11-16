@@ -182,6 +182,39 @@ ansible-playbook ai/herdr.yml -K -e herdr_version=latest -e herdr_upgrade=true
 instalação: a próxima execução do playbook detecta o binário alterado e restaura
 o pin configurado.
 
+### herdr-pastor: o editor como pastor, os agentes como ovelhas
+
+A role também instala `~/.local/bin/herdr-pastor`, que abre um workspace herdr
+com o seu editor à esquerda e os agentes empilhados à direita:
+
+```
+┌──────────────────┬──────────┐
+│                  │ 🐑 claude│
+│  🧑‍🌾 pastor        ├──────────┤
+│  ($EDITOR)       │ 🐑 codex │
+└──────────────────┴──────────┘
+```
+
+```bash
+herdr-pastor                     # workspace no diretório atual
+herdr-pastor ~/git/projeto       # outro diretório
+herdr-pastor --session trabalho  # sessão herdr nomeada
+herdr-pastor --no-attach         # não anexar ao final
+```
+
+O workspace recebe o rótulo `🧑‍🌾 <nome do diretório>`. O editor é
+`${VISUAL:-${EDITOR:-vi}}`. As ovelhas vêm de `herdr_pastor_sheep`
+(`[claude, codex]`). Agentes suportados pelo herdr são iniciados com
+`herdr agent start` (nomes `claude-wN`, `codex-wN`), e os demais com
+`herdr pane run`. Uma ovelha fora do PATH é ignorada com aviso. Sem
+`--session`, o comando usa a sessão atual quando executado dentro do herdr, ou a
+sessão `default`. Ele nunca usa a sessão `cao` do CAO, a menos que você peça
+com `--session cao`. Se o servidor da sessão não estiver em execução, o comando
+o inicia em segundo plano (`herdr --session NOME server`). Fora do herdr, ele
+anexa à sessão no final. Na instalação, a role só grava o script: não inicia
+servidor nem altera `~/.config/herdr`. Para remover o comando, use
+`-e herdr_pastor_enabled=false`.
+
 ### Escolher o backend do cao-server
 
 A escolha vale para cada processo `cao-server`, nesta ordem:
@@ -386,6 +419,30 @@ Execute `ansible-playbook ai/mcp.yml -K` para instalar e sincronizar os perfis:
 | Revisão simples/intermediária | `mala_reviewer_basic_codex` | `mala_reviewer_basic_claude` | low |
 | Revisão de alto risco | `mala_reviewer_advanced_codex` | `mala_reviewer_advanced_claude` | high |
 
+### Segunda conta do Claude Code
+
+`cao_claude_accounts` cria uma família extra de perfis para cada conta Claude, com
+`CLAUDE_CONFIG_DIR` próprio e, portanto, limite de uso próprio. O padrão é a conta `b`
+em `~/.claude-b`, que gera `mala_<perfil>_claude_b` (por exemplo,
+`mala_developer_medium_claude_b`) com os mesmos MCPs globais do Claude. O playbook cria o
+diretório com `skipDangerousModePermissionPrompt` e avisa enquanto faltar o login, que é
+manual e feito uma vez por conta:
+
+```bash
+CLAUDE_CONFIG_DIR=$HOME/.claude-b claude /login
+ansible-playbook ai/mcp.yml -K
+```
+
+Requer um CAO com `env:` por perfil
+([awslabs/cli-agent-orchestrator#665](https://github.com/awslabs/cli-agent-orchestrator/pull/665)).
+Enquanto o PR não é integrado, `cao_git_url` aponta para o fork
+`malacration/cli-agent-orchestrator`; o playbook falha antes de gerar os perfis se o CAO
+instalado ignorar `env:`. Use `cao_claude_accounts: []` para desativar.
+
+O supervisor trata cada conta como uma cota separada: começa por `claude`, passa para
+`claude_b` quando a primeira esgota e só então usa Codex. `[provider: claude_b]` fixa a
+conta extra.
+
 O supervisor registra nível, motivo e provedor no arquivo da tarefa. Por padrão,
 desenvolvimento usa Claude Opus e revisão usa Codex; pode escolher Codex para
 implementar e Claude para revisar. `[provider: claude|codex]` ou
@@ -541,6 +598,8 @@ ansible-playbook ai/all.yml -K -e @ai/vars.example.yml
 | `herdr_version` | `0.9.5` | Pin auditado ou `latest` |
 | `herdr_upgrade` | Valor de `ai_stack_upgrade` | Reconsultar e reverificar o release do herdr |
 | `herdr_checksum` | vazio | Pin adicional opcional `sha256:HEX` do binário |
+| `herdr_pastor_enabled` | `true` | Instalar o comando `herdr-pastor` (`false` o remove) |
+| `herdr_pastor_sheep` | `[claude, codex]` | Agentes (ovelhas) à direita do editor, de cima para baixo |
 | `cao_terminal_backend` | `tmux` | Backend do serviço: `tmux` ou `herdr` (experimental) |
 | `cao_mcp_sync_enabled` | `true` | Gerar perfis CAO com os MCPs dos clientes |
 | `cao_mcp_clients` | `[codex, claude_code]` | Clientes cujos MCPs serão reutilizados |

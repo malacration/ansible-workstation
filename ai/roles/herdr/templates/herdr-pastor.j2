@@ -1,0 +1,175 @@
+#!/bin/sh
+# Managed by Ansible (ai/roles/herdr). herdr-pastor: $EDITOR as the "shepherd"
+# pane of a new herdr workspace, with agent "sheep" stacked to its right.
+#
+#   ┌──────────────────┬──────────┐
+#   │                  │ 🐑 claude│
+#   │  🧑‍🌾 pastor        ├──────────┤
+#   │  ($EDITOR)       │ 🐑 codex │
+#   └──────────────────┴──────────┘
+#
+# Verified against herdr 0.9.5: `workspace create` returns .result.root_pane,
+# `pane split` returns .result.pane, `--ratio` is the share kept by the split
+# pane, `agent start` exits 2 for an unsupported kind and 1 with
+# agent_not_ready when the agent is waiting on a startup dialog (it keeps
+# running), and `--session NAME` overrides the inherited HERDR_SOCKET_PATH.
+set -u
+
+PROG=herdr-pastor
+SHEEP={{ herdr_pastor_sheep | join(' ') | quote }}
+EDITOR_SHARE={{ herdr_pastor_editor_share | string | quote }}
+FALLBACK_HERDR={{ herdr_binary | quote }}
+# Never land in the CAO-owned session unless asked explicitly with --session.
+CAO_SESSION=cao
+
+usage() {
+	cat <<EOF
+Uso: $PROG [--session NOME] [--no-attach] [DIR]
+
+Cria um workspace herdr em DIR (padrão: diretório atual) com o editor
+(\${VISUAL:-\${EDITOR:-vi}}) como pastor à esquerda e os agentes como ovelhas
+empilhadas à direita: $SHEEP.
+
+Opções:
+  --session NOME  sessão herdr de destino. Padrão: a sessão atual quando
+                  executado dentro do herdr (exceto '$CAO_SESSION'), senão 'default'.
+  --no-attach     não anexar à sessão no final (fora do herdr).
+  -h, --help      mostrar esta ajuda.
+EOF
+}
+
+warn() { printf '%s: %s\n' "$PROG" "$*" >&2; }
+die() { warn "$*"; exit 1; }
+
+session=''
+attach=1
+dir=''
+while [ $# -gt 0 ]; do
+	case $1 in
+		-h|--help) usage; exit 0 ;;
+		--session) [ $# -ge 2 ] && [ -n "$2" ] || { warn '--session exige um nome'; exit 2; }
+			session=$2; shift 2; continue ;;
+		--session=?*) session=${1#--session=} ;;
+		--no-attach) attach=0 ;;
+		--) shift
+			[ $# -eq 0 ] || { [ $# -eq 1 ] && [ -z "$dir" ]; } || { usage >&2; exit 2; }
+			dir=${1:-$dir}; break ;;
+		-*) warn "opção desconhecida: $1"; usage >&2; exit 2 ;;
+		*) [ -z "$dir" ] || { usage >&2; exit 2; }; dir=$1 ;;
+	esac
+	shift
+done
+
+[ -n "$dir" ] || dir=$PWD
+[ -d "$dir" ] || die "diretório inexistente: $dir"
+dir=$(CDPATH= cd -- "$dir" && pwd) || die "diretório inacessível: $dir"
+
+inside=0
+[ -n "${HERDR_PANE_ID:-}" ] && inside=1
+if [ -z "$session" ]; then
+	if [ "$inside" = 1 ] && [ -n "${HERDR_SESSION:-}" ] && [ "$HERDR_SESSION" != "$CAO_SESSION" ]; then
+		session=$HERDR_SESSION
+	else
+		session=default
+	fi
+fi
+
+if command -v herdr >/dev/null 2>&1; then
+	herdr_bin=herdr
+elif [ -x "$FALLBACK_HERDR" ]; then
+	herdr_bin=$FALLBACK_HERDR
+else
+	die 'herdr não encontrado no PATH'
+fi
+
+# Every call names the session, so an inherited HERDR_SOCKET_PATH is ignored.
+h() { "$herdr_bin" --session "$session" "$@"; }
+
+# First "key":"value" string in a compact JSON response (ids never hold quotes).
+json_str() { grep -o "\"$1\": *\"[^\"]*\"" | head -n 1 | cut -d '"' -f 4; }
+
+server_running() { h status server --json 2>/dev/null | grep -q '"running": *true'; }
+
+if ! server_running; then
+	warn "iniciando servidor herdr da sessão '$session'"
+	if command -v setsid >/dev/null 2>&1; then
+		setsid "$herdr_bin" --session "$session" server </dev/null >/dev/null 2>&1 &
+	else
+		nohup "$herdr_bin" --session "$session" server </dev/null >/dev/null 2>&1 &
+	fi
+	tries=0
+	until server_running; do
+		tries=$((tries + 1))
+		[ "$tries" -le 50 ] || die "servidor herdr da sessão '$session' não respondeu"
+		sleep 0.2
+	done
+fi
+
+# Sheep whose command is missing are skipped, never fatal.
+flock=''
+count=0
+for sheep in $SHEEP; do
+	if command -v "$sheep" >/dev/null 2>&1; then
+		flock="$flock $sheep"
+		count=$((count + 1))
+	else
+		warn "ovelha '$sheep' ignorada: comando não encontrado no PATH"
+	fi
+done
+
+out=$(h workspace create --cwd "$dir" --label "🧑‍🌾 $(basename -- "$dir")" --focus) ||
+	die "falha ao criar workspace: $out"
+workspace=$(printf '%s\n' "$out" | json_str workspace_id)
+pastor=$(printf '%s\n' "$out" | json_str pane_id)
+[ -n "$workspace" ] && [ -n "$pastor" ] || die "resposta inesperada de workspace create: $out"
+
+h pane rename "$pastor" '🧑‍🌾 pastor' >/dev/null || warn 'falha ao renomear o painel do pastor'
+h pane run "$pastor" "${VISUAL:-${EDITOR:-vi}}" >/dev/null || warn 'falha ao iniciar o editor'
+
+first=''
+previous=''
+remaining=$count
+for sheep in $flock; do
+	if [ -z "$previous" ]; then
+		out=$(h pane split "$pastor" --direction right --ratio "$EDITOR_SHARE" --cwd "$dir" --no-focus)
+	else
+		# Equal heights: the split pane keeps 1/(sheep still to place + 1).
+		# LC_ALL=C: a pt_BR locale would print 0,3333, which herdr rejects.
+		ratio=$(LC_ALL=C awk -v n="$remaining" 'BEGIN { printf "%.4f", 1 / (n + 1) }')
+		out=$(h pane split "$previous" --direction down --ratio "$ratio" --cwd "$dir" --no-focus)
+	fi
+	pane=$(printf '%s\n' "$out" | json_str pane_id)
+	if [ -z "$pane" ]; then
+		warn "falha ao criar painel para '$sheep': $out"
+		break
+	fi
+	[ -n "$first" ] || first=$pane
+	previous=$pane
+	remaining=$((remaining - 1))
+	h pane rename "$pane" "🐑 $sheep" >/dev/null || warn "falha ao renomear painel de '$sheep'"
+
+	# Agent names are unique per server: suffix the workspace id (claude-w3).
+	out=$(h agent start "$sheep-$workspace" --kind "$sheep" --pane "$pane" 2>&1)
+	case $? in
+		0) ;;
+		2) # Kind not supported by herdr: run it as a plain command.
+			h pane run "$pane" "$sheep" >/dev/null || warn "falha ao iniciar '$sheep'" ;;
+		*) case $out in
+				*agent_not_ready*|*'"timeout"'*)
+					warn "'$sheep' iniciado, aguardando interação no painel $pane" ;;
+				*) warn "falha ao iniciar '$sheep': $out" ;;
+			esac ;;
+	esac
+done
+
+if [ -n "$first" ]; then
+	h pane focus --direction left --pane "$first" >/dev/null || warn 'falha ao focar o editor'
+fi
+
+if [ "$inside" = 0 ]; then
+	[ "$attach" = 1 ] && exec "$herdr_bin" --session "$session"
+	warn "workspace $workspace pronto; anexe com: herdr --session $session"
+elif [ "$session" != "${HERDR_SESSION:-default}" ]; then
+	warn "workspace $workspace criado na sessão '$session'; anexe-a fora do herdr com: herdr --session $session"
+fi
+exit 0
