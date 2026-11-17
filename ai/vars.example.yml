@@ -66,9 +66,9 @@ herdr_version: '0.9.5'          # pin auditado; ou latest
 # herdr_pastor_sheep: [claude, codex]     # ausentes do PATH são ignoradas
 # herdr_pastor_editor_share: 0.65         # fração da largura do editor
 
-# Backend do serviço: tmux (padrão), herdr (TUI) ou herdr-app (app gráfico).
+# Backend do serviço: herdr-app (padrão, app gráfico), herdr (TUI) ou tmux.
 # herdr-app exige hc 0.1.21+ instalado pelo app e o fork com PR #1356.
 # herdr_core_binary: "{{ ai_stack_bin_dir }}/hc"
 # Com tmux a unidade não muda. Trocar exige reiniciar o cao-server sem sessões
 # abertas; sessões não migram entre backends.
-cao_terminal_backend: tmux
+cao_terminal_backend: herdr-app

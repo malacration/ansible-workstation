@@ -151,10 +151,11 @@ session restart was performed while adding these entry points.
 
 ## herdr e backend de terminal do CAO
 
-O CAO usa tmux por padrão. Ele também aceita o backend **herdr**, marcado como
-**experimental** pelo próprio CAO: um multiplexador em Rust que informa o estado
-dos agentes. `ai/all.yml` instala o herdr por padrão, mas o CAO continua usando
-tmux até que você escolha herdr explicitamente.
+O CAO usa tmux por padrão, mas este repositório configura o serviço com o
+backend **herdr-app** (`cao_terminal_backend`), que usa o herdr-core do
+aplicativo gráfico Herdr. Também há o backend **herdr** (interface de terminal),
+marcado como **experimental** pelo próprio CAO: um multiplexador em Rust que
+informa o estado dos agentes. `ai/all.yml` instala o herdr de terminal por padrão.
 
 A origem é o repositório oficial [herdrdev/herdr](https://github.com/herdrdev/herdr),
 fixada na release `0.9.5`, a versão de referência do CAO instalado. O binário
@@ -276,8 +277,7 @@ manutenção, sem sessões abertas, reinicie a unidade definida em `cao_service_
 encerra as sessões abertas; use somente sem sessões em uso. Processos iniciados
 pelo serviço, incluindo o servidor herdr, terminam junto com a unidade.
 
-Para voltar ao tmux pelo playbook, use `-e cao_terminal_backend=tmux` (ou remova
-o override) e reinicie o serviço da mesma forma.
+Para voltar ao tmux pelo playbook, use `-e cao_terminal_backend=tmux` e reinicie o serviço da mesma forma.
 
 
 ### Usar o aplicativo gráfico Herdr com o CAO
@@ -645,7 +645,7 @@ ansible-playbook ai/all.yml -K -e @ai/vars.example.yml
 | `herdr_checksum` | vazio | Pin adicional opcional `sha256:HEX` do binário |
 | `herdr_pastor_enabled` | `true` | Instalar o comando `herdr-pastor` (`false` o remove) |
 | `herdr_pastor_sheep` | `[claude, codex]` | Agentes (ovelhas) à direita do editor, de cima para baixo |
-| `cao_terminal_backend` | `tmux` | Backend do serviço: `tmux`, `herdr` (TUI) ou `herdr-app` (core), experimentais |
+| `cao_terminal_backend` | `herdr-app` | Backend do serviço: `tmux`, `herdr` (TUI) ou `herdr-app` (core), experimentais |
 | `herdr_core_binary` | `~/.local/bin/hc` | Executável herdr-core 0.1.21+ exigido pelo backend gráfico |
 | `cao_mcp_sync_enabled` | `true` | Gerar perfis CAO com os MCPs dos clientes |
 | `cao_mcp_clients` | `[codex, claude_code]` | Clientes cujos MCPs serão reutilizados |

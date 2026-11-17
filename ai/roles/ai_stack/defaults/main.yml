@@ -16,7 +16,8 @@ ai_stack_upgrade: false
 # Backend do serviço: tmux, herdr (TUI) ou herdr-app (herdr-core), experimentais.
 # Fica aqui por ser lido pela role cao (serviço) e pela validação do herdr.
 # Com tmux, a unidade não recebe --terminal e permanece igual à anterior.
-cao_terminal_backend: tmux
+# Padrão herdr-app: exige hc 0.1.21+ (app Herdr) quando cao_service_enabled=true.
+cao_terminal_backend: herdr-app
 ai_stack_packages:
   - acl
   - bash
