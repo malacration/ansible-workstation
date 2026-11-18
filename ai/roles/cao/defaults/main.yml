@@ -48,8 +48,24 @@ cao_mcp_profile_prefix: mala
 # Gera mala_<perfil>_claude_<name>; o login é manual, uma vez por conta:
 #   CLAUDE_CONFIG_DIR=<config_dir> claude /login
 # Requer CAO com env: por perfil (PR #665). Use [] para desativar.
+# Uma conta com gateway (LiteLLM ou outro proxy compatível com /v1/messages) não faz login:
+# o settings.json dela recebe ANTHROPIC_BASE_URL, os modelos opus/sonnet/haiku e um
+# apiKeyHelper que lê gateway.key_env do .env do CAO. Grave a chave uma vez, num terminal:
+#   read -rs K && cao env set IA_GATEWAY_KEY "$K"; unset K
 cao_claude_accounts:
   - {name: b, config_dir: "{{ ai_stack_home }}/.claude-b"}
+  - name: gw
+    config_dir: "{{ ai_stack_home }}/.claude-gw"
+    gateway:
+      base_url: https://ia-gateway.dev.tjro.jus.br
+      key_env: IA_GATEWAY_KEY
+      models: {opus: claude-opus-5-5, sonnet: claude-sonnet-5-5, haiku: claude-haiku-5-5}
+    persist_sessions: true  # claude-gw grava a conversa mesmo aberto de dentro de outra sessão
+# Aliases claude-<conta> no ~/.bashrc e ~/.zshrc e o comando claude-list.
+# persist_sessions: true numa conta faz o alias exportar CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1:
+# aberto de dentro de outra sessão do Claude Code (CLAUDE_CODE_CHILD_SESSION herdado), o
+# Claude não grava a conversa e ela some do --resume.
+cao_claude_shell_commands: true
 cao_mcp_prune_prefixes: [ai_stack]
 cao_profile_definitions:
   - {name: supervisor, template: supervisor, description: 'Coding supervisor coordinating development and review', tags: [supervisor, coordination, effort-medium]}

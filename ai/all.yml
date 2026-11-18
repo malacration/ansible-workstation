@@ -25,6 +25,11 @@
   tags: [herdr]
   when: herdr_enabled | default(true) | bool
 
+- name: Configurar layouts e mods do Herdr app
+  ansible.builtin.import_playbook: herdr-app.yml
+  tags: [herdr_app]
+  when: herdr_app_enabled | default(true) | bool
+
 - name: Instalar Chrome DevTools MCP e suas dependências
   ansible.builtin.import_playbook: chrome-devtools.yml
   tags: [chrome_devtools]

@@ -1,0 +1,716 @@
+diff --git a/mods/herdr-crew-rpg/claude-statusline.py b/mods/herdr-crew-rpg/claude-statusline.py
+new file mode 100644
+index 0000000..8963a5d
+--- /dev/null
++++ b/mods/herdr-crew-rpg/claude-statusline.py
+@@ -0,0 +1,161 @@
++#!/usr/bin/env python3
++"""Claude Code statusLine for the Crew quota panel: saves one account's rate limits.
++
++Usage (in that account's settings.json):
++  "statusLine": {"type": "command", "command": "python3 -I <this file> <account> 2>/dev/null || true"}
++
++The account is the one whose configDir (config.json "claudeAccounts") is this process's
++CLAUDE_CONFIG_DIR (unset: ~/.claude); <account> is only the fallback. It names the cache file
++~/.cache/agent-crew/claude-<account>.json, read by quota.py and World of Codecraft. Readings from
++all sessions of an account are merged so an idle session never brings back older numbers.
++Keeps only the 5-hour and weekly used percentage and reset time; no tokens, no prompts, no
++session content. Prints nothing, so the status line stays empty.
++
++It also labels its own terminal claude.account=<account> (hc label, at most every 10 minutes), so
++mods can tell which account a Claude terminal uses (World of Codecraft: the hero's 5-hour mana).
++"""
++import fcntl
++import json
++import os
++import re
++import shutil
++import subprocess
++import sys
++import time
++from datetime import datetime
++
++CACHE_DIR = os.path.expanduser("~/.cache/agent-crew")
++
++
++def epoch(value):
++    """resets_at as epoch seconds: a number (seconds or milliseconds) or an ISO date."""
++    if isinstance(value, (int, float)) and value > 0:
++        return value / 1000 if value > 1e11 else value
++    if isinstance(value, str):
++        try:
++            return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
++        except ValueError:
++            return None
++    return None
++
++
++def window(raw):
++    if not isinstance(raw, dict):
++        return None
++    pct = raw.get("used_percentage", raw.get("utilization"))
++    if not isinstance(pct, (int, float)) or not 0 <= pct <= 100:
++        return None
++    return {"used_percentage": pct, "resets_at": epoch(raw.get("resets_at"))}
++
++
++LABEL_EVERY = 600
++
++
++def label_terminal(account):
++    """hc label <this terminal> claude.account=<account>; a marker per core and terminal limits it to every 10 min."""
++    tid = os.environ.get("HC_TERMINAL_ID", "")
++    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", tid):
++        return  # not inside a herdr-core terminal
++    core = os.path.basename(os.environ.get("HC_TERMINAL_SOCKET", "")) or "default"
++    mark = os.path.join(CACHE_DIR, "labels", re.sub(r"[^A-Za-z0-9._-]", "_", f"{core}-{tid}"))
++    try:
++        with open(mark, encoding="utf-8") as f:
++            if f.read() == account and time.time() - os.path.getmtime(mark) < LABEL_EVERY:
++                return
++    except OSError:
++        pass
++    hc = shutil.which("hc") or os.path.expanduser("~/.local/bin/hc")
++    done = subprocess.run([hc, "label", tid, f"claude.account={account}"], capture_output=True, timeout=5, stdin=subprocess.DEVNULL)
++    if done.returncode == 0:
++        os.makedirs(os.path.dirname(mark), exist_ok=True)
++        with open(mark, "w", encoding="utf-8") as f:
++            f.write(account)
++
++
++ACCOUNT_RE = r"[a-z0-9][a-z0-9-]{0,31}"
++CONFIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
++
++
++def resolve_account(arg):
++    """The account of the Claude Code process running this, by its CLAUDE_CONFIG_DIR.
++
++    The argument comes from whichever settings.json defined the status line, and a session
++    started in ~ also loads ~/.claude/settings.json as its project settings, so the
++    argument alone can name another account. config.json "claudeAccounts" maps each
++    account to its configDir; the argument is used only when no configDir matches.
++    """
++    here = os.path.realpath(os.path.expanduser(os.environ.get("CLAUDE_CONFIG_DIR") or "~/.claude"))
++    try:
++        with open(CONFIG, encoding="utf-8") as f:
++            accounts = json.load(f).get("claudeAccounts") or []
++    except (OSError, ValueError, AttributeError):
++        accounts = []
++    for acc in accounts:
++        if not isinstance(acc, dict) or not isinstance(acc.get("configDir"), str):
++            continue
++        if os.path.realpath(os.path.expanduser(acc["configDir"])) == here and re.fullmatch(ACCOUNT_RE, str(acc.get("account"))):
++            return acc["account"]
++    return arg if re.fullmatch(ACCOUNT_RE, arg) else None
++
++
++def merge_window(old, new):
++    """Keep the freshest reading of a window.
++
++    Several sessions share an account, and an idle one keeps re-sending the limits of
++    its last reply. Within one window (same reset time) usage only grows, so the higher
++    value is the newer one; a later reset time means a newer window. A missing new
++    reading keeps the old one.
++    """
++    if not new:
++        return old
++    if not old:
++        return new
++    old_reset, new_reset = old.get("resets_at"), new.get("resets_at")
++    if old_reset and new_reset and abs(new_reset - old_reset) > 60:
++        return new if new_reset > old_reset else old
++    return new if new["used_percentage"] >= old.get("used_percentage", -1) else old
++
++
++def main():
++    account = resolve_account(sys.argv[1] if len(sys.argv) > 1 else "")
++    if not account:
++        return
++    try:
++        label_terminal(account)
++    except (OSError, subprocess.SubprocessError):
++        pass
++    try:
++        data = json.load(sys.stdin)
++    except ValueError:
++        return
++    limits = data.get("rate_limits") if isinstance(data, dict) else None
++    limits = limits if isinstance(limits, dict) else {}
++    path = os.path.join(CACHE_DIR, f"claude-{account}.json")
++    os.makedirs(CACHE_DIR, exist_ok=True)
++    # One writer at a time per account: read, merge and replace under a lock.
++    with open(path + ".lock", "a") as lock:
++        fcntl.flock(lock, fcntl.LOCK_EX)
++        try:
++            with open(path, encoding="utf-8") as f:
++                old = json.load(f)
++            old = old if isinstance(old, dict) else {}
++        except (OSError, ValueError):
++            old = {}
++        out = {"at": time.time()}
++        for slot in ("five_hour", "seven_day"):
++            out[slot] = merge_window(old.get(slot), window(limits.get(slot)))
++        if not out["five_hour"] and not out["seven_day"]:
++            out["missing"] = True  # no limits seen yet (e.g. before the first reply)
++        if {k: v for k, v in out.items() if k != "at"} == {k: v for k, v in old.items() if k != "at"} and not limits:
++            return  # nothing new: keep the time of the last real reading
++        tmp = f"{path}.{os.getpid()}.tmp"
++        with open(tmp, "w", encoding="utf-8") as f:
++            json.dump(out, f)
++        os.replace(tmp, path)
++
++
++if __name__ == "__main__":
++    try:
++        main()
++    except Exception:  # a status line must never disturb the session
++        pass
+diff --git a/mods/herdr-crew-rpg/house.js b/mods/herdr-crew-rpg/house.js
+index 7afc3b8..903b302 100644
+--- a/mods/herdr-crew-rpg/house.js
++++ b/mods/herdr-crew-rpg/house.js
+@@ -26,12 +26,13 @@ const HEROES = {
+   cleric: { w: 226, h: 301 }, rogue: { w: 225, h: 235 }, lancer: { w: 313, h: 279 },
+ };
+ // 狀態卡上的名字直接寫供應商，agy 是 Antigravity CLI，底層是 Gemini
+-const DISPLAY = { claude: "Claude", codex: "Codex", agy: "Gemini", gemini: "Gemini", grok: "Grok", ollama: "Ollama", cursor: "Cursor" };
++const DISPLAY = { "claude-b": "Claude B", claude_b: "Claude B", claude: "Claude", codex: "Codex", agy: "Gemini", gemini: "Gemini", grok: "Grok", ollama: "Ollama", cursor: "Cursor" };
+ const nameOf = (x) => { const tool = toolOf(x); return DISPLAY[Object.keys(DISPLAY).find((k) => tool.toLowerCase().includes(k))] ?? tool; };
+-const CLASS_OF_TOOL = { codex: "warrior", claude: "mage", agy: "archer", gemini: "archer", grok: "rogue", ollama: "cleric", cursor: "lancer" };
++const CLASS_OF_TOOL = { codex: "warrior", "claude-b": "mage", claude: "mage", agy: "archer", gemini: "archer", grok: "rogue", ollama: "cleric", cursor: "lancer" };
+ const SPARE = ["cleric", "lancer", "warrior", "mage", "archer", "rogue"];
+ // 額度來源：工具名稱對應 quota.py 的 provider id，agy 只看 Gemini 的視窗
+-const PROVIDER_OF_TOOL = { claude: "claude", codex: "codex", agy: "agy", gemini: "agy", grok: "grok", ollama: "ollama", cursor: "cursor" };
++// "claude-b" before "claude": the first key the tool name contains wins
++const PROVIDER_OF_TOOL = { "claude-b": "claude-b", claude_b: "claude-b", claude: "claude", codex: "codex", agy: "agy", gemini: "agy", grok: "grok", ollama: "ollama", cursor: "cursor" };
+ // 站位：腳底中心在背景座標的位置，左側面向右，右側面向左；越後面的 y 越小
+ const SLOTS = [
+   { x: 345, y: 600, side: "r" }, { x: 1031, y: 600, side: "l" },
+diff --git a/mods/herdr-crew-rpg/i18n.js b/mods/herdr-crew-rpg/i18n.js
+index a38d50f..73f440f 100644
+--- a/mods/herdr-crew-rpg/i18n.js
++++ b/mods/herdr-crew-rpg/i18n.js
+@@ -59,6 +59,8 @@ const DICT = {
+     "field.summary": (p) => `${p.total} 位出戰，${p.fighting} 位攻擊中`,
+     "field.overflow": (p) => `戰場最多容納 ${p.max} 位，另有 ${p.more} 位未顯示`,
+     "note.claude.no_cache": "找不到狀態列額度快取",
++    "note.claude.gateway_failed": "無法從閘道讀取花費",
++    "note.claude.no_limits": "Claude Code 沒有回報額度（可能不是 claude.ai 訂閱帳號）",
+     "note.codex.no_log": "找不到 Codex session 的額度紀錄",
+     "note.agy.failed": "執行 agy /quota 失敗",
+     "note.agy.empty": "agy /quota 沒有回傳額度資料",
+@@ -120,6 +122,8 @@ const DICT = {
+     "field.summary": (p) => `${p.total} in battle, ${p.fighting} attacking`,
+     "field.overflow": (p) => `The battlefield holds ${p.max}, ${p.more} more not shown`,
+     "note.claude.no_cache": "No status line quota cache found",
++    "note.claude.gateway_failed": "Could not read the spend from the gateway",
++    "note.claude.no_limits": "Claude Code reported no rate limits (maybe not a claude.ai subscription)",
+     "note.codex.no_log": "No Codex session quota record found",
+     "note.agy.failed": "Running agy /quota failed",
+     "note.agy.empty": "agy /quota returned no quota data",
+diff --git a/mods/herdr-crew-rpg/main.js b/mods/herdr-crew-rpg/main.js
+index c1fb0eb..2204036 100644
+--- a/mods/herdr-crew-rpg/main.js
++++ b/mods/herdr-crew-rpg/main.js
+@@ -5,7 +5,7 @@ import { v_flex, h_flex, InputState, Input, Button } from "gpui-base";
+ import { House, assignHeroes, statusOf, sessionOf } from "./house.js";
+ import { tr, noteText, resolveLanguage, language } from "./i18n.js";
+ import { cleanOutput } from "./output.js";
+-import { hc, exec, appHome, run, terminals, theme, layout, settings, shared, setShared, window, props, openOverlay, closeOverlay, panes, spaces } from "herdr";
++import { hc, exec, appHome, run, terminals, theme, layout, settings, shared, setShared, window, props, panes, spaces } from "herdr";
+ 
+ function find(node, id) {
+   if (node?.id === id) return node;
+@@ -34,30 +34,31 @@ const QUOTA_MS = 60000;
+ const FOLD_KEY = "herdr-crew-rpg.folded";
+ const QUOTA_SCRIPT = "mods/herdr-crew-rpg/quota.py";
+ const WARN_PCT = 90;
+-const DETAIL_H = 240;
+-const QUOTA_MODES = [["hide", "Hide"], ["summary", "Summary"], ["detail", "Detail"]];
+-const QUOTA_MODE_KEY = "herdr-crew-rpg.quota.mode";
+ const PROVIDER_ICONS = {
+   claude: { icon: "icons/claude.svg" },
++  "claude-b": { icon: "icons/claude.svg", badge: "B" }, // second Claude Code account (~/.claude-b)
+   codex: { icon: "icons/codex.svg" },
+   agy: { icon: "icons/antigravity.svg" },
+   grok: { icon: "icons/grok.svg", tint: true },
+   cursor: { icon: "icons/cursor.svg", tint: true },
+ };
+-// 收合時每家一行：取各視窗中已用最多的，agy 有多個模型群組時以最緊的為準
+-function summary(p) {
+-  const worst = (test) => p.windows.filter(test).reduce((a, b) => (!a || b.pct > a.pct ? b : a), null);
+-  const cell = (w) => (w ? { pct: w.pct, warn: w.pct >= WARN_PCT } : null);
+-  return {
+-    five: cell(worst((w) => w.key.endsWith("5h"))),
+-    long: cell(worst((w) => /(7d|weekly|30d)$/.test(w.key))),
+-  };
+-}
+-// 數字用等寬字型，並以不換行空格補齊欄寬，各列才會對齊
+-const NB = "\u00a0";
++// Quota: one line per provider with its most used 5-hour window (agy would have one per model group).
++const fiveHour = (p) => p.windows.filter((w) => w.key.endsWith("5h")).reduce((a, b) => (!a || b.pct > a.pct ? b : a), null);
+ const mono = () => layout()?.font ?? settings().font_family ?? "JetBrains Mono";
+-const PCT_CHARS = 3;
+-const cellText = (c) => (c ? `${c.pct}%`.padStart(PCT_CHARS, NB) : NB.repeat(PCT_CHARS));
++const two = (n) => String(n).padStart(2, "0");
++// Local reset time: 14:30 today, 21/11 14:30 on another day.
++// "faltam 12 dias" (under a day: hours) until a reset (epoch seconds).
++const daysLeft = (epoch) => {
++  const h = Math.max(0, Math.floor((epoch * 1000 - Date.now()) / 3600000));
++  const d = Math.floor(h / 24), r = h % 24;
++  if (d === 0) return r <= 1 ? "falta menos de 1 h" : `faltam ${r} h`;
++  return `falta${d > 1 ? "m" : ""} ${d} dia${d > 1 ? "s" : ""}`;
++};
++const resetAt = (epoch) => {
++  const d = new Date(epoch * 1000);
++  const time = `${two(d.getHours())}:${two(d.getMinutes())}`;
++  return d.toDateString() === new Date().toDateString() ? time : `${two(d.getDate())}/${two(d.getMonth() + 1)} ${time}`;
++};
+ 
+ // 側邊欄名稱列右側的時間，比 age 短
+ const shortAge = (ms) => {
+@@ -69,10 +70,6 @@ const resetIn = (epoch) => {
+   const m = Math.max(0, Math.round((epoch * 1000 - Date.now()) / 60000));
+   return m < 60 ? tr("reset.minutes", { n: m }) : m < 1440 ? tr("reset.hours", { n: Math.floor(m / 60) }) : tr("reset.days", { n: Math.floor(m / 1440) });
+ };
+-const ymd = (epoch) => {
+-  const d = new Date(epoch * 1000);
+-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+-};
+ // 標籤（模型、effort、唯讀）的字級，依使用者指定比一般規則小一級：中文 12px，純英數 11px
+ const size = (text) => (/[^\x00-\x7f]/.test(text) ? 12 : 11);
+ 
+@@ -100,12 +97,8 @@ function tree(list) {
+   };
+ }
+ 
+-const quotaMode = () => (QUOTA_MODES.some(([m]) => m === shared(QUOTA_MODE_KEY)) ? shared(QUOTA_MODE_KEY) : "summary");
+-
+ export default class Crew extends View {
+   init(_props, cx) {
+-    // Opened as a popup (props.role "menu"): only the quota mode choices.
+-    if (props()?.role === "menu") return;
+     if (props()?.view === "house") {
+       this.house = new House(); this.house.init(cx);
+       // 狀態卡的 HP 與 MP 讀額度，戰場分頁也要定時更新
+@@ -114,6 +107,13 @@ export default class Crew extends View {
+       this.fetchQuota(cx);
+       return;
+     }
++    // props {quotaOnly: true}: only the quota bars, no crew list, Watch button or battle tab.
++    if (props()?.quotaOnly) {
++      this.quota = null;
++      cx.timer.every(QUOTA_MS, (cx) => this.fetchQuota(cx));
++      this.fetchQuota(cx);
++      return;
++    }
+     this.folded = new Set(shared(FOLD_KEY) ?? []); // 已收合的群組，存在 shared，重開後仍維持
+     this.outputToggled = new Set(); // 輸出展開狀態與預設相反的 agent，只存在這次執行中
+     this.tails = {}; this.armed = null; this.compose = null; this.notice = null; this.quota = null; this.input = null; 
+@@ -142,6 +142,7 @@ export default class Crew extends View {
+     cx.spawn(async (cx) => {
+       const r = await exec("python3", ["-I", `${appHome()}/${QUOTA_SCRIPT}`]).catch(() => null);
+       if (r?.code === 0) { try { this.quota = JSON.parse(r.stdout); } catch { this.quota = null; } }
++      if (props()?.quotaOnly) this.fitHeight();
+       cx.notify();
+     });
+   }
+@@ -353,114 +354,83 @@ export default class Crew extends View {
+   }
+ 
+   providerIcon(p, t) {
+-    const m = PROVIDER_ICONS[p.id];
+-    const icon = !m ? div().size(14) : m.tint ? svg(m.icon).size(14).flex_none().text_color(t.muted) : image(m.icon).size(14).flex_none();
++    // Another Claude Code account (config.json claudeAccounts, id "claude-<account>"): Claude's icon with its first letter.
++    const m = PROVIDER_ICONS[p.id] ?? (/^claude-./.test(p.id) ? { icon: "icons/claude.svg", badge: p.id[7].toUpperCase() } : null);
++    let icon = !m ? div().size(14) : m.tint ? svg(m.icon).size(14).flex_none().text_color(t.muted) : image(m.icon).size(14).flex_none();
++    // Two accounts of one provider share its icon: a letter in the corner tells them apart.
++    if (m?.badge) icon = div().relative().size(14).flex_none().child(icon)
++      .child(div().absolute().right(-4).bottom(-4).px(1).rounded(3).bg(t.chrome).text_size(9).font_semibold().text_color(t.foreground).child(m.badge));
+     return this.iconBox(`qp-${p.id}`, p.name, icon);
+   }
+ 
+-  // 三欄均分剩下的寬度，內容各自置中
+-  column(child) {
+-    return h_flex().flex_1().min_w(0).items_center().justify_center().child(child);
++  // One window: short label, bar and percent; hovering shows when it resets.
++  quotaCell(p, w, kind, t) {
++    const name = tr(`quota.kind.${kind}`);
++    const tip = !w ? `${p.name} · ${name}: —`
++      : `${p.name} · ${name}: ${w.pct}%` + (w.resets_at ? ` · ${resetIn(w.resets_at)} (${resetAt(w.resets_at)})` : "") + (p.stale ? ` · ${tr("quota.stale")}` : "");
++    const warn = (w?.pct ?? 0) >= WARN_PCT;
++    return h_flex().id(`q-${p.id}-${kind}`).flex_1().min_w(0).gap(4).items_center().tooltip(tip)
++      .child(div().flex_none().text_size(10.5).text_color(t.dim).child(kind))
++      .child(div().flex_1().min_w(0).child(w ? this.bar(w.pct, t) : div().h(4).rounded(2).bg(t.raised)))
++      .child(div().w(32).flex_none().text_right().font_family(mono()).text_size(11.5).text_color(warn ? t.blocked : t.muted).child(w ? `${w.pct}%` : "–"));
++  }
++
++  // Pay-per-token account (Claude Code through a LiteLLM gateway): spend so far in US$ and R$; with a
++  // budget, its bar too. Hover: since when, and the exchange rate used.
++  spendCell(p, t) {
++    const sp = p.spend;
++    const money = (sym, n) => `${sym} ${n.toFixed(2).replace(".", ",")}`;
++    const w = p.windows.find((x) => x.key === "budget");
++    const usd = sp.period_usd ?? sp.usd; // this month's spend when a monthly budget is set
++    // On the row: US$ and, with a budget, the percent; R$ only in the tooltip.
++    const text = [money("US$", usd), w ? `${w.pct}%` : null].filter(Boolean).join(" \u00b7 ");
++    // Short on purpose: the R$ value and when the credits renew.
++    const day = (e) => { const d = new Date(e * 1000); return `${two(d.getDate())}/${two(d.getMonth() + 1)}`; };
++    const tip = [sp.brl != null ? money("R$", sp.brl) : null,
++      w?.resets_at ? `renova em ${day(w.resets_at)} (${daysLeft(w.resets_at)})` : null].filter(Boolean).join(" \u00b7 ") || p.name;
++    return h_flex().id(`q-${p.id}-spend`).flex_1().min_w(0).gap(4).items_center().tooltip(tip)
++      .when(sp.period_usd != null, (el) => el.child(div().flex_none().text_size(10.5).text_color(t.dim).child("mês")))
++      .when(Boolean(w), (el) => el.child(div().flex_1().min_w(0).child(this.bar(w.pct, t))))
++      .when(!w, (el) => el.child(div().flex_1()))
++      .child(div().flex_none().font_family(mono()).text_size(11.5).text_color((w?.pct ?? 0) >= WARN_PCT ? t.blocked : t.muted).child(text));
++  }
++
++  // One line per provider: icon and 5-hour usage. No data: the reason, cut to one line.
++  quotaRow(p, t) {
++    const row = h_flex().gap(8).items_center().h(20).when(Boolean(p.stale), (el) => el.opacity(0.6)).child(this.providerIcon(p, t));
++    if (p.spend) return row.child(this.spendCell(p, t));
++    if (!p.windows.length) {
++      const note = noteText(p.note) ?? tr("quota.empty");
++      return row.child(div().id(`q-${p.id}-note`).flex_1().min_w(0).truncate().text_size(11.5).text_color(t.dim).tooltip(note).child(note));
++    }
++    return row.child(this.quotaCell(p, fiveHour(p), "5h", t));
+   }
+ 
+-  quotaHeader(t) {
+-    const icon = (id, path, tip) => this.column(this.iconBox(`qh-${id}`, tip, svg(path).size(12).flex_none().text_color(t.dim)));
+-    return h_flex().gap(10).items_center()
+-      .child(div().w(20).flex_none())
+-      .child(h_flex().flex_1().min_w(0)
+-        .child(icon("5h", "mods/herdr-crew-rpg/clock.svg", tr("quota.kind.5h")))
+-        .child(icon("week", "mods/herdr-crew-rpg/calendar.svg", tr("quota.kind.weekly")))
+-        .child(icon("reset", "mods/herdr-crew-rpg/reset.svg", tr("quota.resets"))));
++  // quotaOnly: the layout block (props.block, default "crew") is as tall as its rows.
++  fitHeight() {
++    const rows = Math.max(1, this.shownQuota().length);
++    const px = 16 + rows * 20 + (rows - 1) * 4 + 1;
++    const id = props()?.block ?? "crew";
++    if (find(layout(), id)?.size?.px !== px) run("layout.resize", { id, px });
++  }
++
++  shownQuota() {
++    // Not listed: installed without a quota, or with only weekly/monthly limits (agy, Cursor).
++    return (this.quota?.providers ?? []).filter((p) => !p.noquota && (p.spend || !p.windows.length || fiveHour(p)));
+   }
+ 
+-  quotaRow(p, t) {
+-    const { five, long } = summary(p);
+-    const credits = p.reset_credits?.count;
+-    const font = mono();
+-    const text = (content, warn) => div().flex_none().font_family(font).text_size(12).text_color(warn ? t.blocked : t.muted).child(content);
+-    return h_flex().gap(10).items_center()
+-      .child(this.providerIcon(p, t))
+-      .child(h_flex().flex_1().min_w(0)
+-        .child(this.column(text(cellText(five), five?.warn)))
+-        .child(this.column(text(cellText(long), long?.warn)))
+-        .child(this.column(text(credits ? String(credits) : NB, false))));
+-  }
+-
+-  // 三段式：Hide 只留標題，Summary 為一列一家的摘要，Detail 為完整用量；選擇會記住
+   quotaBlock(t) {
+     const providers = this.quota?.providers;
+-    const shown = (providers ?? []).filter((p) => !p.noquota); // 只有安裝偵測、沒有額度的供應商不列在額度面板
+-    const mode = quotaMode();
+-    return v_flex().flex_none().gap(6).px(16).py(10).border_t(1).border_color(t.border)
+-      .child(h_flex().items_center().gap(10)
+-        .child(div().flex_1().text_size(11.5).text_color(t.dim).child("Quota"))
+-        .child(h_flex().id("quota-mode").h(22).px(6).gap(4).items_center().rounded(5).cursor_pointer().text_size(11.5).text_color(t.dim)
+-          .hover((s) => s.bg(t.hover).text_color(t.foreground))
+-          .on_click(() => openOverlay({ mod: "herdr-crew-rpg", kind: "popup", at: "pointer", width: 150, height: QUOTA_MODES.length * 28 + 10, props: { role: "menu" } }))
+-          .child(QUOTA_MODES.find(([m]) => m === mode)[1])
+-          .child(svg("mods/herdr-crew-rpg/chevron-down.svg").size(11))))
+-      .when(mode !== "hide" && !providers, (el) => el.child(div().text_size(13).text_color(t.dim).child(tr("quota.none"))))
+-      .when(mode === "summary" && Boolean(providers), (el) => el.child(v_flex().gap(4).child(this.quotaHeader(t)).children(shown.map((p) => this.quotaRow(p, t)))))
+-      .when(mode === "detail" && Boolean(providers), (el) => el.child(this.quotaDetail(shown, t)));
+-  }
+-
+-  // 固定高度，內容超出時在內部捲動；只設 max_h 時捲動區量不到溢出的內容，無法捲動
+-  // One window row: icon, short name, bar, percent. The model name (when a provider
+-  // has several) sits above its rows, so a row never repeats it.
+-  quotaWindow(w, kind, t) {
+-    const icon = kind === "5h" ? "mods/herdr-crew-rpg/clock.svg" : kind === "weekly" ? "mods/herdr-crew-rpg/calendar.svg" : null;
+-    return v_flex().gap(2)
+-      .child(h_flex().items_center().gap(6)
+-        .child(div().w(12).flex_none().flex().items_center().when(Boolean(icon), (el) => el.child(svg(icon).size(12).text_color(t.dim))))
+-        .child(div().w(language() === "en" ? 60 : 44).flex_none().text_size(13).text_color(t.muted).child(tr(`quota.kind.${kind}`)))
+-        .child(div().flex_1().min_w(0).child(this.bar(w.pct, t)))
+-        .child(div().w(36).flex_none().text_right().text_size(12).text_color(w.pct >= WARN_PCT ? t.blocked : t.muted).child(`${w.pct}%`)))
+-      .when(w.pct >= 70 && w.resets_at, (el) => el.child(div().pl(18).text_size(12).text_color(t.dim).child(resetIn(w.resets_at))));
+-  }
+-
+-  quotaDetail(providers, t) {
+-    // Windows are grouped by model (keeping the order they came in), the 5 hour one before the weekly one.
+-    // key 的格式是「模型-5h」、「模型-weekly」，或沒有模型時的 5h、7d、30d
+-    const split = (key) => {
+-      const m = /^(.*)-(5h|weekly)$/.exec(key);
+-      if (m) return { model: m[1], kind: m[2] };
+-      return { model: "", kind: key === "5h" ? "5h" : key === "7d" ? "weekly" : key === "30d" ? "monthly" : "period" };
+-    };
+-    const rank = (k) => (k === "5h" ? 0 : k === "weekly" ? 1 : 2);
+-    const groups = (ws) => {
+-      const out = new Map();
+-      for (const w of ws) { const { model, kind } = split(w.key); if (!out.has(model)) out.set(model, []); out.get(model).push({ w, kind }); }
+-      return [...out].map(([model, rows]) => ({ model, rows: rows.sort((x, y) => rank(x.kind) - rank(y.kind)) }));
+-    };
+-    return v_flex().h(DETAIL_H).min_h(0)
+-      .child(v_flex().id("quota-detail").flex_1().min_h(0).gap(8).pr(14).overflow_y_scrollbar().mode("always")
+-        .children((providers ?? []).map((p) => v_flex().gap(4)
+-          .child(h_flex().items_center().gap(6)
+-            .child(this.providerIcon(p, t))
+-            .child(div().flex_1().text_size(13).font_medium().text_color(t.foreground).child(p.name))
+-            .when(p.windows.length > 0 && p.stale, (el) => el.child(div().text_size(13).text_color(t.dim).child(tr("quota.stale")))))
+-          .child(v_flex().ml(8).pl(14).gap(10).border_l(1).border_color(t.border)
+-            .when(p.windows.length === 0, (el) => el.child(div().text_size(13).text_color(t.dim).child(noteText(p.note) ?? tr("quota.empty"))))
+-            .when(Boolean(p.reset_credits), (el) => el.child(div().text_size(12).text_color(t.dim).child(tr("quota.credits", { count: p.reset_credits.count, date: ymd(p.reset_credits.expires[0]) }))))
+-            .children(groups(p.windows).map((g) => v_flex().gap(4)
+-              .when(g.model !== "", (el) => el.child(div().text_size(13).font_medium().text_color(t.muted).child(g.model)))
+-              .children(g.rows.map((r) => this.quotaWindow(r.w, r.kind, t)))))))));
+-  }
+-
+-  menu(t) {
+-    const mode = quotaMode();
+-    return v_flex().id("quota-menu").w_full().min_h(0).p(5).bg(t.popover).text_size(12.5)
+-      .children(QUOTA_MODES.map(([m, label]) => h_flex().id(`quota-menu-${m}`).h(28).flex_none().px(8).gap(9).rounded(6).items_center().cursor_pointer()
+-        .text_color(t.foreground).hover((s) => s.bg(t.hover))
+-        .on_click(() => { setShared(QUOTA_MODE_KEY, m); closeOverlay(props().overlay); })
+-        .child(div().w(14).flex_none().when(m === mode, (el) => el.child(svg("mods/herdr-crew-rpg/check.svg").size(14).text_color(t.accent))))
+-        .child(label)));
++    const shown = this.shownQuota();
++    return v_flex().flex_none().gap(4).px(12).py(8).border_t(1).border_color(t.border)
++      .when(!providers, (el) => el.child(div().text_size(12).text_color(t.dim).child(tr("quota.none"))))
++      .children(shown.map((p) => this.quotaRow(p, t)));
+   }
+ 
+   render() {
+     const t = theme();
+-    if (props()?.role === "menu") return this.menu(t);
+     if (this.house) return this.house.render(t, crew(), { role, toolName, quota: this.quota, all: terminals() });
++    if (props()?.quotaOnly) return v_flex().id("crew-root").size_full().min_h(0).bg(t.chrome).child(this.quotaBlock(t));
+     const list = crew(), collapsed = narrow();
+     // 側邊欄的頭像與戰場共用同一份角色指派
+     const byAddr = new Map(terminals().map((x) => [x.address, x]));
+diff --git a/mods/herdr-crew-rpg/quota.py b/mods/herdr-crew-rpg/quota.py
+index 3ce3116..803a3d7 100644
+--- a/mods/herdr-crew-rpg/quota.py
++++ b/mods/herdr-crew-rpg/quota.py
+@@ -2,7 +2,7 @@
+ """輸出各 AI 訂閱目前的額度使用狀況（JSON），給 agent-crew 分派與 Crew 面板使用
+ 
+ 資料來源
+-- claude：狀態列腳本維護的快取 /tmp/claude/statusline-usage-cache.json
++- claude：每個 Claude Code 帳號一份 ~/.cache/agent-crew/claude-<account>.json，由 claude-statusline.py 寫入（config.json 的 claudeAccounts）
+ - codex：向 codex app-server 呼叫 account/rateLimits/read，結果快取兩分鐘；失敗時退回最近 session 紀錄裡最後一筆 rate_limits
+ - agy：執行 agy -p /quota，結果快取五分鐘；額度依模型群組分開計算
+ - grok：用 ACP 向 grok agent stdio 呼叫 _x.ai/billing，由 CLI 自己回報，結果快取五分鐘
+@@ -25,12 +25,15 @@ from concurrent.futures import ThreadPoolExecutor
+ import json
+ import os
+ import queue
++import re
++import shlex
+ import shutil
+ import subprocess
+ import sys
+ import threading
+ import time
+ from datetime import datetime
++import urllib.request
+ 
+ NOW = time.time()
+ STALE_SEC = 15 * 60
+@@ -138,21 +141,154 @@ def failed(provider, name, note):
+     return {"id": provider, "name": name, "windows": [], "age": None, "stale": True, "note": note}
+ 
+ 
+-def claude():
+-    path = "/tmp/claude/statusline-usage-cache.json"
+-    result = failed("claude", "Claude", "claude.no_cache")
++CLAUDE_ACCOUNTS = [
++    {"id": "claude", "name": "Claude", "account": "home"},
++    {"id": "claude-b", "name": "Claude B", "account": "b"},
++]
++ACCOUNT_RE = r"[a-z0-9][a-z0-9-]{0,31}"
++
++
++def claude_accounts():
++    """config.json "claudeAccounts": [{id, name, account}], one per Claude Code config dir; default: CLAUDE_ACCOUNTS"""
++    raw = config().get("claudeAccounts")
++    ok = [
++        a for a in (raw if isinstance(raw, list) else [])
++        if isinstance(a, dict) and isinstance(a.get("name"), str)
++        and all(isinstance(a.get(k), str) and re.fullmatch(ACCOUNT_RE, a[k]) for k in ("id", "account"))
++    ]
++    return ok or CLAUDE_ACCOUNTS
++
++
++def gateway_of(acc):
++    """(base URL, apiKeyHelper) when the account's settings.json sends Claude Code through a gateway
++    (env ANTHROPIC_BASE_URL + apiKeyHelper): billed per token, so it has a spend, not a 5-hour limit."""
++    config_dir = acc.get("configDir")
++    if not isinstance(config_dir, str):
++        return None
++    try:
++        with open(os.path.join(os.path.expanduser(config_dir), "settings.json"), encoding="utf-8") as f:
++            settings = json.load(f)
++    except (OSError, ValueError):
++        return None
++    env = settings.get("env") if isinstance(settings, dict) else None
++    base = env.get("ANTHROPIC_BASE_URL") if isinstance(env, dict) else None
++    helper = settings.get("apiKeyHelper")
++    if isinstance(base, str) and base.startswith("https://") and isinstance(helper, str) and helper.strip():
++        return base.rstrip("/"), helper
++    return None
++
++
++def gateway_spend(account, base, helper):
++    """LiteLLM /key/info for the key apiKeyHelper prints. The key only lives in this process:
++    the cache keeps the spend, budget and dates, never the key."""
++    def fetch():
++        key = subprocess.run(shlex.split(helper), capture_output=True, text=True, timeout=CLI_TIMEOUT_SEC,
++                             stdin=subprocess.DEVNULL, env=tool_env()).stdout.strip()
++        if not key:
++            raise ValueError("apiKeyHelper printed nothing")
++        request = urllib.request.Request(base + "/key/info", headers={"Authorization": "Bearer " + key})
++        with urllib.request.urlopen(request, timeout=20) as r:
++            info = json.load(r).get("info") or {}
++        return {"spend": float(info.get("spend") or 0), "max_budget": info.get("max_budget"),
++                "budget_reset_at": info.get("budget_reset_at"), "since": info.get("created_at")}
++    return cached(f"gateway-{account}.json", fetch)
++
++
++def usd_brl():
++    """US$ 1 in R$ (AwesomeAPI, else open.er-api.com), cached 6 hours; None when both fail."""
++    def awesome():
++        with urllib.request.urlopen("https://economia.awesomeapi.com.br/json/last/USD-BRL", timeout=10) as r:
++            q = json.load(r)["USDBRL"]
++        return {"rate": float(q["bid"]), "at": int(q.get("timestamp") or NOW)}
++
++    def er_api():
++        with urllib.request.urlopen("https://open.er-api.com/v6/latest/USD", timeout=10) as r:
++            q = json.load(r)
++        return {"rate": float(q["rates"]["BRL"]), "at": int(q.get("time_last_update_unix") or NOW)}
++
++    for fetch in (awesome, er_api):
++        try:
++            return cached("usd-brl.json", fetch, ttl=6 * 3600)[0]
++        except (OSError, ValueError, KeyError, TypeError):
++            continue
++    return None
++
++
++def gateway(acc, base, helper):
++    result = failed(acc["id"], acc["name"], "claude.gateway_failed")
++    try:
++        data, age = gateway_spend(acc["account"], base, helper)
++    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
++        return result
++    fx = usd_brl()
++    usd = data["spend"]
++    spend = {"usd": usd, "brl": round(usd * fx["rate"], 2) if fx else None, "rate": fx["rate"] if fx else None,
++             "rate_at": fx["at"] if fx else None, "since": iso_to_epoch(data.get("since")) if data.get("since") else None}
++    result.pop("note")
++    result.update({"spend": spend, "age": round(age), "stale": False})
++    budget = data.get("max_budget")
++    if isinstance(budget, (int, float)) and budget > 0:
++        reset = iso_to_epoch(data["budget_reset_at"]) if data.get("budget_reset_at") else None
++        result["windows"] = [window("budget", min(100, usd / budget * 100), reset)]
++        spend["budget"] = budget
++    elif isinstance(acc.get("budgetUsd"), (int, float)) and acc["budgetUsd"] > 0 and acc.get("budgetPeriod") == "month":
++        monthly(acc, spend, usd)
++        result["windows"] = [window("budget", min(100, spend["period_usd"] / acc["budgetUsd"] * 100), spend["reset"])]
++    return result
++
++
++def monthly(acc, spend, usd):
++    """A budget the person set in config.json (budgetUsd per calendar month) for a key whose gateway
++    only reports the total spend: the total at the start of the month is kept, and this month's spend
++    is the difference. A key created this month starts from zero."""
++    now = datetime.now()
++    start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
++    end = start.replace(year=start.year + 1, month=1) if start.month == 12 else start.replace(month=start.month + 1)
++    month = start.strftime("%Y-%m")
++    path = os.path.join(CACHE_DIR, f"gateway-{acc['account']}-month.json")
++    try:
++        with open(path, encoding="utf-8") as f:
++            mark = json.load(f)
++    except (OSError, ValueError):
++        mark = {}
++    if mark.get("month") != month or not isinstance(mark.get("base"), (int, float)) or mark["base"] > usd:
++        created_this_month = spend.get("since") and spend["since"] >= start.timestamp()
++        mark = {"month": month, "base": 0 if created_this_month else usd}
++        os.makedirs(CACHE_DIR, exist_ok=True)
++        with open(path, "w", encoding="utf-8") as f:
++            json.dump(mark, f)
++    spend["total_usd"] = usd
++    spend["period_usd"] = max(0.0, usd - mark["base"])
++    spend["budget"] = acc["budgetUsd"]
++    spend["reset"] = end.timestamp()
++    if spend.get("rate"):
++        spend["brl"] = round(spend["period_usd"] * spend["rate"], 2)
++        spend["budget_brl"] = round(acc["budgetUsd"] * spend["rate"], 2)
++
++
++def claude(acc):
++    """One Claude Code account: ~/.cache/agent-crew/claude-<account>.json, written by claude-statusline.py"""
++    gw = gateway_of(acc)
++    if gw:
++        return gateway(acc, *gw)
++    path = os.path.join(CACHE_DIR, f"claude-{acc['account']}.json")
++    result = failed(acc["id"], acc["name"], "claude.no_cache")
+     try:
+         age = NOW - os.path.getmtime(path)
+         with open(path, encoding="utf-8") as f:
+             data = json.load(f)
+     except (OSError, ValueError):
+         return result
+-    five, seven = data.get("five_hour") or {}, data.get("seven_day") or {}
+-    result.pop("note")
+-    result["windows"] = [
+-        window("5h", five.get("utilization"), iso_to_epoch(five.get("resets_at"))),
+-        window("7d", seven.get("utilization"), iso_to_epoch(seven.get("resets_at"))),
++    windows = [
++        window(key, item.get("used_percentage"), item.get("resets_at"))
++        for slot, key in (("five_hour", "5h"), ("seven_day", "7d"))
++        if isinstance(item := data.get(slot), dict)
+     ]
++    if not windows:
++        result["note"] = "claude.no_limits"
++        return result
++    result.pop("note")
++    result["windows"] = windows
+     result["age"] = round(age)
+     result["stale"] = age > STALE_SEC
+     return result
+@@ -288,6 +424,8 @@ def grok_fetch():
+ 
+ def grok():
+     """SuperGrok 的額度是 Chat、Build 等產品共用的一個週用量池"""
++    if not shutil.which("grok", path=tool_env()["PATH"]):
++        return None  # not installed: not listed
+     result = failed("grok", "Grok", "grok.failed")
+     try:
+         billing, age = cached("grok-quota.json", grok_fetch)
+@@ -401,7 +539,18 @@ def cursor():
+ 
+ def main():
+     with ThreadPoolExecutor() as pool:
+-        providers = [p for p in pool.map(lambda fetch: fetch(), [claude, codex, agy, grok, ollama, cursor]) if p]
++        fetchers = [(acc["id"], lambda acc=acc: claude(acc)) for acc in claude_accounts()]
++        fetchers += [("codex", codex), ("agy", agy), ("grok", grok), ("ollama", ollama), ("cursor", cursor)]
++        # --only codex,claude-b: just those providers (World of Codecraft's mana asks for codex only)
++        if "--only" in sys.argv[1:-1]:
++            only = set(sys.argv[sys.argv.index("--only") + 1].split(","))
++            fetchers = [f for f in fetchers if f[0] in only]
++        else:
++            # config.json {"hiddenProviders": ["agy", "grok"]}: not asked at all, so not listed
++            hidden = config().get("hiddenProviders")
++            if isinstance(hidden, list):
++                fetchers = [f for f in fetchers if f[0] not in hidden]
++        providers = [p for p in pool.map(lambda f: f[1](), fetchers) if p]
+     json.dump({"now": round(NOW), "providers": providers}, sys.stdout, ensure_ascii=False)
+     sys.stdout.write("\n")
+ 

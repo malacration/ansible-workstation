@@ -1,0 +1,3 @@
+---
+# The playbook imports ai/common.yml; isolated tests provide the ai_stack vars.
+dependencies: []

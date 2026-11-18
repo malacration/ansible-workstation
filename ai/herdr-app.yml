@@ -1,0 +1,20 @@
+---
+- name: Preparar dependências da stack de IA para o Herdr app
+  ansible.builtin.import_playbook: common.yml
+  tags: [herdr_app, ai_common]
+
+- name: Configurar layouts e mods do Herdr app
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: true
+  roles:
+    # Role defaults are play-scoped: expose the shared stack defaults here, while
+    # common.yml stays responsible for running the prerequisites.
+    - role: ai_stack
+      when: false
+    # cao_claude_accounts (b, gw, ...) comes from the cao role's defaults or your vars.
+    - role: cao
+      when: false
+    - role: herdr_app
+      tags: [herdr_app]

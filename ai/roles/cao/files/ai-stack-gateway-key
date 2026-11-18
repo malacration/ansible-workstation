@@ -1,0 +1,22 @@
+#!/bin/sh
+# apiKeyHelper for Claude Code accounts behind an LLM gateway (cao_claude_accounts[].gateway).
+# Prints the value of the variable named in $1 from the CAO-managed .env file, so the key
+# never lives in a profile, settings.json, alias or command line. Store it with:
+#   read -rs K && cao env set <VAR> "$K"; unset K
+set -eu
+name=${1:?usage: ai-stack-gateway-key VAR_NAME}
+case $name in
+  *[!A-Z0-9_]* | [0-9]*) echo "ai-stack-gateway-key: invalid variable name" >&2; exit 2 ;;
+esac
+env_file="${CAO_ENV_FILE:-$HOME/.aws/cli-agent-orchestrator/.env}"
+value=$(sed -n "s/^$name=//p" "$env_file" 2>/dev/null | tail -n 1)
+# cao env set may quote the value.
+case $value in
+  \"*\") value=${value#\"}; value=${value%\"} ;;
+  \'*\') value=${value#\'}; value=${value%\'} ;;
+esac
+if [ -z "$value" ]; then
+  echo "ai-stack-gateway-key: $name not set in $env_file (cao env set $name ...)" >&2
+  exit 1
+fi
+printf '%s\n' "$value"

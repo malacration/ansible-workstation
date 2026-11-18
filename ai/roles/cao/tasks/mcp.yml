@@ -112,44 +112,12 @@
         - cao_claude_accounts | length > 0
         - cao_profile_env_support.rc is defined
 
-    - name: Preparar diretórios das contas Claude extras
-      ansible.builtin.file:
-        path: "{{ item.config_dir }}"
-        state: directory
-        mode: '0700'
-      loop: "{{ cao_claude_accounts }}"
-      loop_control:
-        label: "{{ item.name }}"
-
-    - name: Ler configurações das contas Claude extras
-      ansible.builtin.slurp:
-        src: "{{ item.config_dir }}/settings.json"
-      register: cao_claude_account_settings
-      failed_when: false
-      loop: "{{ cao_claude_accounts }}"
-      loop_control:
-        label: "{{ item.name }}"
-
-    # CAO só grava skipDangerousModePermissionPrompt em ~/.claude/settings.json.
-    - name: Dispensar confirmação do modo sem permissões nas contas extras
-      ansible.builtin.copy:
-        content: >-
-          {{ ((item.content | b64decode | from_json) if item.content is defined else {})
-             | combine({'skipDangerousModePermissionPrompt': true}) | to_nice_json }}
-        dest: "{{ item.item.config_dir }}/settings.json"
-        mode: '0600'
-      loop: "{{ cao_claude_account_settings.results }}"
-      loop_control:
-        label: "{{ item.item.name }}"
-      when: >-
-        item.content is not defined or
-        (item.content | b64decode | from_json).skipDangerousModePermissionPrompt | default(false) is not true
-
+    # Contas com gateway autenticam pela chave, sem /login.
     - name: Verificar login das contas Claude extras
       ansible.builtin.stat:
         path: "{{ item.config_dir }}/.credentials.json"
       register: cao_claude_account_credentials
-      loop: "{{ cao_claude_accounts }}"
+      loop: "{{ cao_claude_accounts | rejectattr('gateway', 'defined') | list }}"
       loop_control:
         label: "{{ item.name }}"
 
@@ -215,3 +183,6 @@
       when:
         - not (cao_mcp_sync_result.skipped | default(false))
         - (cao_mcp_sync_result.stdout | from_json).removed | length > 0
+
+- name: Configurar helper de gateway, aliases e claude-list das contas Claude
+  ansible.builtin.import_tasks: claude_accounts.yml

@@ -1,0 +1,90 @@
+---
+- name: Validar parâmetros do Herdr app
+  ansible.builtin.assert:
+    that:
+      - ai_stack_home.startswith('/') and ai_stack_home != '/'
+      - herdr_app_home.startswith(ai_stack_home ~ '/')
+      - herdr_app_cache_dir.startswith(ai_stack_home ~ '/')
+      - herdr_app_sources | map(attribute='commit') | select('match', '^[0-9a-f]{40}$') | list | length == herdr_app_sources | length
+      - herdr_app_sources | map(attribute='sha256') | select('match', '^[0-9a-f]{64}$') | list | length == herdr_app_sources | length
+      - herdr_app_sources | map(attribute='repo') | select('match', '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') | list | length == herdr_app_sources | length
+      - herdr_app_claude_accounts | map(attribute='name') | select('match', '^[a-z0-9][a-z0-9-]{0,31}$') | list | length == herdr_app_claude_accounts | length
+      - herdr_app_claude_accounts | map(attribute='config_dir') | select('match', '^/') | list | length == herdr_app_claude_accounts | length
+
+- name: Configurar o Herdr app como usuário dos agentes
+  become: "{{ ansible_facts['user_id'] != ai_stack_user }}"
+  become_user: "{{ ai_stack_user }}"
+  environment: "{{ ai_stack_environment }}"
+  block:
+    # The app writes its home (AGENTS.md, keys.json, shipped layouts) on first start.
+    - name: Verificar se o Herdr app já foi iniciado
+      ansible.builtin.stat:
+        path: "{{ herdr_app_home }}"
+      register: herdr_app_home_stat
+
+    - name: Informar que o Herdr app ainda não foi iniciado
+      ansible.builtin.debug:
+        msg: >-
+          {{ herdr_app_home }} não existe: abra o Herdr app uma vez e rode o playbook
+          de novo para instalar layouts e mods.
+      when: not herdr_app_home_stat.stat.exists
+
+    - name: Instalar layouts, mods e integrações
+      when: herdr_app_home_stat.stat.exists
+      block:
+        - name: Preparar cache dos arquivos fixados
+          ansible.builtin.file:
+            path: "{{ herdr_app_cache_dir }}"
+            state: directory
+            mode: '0755'
+
+        # get_url skips the download when the cached file already has this SHA256.
+        - name: Baixar arquivos fixados por commit
+          ansible.builtin.get_url:
+            url: "{{ herdr_app_download_url }}/{{ item.repo }}/tar.gz/{{ item.commit }}"
+            dest: "{{ herdr_app_cache_dir }}/{{ item.name }}-{{ item.commit }}.tar.gz"
+            checksum: "sha256:{{ item.sha256 }}"
+            mode: '0644'
+          loop: "{{ herdr_app_sources }}"
+          loop_control:
+            label: "{{ item.name }}@{{ item.commit[:12] }}"
+          when: not ansible_check_mode
+
+        - name: Montar especificação da instalação
+          ansible.builtin.set_fact:
+            herdr_app_spec:
+              home: "{{ ai_stack_home }}"
+              app_home: "{{ herdr_app_home }}"
+              cache_dir: "{{ herdr_app_cache_dir }}"
+              statusline_refresh: "{{ herdr_app_statusline_refresh | int }}"
+              claude_accounts: "{{ herdr_app_claude_accounts }}"
+              # The helper finds <cache_dir>/<name>-<commit>.tar.gz and <patches_dir>/<patch>.
+              patches_dir: "{{ role_path }}/files/patches"
+              sources: "{{ herdr_app_sources }}"
+              files: >-
+                {{ [{'src': role_path ~ '/files/layouts/mala.json', 'dest': 'layouts/mala.json'}]
+                   if herdr_app_mala_layout | bool and 'crew' in herdr_app_sources | map(attribute='name') else [] }}
+              # mala's sidebar and tab bar: Herdr's agents, spaces and tabs mods, copied and patched.
+              clones: >-
+                {{ [{'from': 'mods/agents', 'dest': 'mods/agents-titles', 'patch': 'agents-titles.patch'},
+                    {'from': 'mods/spaces', 'dest': 'mods/spaces-titles', 'patch': 'spaces-titles.patch'},
+                    {'from': 'mods/tabs', 'dest': 'mods/tabs-titles', 'patch': 'tabs-titles.patch'}]
+                   if herdr_app_mala_layout | bool and 'crew' in herdr_app_sources | map(attribute='name') else [] }}
+              claude_budgets: "{{ herdr_app_claude_budgets }}"
+              codex_home: "{{ ai_stack_home }}/.codex"
+              codex_terminal_title: "{{ herdr_app_codex_terminal_title }}"
+
+        - name: Aplicar layouts, mods, patches locais e integrações
+          ansible.builtin.command:
+            # In check mode the helper only reports; it never writes.
+            argv: >-
+              {{ ['python3', role_path ~ '/files/herdr_app.py', '--spec', herdr_app_spec | to_json]
+                 + (['--check'] if ansible_check_mode else []) }}
+          register: herdr_app_result
+          changed_when: (herdr_app_result.stdout | from_json).changed
+          check_mode: false
+
+        - name: Mostrar avisos do Herdr app
+          ansible.builtin.debug:
+            msg: "{{ (herdr_app_result.stdout | from_json).warnings }}"
+          when: (herdr_app_result.stdout | from_json).warnings | length > 0

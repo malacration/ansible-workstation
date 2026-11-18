@@ -98,6 +98,7 @@ ansible-playbook ai/common.yml -K
 ansible-playbook ai/codex.yml -K
 ansible-playbook ai/claude.yml -K
 ansible-playbook ai/herdr.yml -K
+ansible-playbook ai/herdr-app.yml -K
 ansible-playbook ai/node.yml -K
 ansible-playbook ai/chrome-devtools.yml -K
 ansible-playbook ai/uv.yml -K
@@ -322,6 +323,22 @@ transferidos. O script upstream `scripts/herdr_tui_to_app.py` é opcional para
 trabalho pessoal na TUI e ignora a sessão `cao` por padrão. A aplicação destes
 playbooks mantém `cao_restart_on_change=false` e o backend padrão `tmux`.
 
+### Layouts e mods do aplicativo Herdr
+
+`ai/herdr-app.yml` (role `herdr_app`, tag `herdr_app`) instala no `~/.config/herdr-app`
+os layouts Traveler e World of Codecraft, o mod Crew e o layout `mala`, cada um
+fixado por commit e SHA256, com os ajustes locais deste repositório (Linux, mana, cota
+por conta do Claude, gasto mensal da conta via gateway, nomes pelo título da conversa). Também adiciona as teclas do World of Codecraft ao
+`keys.json` e a status line de cota em `~/.claude` e em cada conta de
+`cao_claude_accounts`, sem sobrescrever o que já for seu. Abra o app uma vez antes;
+sem `~/.config/herdr-app` a role só avisa. Detalhes em
+[roles/herdr_app/README.md](roles/herdr_app/README.md).
+
+```bash
+ansible-playbook ai/herdr-app.yml -K --check   # ver o que mudaria
+ansible-playbook ai/herdr-app.yml -K
+```
+
 
 ## Instalar Chrome DevTools MCP e suas dependências
 
@@ -488,6 +505,64 @@ O supervisor trata cada conta como uma cota separada: começa por `claude`, pass
 `claude_b` quando a primeira esgota e só então usa Codex. `[provider: claude_b]` fixa a
 conta extra.
 
+### Conta Claude via gateway
+
+Uma conta de `cao_claude_accounts` com `gateway` usa um proxy compatível com a API da
+Anthropic (por exemplo, LiteLLM) em vez de login. O padrão inclui a conta `gw`, que gera
+`mala_<perfil>_claude_gw` e aponta para `https://ia-gateway.dev.tjro.jus.br`:
+
+```yaml
+cao_claude_accounts:
+  - name: gw
+    config_dir: "{{ ai_stack_home }}/.claude-gw"
+    gateway:
+      base_url: https://ia-gateway.dev.tjro.jus.br
+      key_env: IA_GATEWAY_KEY        # nome da variável no .env do CAO
+      models: {opus: claude-opus-5-5, sonnet: claude-sonnet-5-5, haiku: claude-haiku-5-5}
+```
+
+O playbook grava no `settings.json` da conta o `ANTHROPIC_BASE_URL`, os modelos de cada
+apelido (`ANTHROPIC_DEFAULT_<OPUS|SONNET|HAIKU>_MODEL`) e um `apiKeyHelper`
+(`~/.local/bin/ai-stack-gateway-key`) que lê a chave do `.env` do CAO na hora. A chave
+nunca vai para perfil, `settings.json`, alias ou linha de comando. Grave-a uma vez, num
+terminal fora de sessões de IA, e o playbook avisa enquanto ela faltar:
+
+```bash
+read -rs K && cao env set IA_GATEWAY_KEY "$K"; unset K
+```
+
+Os nomes de modelo precisam existir no gateway (`GET /v1/models`).
+
+### Comandos das contas Claude
+
+Com `cao_claude_shell_commands: true` (padrão), cada conta de `cao_claude_accounts` ganha
+um alias `claude-<conta>` no `~/.bashrc` e no `~/.zshrc` (por exemplo, `claude-b` e
+`claude-gw`), e o comando `claude-list` mostra todos os ambientes configurados, com
+pasta, tipo de acesso e se falta login ou chave, sem exibir segredos:
+
+```bash
+claude-gw            # Claude Code pelo gateway (sempre grava a sessão)
+claude-b -p "oi"     # conta B, modo não interativo
+claude-list
+```
+
+Com `persist_sessions: true` (padrão na conta `gw`), o alias também exporta
+`CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1`. Sem isso, um `claude-gw` aberto de dentro de outra
+sessão do Claude Code herda `CLAUDE_CODE_CHILD_SESSION`, não grava a conversa ("Transcript
+saving is off") e ela não aparece no `--resume`.
+
+Como `claude-<conta>` lê só `<pasta>/.claude.json`, o playbook também replica nelas os
+MCPs de usuário do `~/.claude.json` (por exemplo, `chrome-devtools` e `playwright`) com
+`claude mcp add-json --scope user`, sem remover MCPs que existam só na conta. Os workers do
+CAO já recebem esses MCPs pelos perfis. MCPs com `env` ou `headers` são enviados pela stdin,
+que o Claude Code recusa dentro de uma sessão dele: rode o playbook num terminal comum.
+
+Para aplicar só essa parte, sem reinstalar o CAO nem regenerar perfis:
+
+```bash
+ansible-playbook ai/claude-accounts.yml -K
+```
+
 O supervisor registra nível, motivo e provedor no arquivo da tarefa. Por padrão,
 desenvolvimento usa Claude Opus e revisão usa Codex; pode escolher Codex para
 implementar e Claude para revisar. `[provider: claude|codex]` ou
@@ -646,6 +721,7 @@ ansible-playbook ai/all.yml -K -e @ai/vars.example.yml
 | `herdr_pastor_enabled` | `true` | Instalar o comando `herdr-pastor` (`false` o remove) |
 | `herdr_pastor_sheep` | `[claude, codex]` | Agentes (ovelhas) à direita do editor, de cima para baixo |
 | `cao_terminal_backend` | `herdr-app` | Backend do serviço: `tmux`, `herdr` (TUI) ou `herdr-app` (core), experimentais |
+| `herdr_app_enabled` | `true` | Incluir layouts e mods do aplicativo Herdr (`ai/herdr-app.yml`) em `ai/all.yml` |
 | `herdr_core_binary` | `~/.local/bin/hc` | Executável herdr-core 0.1.21+ exigido pelo backend gráfico |
 | `cao_mcp_sync_enabled` | `true` | Gerar perfis CAO com os MCPs dos clientes |
 | `cao_mcp_clients` | `[codex, claude_code]` | Clientes cujos MCPs serão reutilizados |

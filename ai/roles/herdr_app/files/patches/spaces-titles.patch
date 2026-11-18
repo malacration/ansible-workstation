@@ -1,0 +1,102 @@
+diff --git a/mods/spaces-titles/main.js b/mods/spaces-titles/main.js
+index 91b3f57..756e6ec 100644
+--- a/mods/spaces-titles/main.js
++++ b/mods/spaces-titles/main.js
+@@ -5,7 +5,7 @@
+ 
+ import { View, div, svg } from "gpui-kit";
+ import { v_flex, h_flex, ScrollHandle } from "gpui-base";
+-import { spaces, machines, panes, run, openOverlay, exec, hc, theme, shared, setShared, watchFolder, window, layout } from "herdr";
++import { spaces, machines, panes, terminals, run, openOverlay, exec, hc, theme, shared, setShared, watchFolder, window, layout } from "herdr";
+ 
+ function find(node, id) {
+   if (node?.id === id) return node;
+@@ -33,6 +33,36 @@ const SIDE_MIN = 48;
+ const railCell = (el) => h_flex().flex_none().justify_center().child(el);
+ const where = (s, ps) => JSON.stringify([s.machine ?? null, place(s, ps)]);
+ const base = (path) => path.replace(/\/+$/, "").split("/").pop();
++
++// spaces-titles: a space nobody named ("~", a folder) shows what the AI in it is doing: the
++// conversation title Claude Code or Codex puts in its terminal's title. Same reading as
++// agents-titles: no status glyph, no Codex run-state prefix, no thread id, no path.
++const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
++function agentTitle(p) {
++  const raw = p?.title ?? "";
++  if (/^[~/]/.test(raw.replace(/^[^\p{L}\p{N}~/]+/u, ""))) return "";
++  let live = raw.replace(/^[^\p{L}\p{N}\p{Ps}\p{Pi}]+/u, "").replace(/^\[ [!.] \] /, "").trim();
++  if (p?.program?.key === "codex") live = live.replace(/^(Ready|Working|Thinking|Waiting|Starting|Interrupted|Done) \| /, "");
++  if (UUID.test(live) || live.includes("@") || live === p?.program?.name || live.toLowerCase() === p?.program?.key) return "";
++  return live;
++}
++// Per space nobody named, or that CAO named after its session (its terminals' cao.session label):
++// the agent title from CAO's supervisor, else the shown tab, else any tab. A name the person gave stays.
++function spaceTitles(sp, ps) {
++  const labels = new Map(terminals().map((x) => [x.address, x.labels ?? {}]));
++  const out = {};
++  for (const s of sp) {
++    const tabIds = new Set((s.tabs ?? []).map((tab) => tab.id));
++    const agents = ps.filter((p) => tabIds.has(p.tab) && p.terminal && p.program?.agent);
++    const byCao = s.named && agents.some((p) => labels.get(p.terminal)?.["cao.session"] === s.name);
++    if (s.named && !byCao) continue;
++    const active = new Set((s.tabs ?? []).filter((tab) => tab.active).map((tab) => tab.id));
++    const rank = (p) => (/supervisor/.test(labels.get(p.terminal)?.["cao.window"] ?? "") ? 2 : 0) + (active.has(p.tab) ? 1 : 0);
++    const found = [...agents].sort((a, b) => rank(b) - rank(a)).map(agentTitle).find(Boolean);
++    if (found) out[s.id] = found;
++  }
++  return out;
++}
+ // Changes made outside Herdr (an editor's save, a commit in another app): looked
+ // for this often, in repos the list shows, while the window is in front.
+ const FALLBACK = 60000;
+@@ -422,6 +452,15 @@ export default class Spaces extends View {
+   // branch goes when the name already says it (a worktree is named after its branch),
+   // and master/main go: nearly every space is on one. When the row is full, it
+   // and the name both start from their text's width and give way in proportion.
++  // spaces-titles: the repo, branch and ahead/behind go in the row's tooltip instead of the row.
++  gitText(g, tree, name) {
++    const raw = g.branch ?? "detached";
++    const same = (a) => a.toLowerCase() === name.toLowerCase();
++    const branch = same(raw) || raw === "master" || raw === "main" ? "" : raw;
++    const repo = tree || same(g.name) ? "" : g.name;
++    return [repo, branch, g.ahead > 0 ? `\u2191${g.ahead}` : "", g.behind > 0 ? `\u2193${g.behind}` : ""].filter(Boolean).join(" \u00b7 ");
++  }
++
+   gitTail(g, tree, name, t) {
+     const raw = g.branch ?? "detached";
+     const same = (a) => a.toLowerCase() === name.toLowerCase();
+@@ -493,8 +532,10 @@ export default class Spaces extends View {
+           .items_center()
+           .when(Boolean(tree), el => el.pl(22).child(svg("mods/workspace-chrome/branch.svg").size(13).flex_none().text_color(t.dim)))
+           .when(!tree, el => el.child(h_flex().size(18).flex_none().rounded(5).bg(fill).items_center().justify_center().text_size(10.5).font_bold().text_color("#ffffff").child([...w.name][0]?.toUpperCase() ?? "?")))
+-          .child(div().flex_initial().min_w(SIDE_MIN).truncate().text_color(t.foreground).child(w.name))
+-          .child(g ? this.gitTail(g, tree, w.name, t) : div().flex_1()),
++          .child(div().id(`space-name-${w.id}`).flex_1().min_w(SIDE_MIN).truncate().text_color(t.foreground)
++            .when(Boolean(this.titles?.[w.id]) || Boolean(g), (el) => el.tooltip(
++              [this.titles?.[w.id] ? w.name : "", this.titles?.[w.id] ?? "", g ? this.gitText(g, tree, w.name) : ""].filter(Boolean).join(" \u00b7 ") || w.name))
++            .child(this.titles?.[w.id] || w.name)),
+       );
+   }
+ 
+@@ -529,6 +570,7 @@ export default class Spaces extends View {
+       changed = true;
+     }
+     if (changed) setShared("space.colors", kept);
++    this.titles = spaceTitles(sp, panes());
+     const list = this.grouped(t, collapsed);
+     // Bring the active space into view when it, or its place in the list, changes; a row already in view stays put.
+     const active = sp.find(p => p.active)?.id;
+diff --git a/mods/spaces-titles/mod.json b/mods/spaces-titles/mod.json
+index 9c9914c..1fd04b5 100644
+--- a/mods/spaces-titles/mod.json
++++ b/mods/spaces-titles/mod.json
+@@ -1 +1,8 @@
+-{ "place": "none", "title": "Spaces" }
++{
++  "place": "none",
++  "title": "Spaces",
++  "cloned_from": {
++    "name": "spaces",
++    "version": "0.1.16"
++  }
++}
+\ No newline at end of file

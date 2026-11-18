@@ -1,0 +1,15 @@
+---
+# Applies only the per-account part of the cao role (settings.json, gateway key helper,
+# claude-<account> aliases and claude-list). It neither installs CAO nor regenerates profiles,
+# so it is safe while CAO sessions are running. Profiles come from ai/mcp.yml.
+# Like the other playbooks, run with -K: the ai_stack dependency checks Ubuntu packages.
+- name: Configurar contas Claude extras, aliases e claude-list
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: true
+  tasks:
+    - name: Aplicar configuração das contas Claude
+      ansible.builtin.import_role:
+        name: cao
+        tasks_from: claude_accounts

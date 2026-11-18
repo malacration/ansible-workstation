@@ -1,0 +1,29 @@
+#!/bin/sh
+# Managed by ansible-workstation (role cao): edit cao_claude_accounts and re-apply.
+# Lists the configured Claude Code environments: account, command, directory and access.
+# Never prints keys or tokens; it only checks whether they exist.
+env_file="${CAO_ENV_FILE:-$HOME/.aws/cli-agent-orchestrator/.env}"
+
+row() { printf '%-7s %-12s %-16s %s\n' "$1" "$2" "$3" "$4"; }
+login() {
+  if [ -s "$1/.credentials.json" ]; then echo "login ok"
+  else echo "sem login: CLAUDE_CONFIG_DIR=$1 claude /login"; fi
+}
+key() {
+  if grep -qs "^$1=" "$env_file"; then echo "chave $1 ok"
+  else echo "chave $1 ausente: read -rs K && cao env set $1 \"\$K\"; unset K"; fi
+}
+
+row CONTA COMANDO PASTA ACESSO
+row home claude '~/.claude' "$(login "$HOME/.claude")"
+{% for account in cao_claude_accounts %}
+{%   set short_dir = account.config_dir | regex_replace('^' ~ (ai_stack_home | regex_escape), '~') %}
+{%   if account.gateway is defined %}
+row {{ account.name | quote }} {{ ('claude-' ~ account.name) | quote }} {{ short_dir | quote }} "gateway {{ account.gateway.base_url }}, $(key {{ account.gateway.key_env | quote }})"
+{%     if account.gateway.models | default({}) | length > 0 %}
+row '' '' '' {{ ('modelos: ' ~ (account.gateway.models.items() | map('join', '=') | join(', '))) | quote }}
+{%     endif %}
+{%   else %}
+row {{ account.name | quote }} {{ ('claude-' ~ account.name) | quote }} {{ short_dir | quote }} "$(login {{ account.config_dir | quote }})"
+{%   endif %}
+{% endfor %}

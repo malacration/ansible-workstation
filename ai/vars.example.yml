@@ -38,6 +38,15 @@ cao_profile_models:
 cao_mcp_profile_prefix: mala
 cao_claude_accounts:  # Contas Claude extras; [] desativa.
   - {name: b, config_dir: "{{ ai_stack_home }}/.claude-b"}
+  # Conta via gateway: sem login; a chave vem de `cao env set IA_GATEWAY_KEY`.
+  - name: gw
+    config_dir: "{{ ai_stack_home }}/.claude-gw"
+    gateway:
+      base_url: https://ia-gateway.dev.tjro.jus.br
+      key_env: IA_GATEWAY_KEY
+      models: {opus: claude-opus-5-5, sonnet: claude-sonnet-5-5, haiku: claude-haiku-5-5}
+    persist_sessions: true  # claude-gw grava a conversa mesmo aberto de dentro de outra sessão
+cao_claude_shell_commands: true  # aliases claude-<conta> e o comando claude-list
 cao_mcp_prune_prefixes: [ai_stack]
 
 # Chrome DevTools MCP chama os subplaybooks de Node.js e Chrome.
@@ -65,6 +74,17 @@ herdr_version: '0.9.5'          # pin auditado; ou latest
 # herdr_pastor_enabled: true              # false remove ~/.local/bin/herdr-pastor
 # herdr_pastor_sheep: [claude, codex]     # ausentes do PATH são ignoradas
 # herdr_pastor_editor_share: 0.65         # fração da largura do editor
+
+# Herdr app (~/.config/herdr-app): layouts Traveler e World of Codecraft, mod Crew e o
+# layout mala, fixados por commit + SHA256, com os patches de ai/roles/herdr_app.
+# Só age depois que o app foi aberto uma vez. A status line de cota vai para ~/.claude
+# (conta home) e para cada conta de cao_claude_accounts.
+herdr_app_enabled: true
+# herdr_app_mala_layout: true             # false não instala layouts/mala.json nem as cópias *-titles
+# herdr_app_statusline_refresh: 60        # segundos entre atualizações da status line
+# herdr_app_claude_budgets:               # orçamento mensal das contas cobradas por token (gateway)
+#   gw: {usd: 100, period: month}
+# herdr_app_codex_terminal_title: [thread-title]  # [] não mexe no config.toml do Codex
 
 # Backend do serviço: herdr-app (padrão, app gráfico), herdr (TUI) ou tmux.
 # herdr-app exige hc 0.1.21+ instalado pelo app e o fork com PR #1356.

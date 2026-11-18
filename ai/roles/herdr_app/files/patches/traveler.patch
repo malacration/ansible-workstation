@@ -1,0 +1,82 @@
+diff --git a/mods/inbox/lib.js b/mods/inbox/lib.js
+index fe57d44..3f5a384 100644
+--- a/mods/inbox/lib.js
++++ b/mods/inbox/lib.js
+@@ -59,7 +59,7 @@ export function listCommand(dir) {
+     cmd: "/usr/bin/find",
+     args: [
+       dir, "-mindepth", "1", "-maxdepth", "1", "-type", "f",
+-      "-exec", "/usr/bin/stat", "-f", "%m %z %N", "{}", "+",
++      "-exec", "/usr/bin/stat", "-c", "%Y %s %n", "{}", "+",
+     ],
+   };
+ }
+@@ -92,13 +92,14 @@ export function parseListing(stdout, dir) {
+   return items.slice(0, MAX_ITEMS);
+ }
+ 
+-// %HT 只問型別，不跟隨符號連結。
++// Linux: find without -L doesn't follow symlinks; prints the path only for a regular file.
++// (stat %F is localized, so it can't be compared to a fixed string.)
+ export function statCommand(path) {
+-  return { cmd: "/usr/bin/stat", args: ["-f", "%HT", path] };
++  return { cmd: "/usr/bin/find", args: [path, "-maxdepth", "0", "-type", "f"] };
+ }
+ 
+ export function isRegularFile(stdout) {
+-  return String(stdout ?? "").trim() === "Regular File";
++  return String(stdout ?? "").trim() !== "";
+ }
+ 
+ // 只有收件匣第一層的白名單檔名可以 open。
+@@ -107,7 +108,7 @@ export function openCommand(path, dir) {
+   if (typeof path !== "string" || !path.startsWith(prefix)) return null;
+   const name = path.slice(prefix.length);
+   if (!isAllowedName(name)) return null;
+-  return { cmd: "/usr/bin/open", args: [path] };
++  return { cmd: "/usr/bin/xdg-open", args: [path] };
+ }
+ 
+ // 只有收件匣第一層的白名單檔案才算數；回傳檔名，不合格回 null。
+@@ -134,13 +135,15 @@ export function copyCommand(path, dir, destDir, name) {
+   if (inboxName(path, dir) === null) return null;
+   if (!isAllowedName(name)) return null;
+   if (typeof destDir !== "string" || !destDir.startsWith("/")) return null;
+-  return { cmd: "/bin/cp", args: ["-n", "--", path, prefixOf(destDir) + name] };
++  // GNU cp -n exits 0 even when it skips, so refuse an existing target first (exit 1: try the next name).
++  const script = '[ -e "$2" ] || [ -L "$2" ] && exit 1; exec /bin/cp --update=none -- "$1" "$2"';
++  return { cmd: "/bin/sh", args: ["-c", script, "sh", path, prefixOf(destDir) + name] };
+ }
+ 
+ // 丟到垃圾桶（macOS 內建 /usr/bin/trash），可以從垃圾桶救回來。
+ export function trashCommand(path, dir) {
+   if (inboxName(path, dir) === null) return null;
+-  return { cmd: "/usr/bin/trash", args: [path] };
++  return { cmd: "/usr/bin/gio", args: ["trash", "--", path] };
+ }
+ 
+ // image() 只讀 Herdr 家目錄的相對路徑，所以回傳 data/inbox/files/<檔名>。
+diff --git a/mods/inbox/main.js b/mods/inbox/main.js
+index 983a45c..f2a70bd 100644
+--- a/mods/inbox/main.js
++++ b/mods/inbox/main.js
+@@ -10,7 +10,8 @@ import {
+ } from "./lib.js";
+ 
+ const INBOX_DIR = appHome() + "/data/inbox/files";
+-const DESKTOP_DIR = home() + "/Desktop";
++// Linux: the Desktop folder is localized (xdg-user-dir); this is the fallback.
++let DESKTOP_DIR = home() + "/Desktop";
+ const BADGE = { image: "Image", video: "Video", pdf: "PDF", text: "MD" };
+ 
+ function clockText(seconds) {
+@@ -28,6 +29,9 @@ export default class Inbox extends View {
+     this.noticeOk = false;
+     this.menuPath = null;
+     cx.spawn(async (cx) => {
++      const desk = await exec("/usr/bin/xdg-user-dir", ["DESKTOP"]).catch(() => null);
++      const deskDir = desk && desk.code === 0 ? desk.stdout.trim() : "";
++      if (deskDir.startsWith("/")) DESKTOP_DIR = deskDir;
+       const made = await exec("/bin/mkdir", ["-p", INBOX_DIR]).catch(() => null);
+       if (!made || made.code !== 0) {
+         this.loading = false;

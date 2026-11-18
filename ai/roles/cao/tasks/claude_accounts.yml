@@ -1,0 +1,176 @@
+---
+# Per-account setup for cao_claude_accounts: settings.json (gateway URL, models and key
+# helper), onboarding for gateway accounts, user-scope MCPs mirrored from ~/.claude.json,
+# claude-<name> aliases and claude-list. Imported from mcp.yml; ai/claude-accounts.yml
+# applies it alone, without reinstalling CAO or regenerating profiles.
+- name: Validar gateways das contas Claude extras
+  ansible.builtin.assert:
+    that:
+      - item.gateway is mapping
+      - item.gateway.base_url is string and item.gateway.base_url is match('^https?://[^ ]+$')
+      - item.gateway.key_env is string and item.gateway.key_env is match('^[A-Z_][A-Z0-9_]*$')
+      - item.gateway.models | default({}) is mapping
+      - item.gateway.models | default({}) | list | difference(['opus', 'sonnet', 'haiku']) | length == 0
+    fail_msg: >-
+      A conta {{ item.name }} precisa de gateway.base_url http(s), gateway.key_env em
+      MAIÚSCULAS e, opcionalmente, gateway.models com opus, sonnet e/ou haiku.
+  loop: "{{ cao_claude_accounts | selectattr('gateway', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Validar persist_sessions das contas Claude extras
+  ansible.builtin.assert:
+    that: item.persist_sessions | default(false) is boolean
+    fail_msg: "persist_sessions da conta {{ item.name }} deve ser true ou false."
+  loop: "{{ cao_claude_accounts }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Configurar contas Claude extras como usuário dos agentes
+  become: "{{ ansible_facts['user_id'] != ai_stack_user }}"
+  become_user: "{{ ai_stack_user }}"
+  vars:
+    cao_gateway_accounts: "{{ cao_claude_accounts | selectattr('gateway', 'defined') | list }}"
+  block:
+    - name: Instalar helper de chave dos gateways
+      ansible.builtin.copy:
+        src: ai-stack-gateway-key
+        dest: "{{ ai_stack_bin_dir }}/ai-stack-gateway-key"
+        mode: '0700'
+      when: cao_gateway_accounts | length > 0
+
+    - name: Preparar diretórios das contas Claude extras
+      ansible.builtin.file:
+        path: "{{ item.config_dir }}"
+        state: directory
+        mode: '0700'
+      loop: "{{ cao_claude_accounts }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Ler configurações das contas Claude extras
+      ansible.builtin.slurp:
+        src: "{{ item.config_dir }}/settings.json"
+      register: cao_claude_account_settings
+      failed_when: false
+      loop: "{{ cao_claude_accounts }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    # CAO só grava skipDangerousModePermissionPrompt em ~/.claude/settings.json.
+    # Contas com gateway recebem também a URL, os modelos e o apiKeyHelper; a chave fica
+    # no .env do CAO e nunca é gravada no settings.json. O resto do arquivo é preservado.
+    - name: Configurar settings.json das contas extras
+      ansible.builtin.copy:
+        content: "{{ cao_account_desired | to_nice_json(indent=2) }}\n"
+        dest: "{{ item.item.config_dir }}/settings.json"
+        mode: '0600'
+      vars:
+        cao_account_current: "{{ (item.content | b64decode | from_json) if item.content is defined else {} }}"
+        cao_account_gateway: "{{ item.item.gateway | default({}) }}"
+        cao_account_gateway_models: "{{ cao_account_gateway.models | default({}) }}"
+        cao_account_gateway_env: >-
+          {{ {'ANTHROPIC_BASE_URL': cao_account_gateway.base_url | default('')}
+             | combine(dict(cao_account_gateway_models.keys() | map('upper')
+                            | map('regex_replace', '^', 'ANTHROPIC_DEFAULT_')
+                            | map('regex_replace', '$', '_MODEL')
+                            | zip(cao_account_gateway_models.values()))) }}
+        cao_account_gateway_settings: >-
+          {{ {} if not cao_account_gateway else
+             {'apiKeyHelper': (ai_stack_bin_dir ~ '/ai-stack-gateway-key ' ~ cao_account_gateway.key_env),
+              'env': (cao_account_current.env | default({})) | combine(cao_account_gateway_env)} }}
+        cao_account_desired: >-
+          {{ cao_account_current
+             | combine({'skipDangerousModePermissionPrompt': true}, cao_account_gateway_settings) }}
+      loop: "{{ cao_claude_account_settings.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      when: cao_account_desired != cao_account_current
+
+    # Gateway accounts never run /login, so the first-run onboarding would block CAO workers.
+    - name: Dispensar onboarding nas contas de gateway
+      ansible.builtin.copy:
+        content: '{"hasCompletedOnboarding": true}'
+        dest: "{{ item.config_dir }}/.claude.json"
+        mode: '0600'
+        force: false
+      loop: "{{ cao_gateway_accounts }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    # Only checks that the key exists; it is never read into Ansible.
+    - name: Verificar chave dos gateways no .env do CAO
+      ansible.builtin.command:
+        argv: [grep, -qs, "^{{ item.gateway.key_env }}=", "{{ ai_stack_home }}/.aws/cli-agent-orchestrator/.env"]
+      register: cao_gateway_keys
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      loop: "{{ cao_gateway_accounts }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Avisar gateways sem chave
+      ansible.builtin.debug:
+        msg: >-
+          A conta Claude {{ item.item.name }} usa o gateway {{ item.item.gateway.base_url }},
+          mas {{ item.item.gateway.key_env }} não está no .env do CAO. Em um terminal, execute:
+          read -rs K && cao env set {{ item.item.gateway.key_env }} "$K"; unset K
+      loop: "{{ cao_gateway_keys.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      when: item.rc != 0
+
+    # Interactive claude-<account> sessions read only <config_dir>/.claude.json, so they need
+    # the same user-scope MCPs as ~/.claude.json (CAO workers get them from their profiles).
+    - name: Replicar MCPs do Claude nas contas extras
+      ansible.builtin.script:
+        cmd: >-
+          sync_claude_account_mcps.py --home {{ ai_stack_home | quote }}
+          --claude {{ (ai_stack_bin_dir ~ '/claude') | quote }}
+          {% for account in cao_claude_accounts %}--account-dir {{ account.config_dir | quote }} {% endfor %}
+          {{ '--check' if ansible_check_mode else '' }}
+        executable: /usr/bin/python3 -I
+      register: cao_claude_account_mcps
+      changed_when: (cao_claude_account_mcps.stdout | from_json).changed
+      check_mode: false
+      when: cao_claude_accounts | length > 0
+
+    - name: Informar MCPs replicados ou previstos por conta
+      ansible.builtin.debug:
+        var: (cao_claude_account_mcps.stdout | from_json).accounts
+      when:
+        - not (cao_claude_account_mcps.skipped | default(false))
+        - (cao_claude_account_mcps.stdout | from_json).changed
+
+    - name: Instalar comando claude-list
+      ansible.builtin.template:
+        src: claude-list.j2
+        dest: "{{ ai_stack_bin_dir }}/claude-list"
+        mode: '0755'
+      when: cao_claude_shell_commands | bool
+
+    - name: Remover comando claude-list desativado
+      ansible.builtin.file:
+        path: "{{ ai_stack_bin_dir }}/claude-list"
+        state: absent
+      when: not cao_claude_shell_commands | bool
+
+    # An empty block (no accounts, or commands disabled) removes the managed section.
+    - name: Adicionar aliases claude-<conta> ao Bash e Zsh
+      ansible.builtin.blockinfile:
+        path: "{{ ai_stack_home }}/{{ item }}"
+        create: true
+        mode: '0644'
+        marker: '# {mark} ANSIBLE CAO CLAUDE ACCOUNTS'
+        block: |
+          {% if cao_claude_shell_commands | bool %}
+          {% for account in cao_claude_accounts %}
+          alias claude-{{ account.name }}={{ ('CLAUDE_CONFIG_DIR=' ~ (account.config_dir | quote)
+            ~ (' CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1' if account.persist_sessions | default(false) | bool else '')
+            ~ ' claude') | quote }}
+          {% endfor %}
+          {% endif %}
+      loop:
+        - .bashrc
+        - .zshrc

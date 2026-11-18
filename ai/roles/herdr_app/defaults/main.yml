@@ -1,0 +1,71 @@
+---
+# Customizations of the Herdr desktop app (~/.config/herdr-app): third-party layouts and
+# mods pinned by commit and archive SHA256, plus this repository's local patches.
+# The app itself (herdr-app, hc) is installed outside this role.
+herdr_app_home: "{{ ai_stack_home }}/.config/herdr-app"
+herdr_app_cache_dir: "{{ ai_stack_cache_dir }}/herdr-app"
+herdr_app_download_url: https://codeload.github.com
+
+# Each source: GitHub repo, pinned commit, SHA256 of codeload's tar.gz for it, the paths
+# copied into the Herdr home (same relative layout), the local patch in files/patches/
+# (empty: none) and an optional keys file merged into keys.json. Remove an entry to stop
+# managing it (installed files are kept). Bumping a commit needs a new sha256 and a
+# patch that still applies (see README).
+herdr_app_sources:
+  - name: traveler
+    repo: franky5440-afk/herdr-traveler
+    commit: c2380297bb42e6ecaa3648dbf1c35cc7ec609868
+    sha256: e38e5fb806200f6436490601fcd6d0706a7d3acbfae71fdfc9ca70c9c8b32557
+    patch: traveler.patch
+    paths:
+      - layouts/traveler.json
+      - layouts/traveler.png
+      - themes/traveler-dusk.json
+      - mods/inbox
+      - mods/traveler-agents
+      - mods/traveler-chrome
+      - mods/traveler-spaces
+      - mods/traveler-tabs
+  - name: world-of-codecraft
+    repo: kevinpardo/world-of-codecraft
+    commit: 6c5b65b75eafb78dd906cdccfebabdd262ac9f28
+    sha256: 08f0d1df614b227a9799c02f0eba5858635ce9e808f0c7acf1f60d80968febde
+    patch: world-of-codecraft.patch
+    keys: mods/world-of-codecraft/KEYS.json
+    paths:
+      - layouts/World-of-Codecraft.json
+      - layouts/World-of-Codecraft.png
+      - themes/World-of-Codecraft.json
+      - mods/world-of-codecraft
+  - name: crew
+    repo: mukiwu/herdr-crew-rpg
+    commit: 75f1557a3321aa115bace3b090125069db6bca7e
+    sha256: 66bf30f38beb839e7db0ef80af9d41243e6d69555571deb629d7337a575023cd
+    patch: crew-rpg.patch
+    paths:
+      - mods/herdr-crew-rpg
+
+# Layout "mala": Herdr's main layout (cloned on 0.1.16) whose Spaces, Agents and tab bar
+# name each one after the conversation title its AI gave (copies *-titles of Herdr's mods),
+# with one quota line per AI at the bottom (the Crew mod in quotaOnly mode, no crew list or
+# battle tab). Installed only when the crew source is managed.
+herdr_app_mala_layout: true
+
+# Claude Code accounts whose 5-hour/weekly limits feed the Crew quota panel and the World
+# of Codecraft mana. Each gets a statusLine in <config_dir>/settings.json (only when it has
+# none, or already has this one). "home" is ~/.claude; the others follow cao_claude_accounts.
+herdr_app_claude_accounts: >-
+  {{ [{'name': 'home', 'config_dir': ai_stack_home ~ '/.claude'}]
+     + (cao_claude_accounts | default([])) }}
+herdr_app_statusline_refresh: 60
+
+# Monthly budget of a pay-per-token account (Claude Code through a gateway, no 5-hour limit):
+# the quota line shows this month's spend as a percent of it. The gateway only reports the
+# key's total spend, so the month is counted from the first reading in it.
+herdr_app_claude_budgets:
+  gw: {usd: 100, period: month}
+
+# Codex [tui] terminal_title, set only when config.toml has none: the thread title Codex
+# generates lets mala's sidebar say what each Codex agent is doing (Herdr tells its state
+# without the run-state). [] leaves Codex alone.
+herdr_app_codex_terminal_title: [thread-title]

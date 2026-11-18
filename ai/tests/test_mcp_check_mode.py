@@ -22,6 +22,7 @@ class McpCheckModeTests(unittest.TestCase):
             (root / 'templates').symlink_to(ROLE / 'templates', target_is_directory=True)
             (root / 'files').symlink_to(ROLE / 'files', target_is_directory=True)
             (root / 'mcp.yml').write_text((ROLE / 'tasks/mcp.yml').read_text())
+            (root / 'claude_accounts.yml').write_text((ROLE / 'tasks/claude_accounts.yml').read_text())
             (root / 'defaults.yml').write_text((ROLE / 'defaults/main.yml').read_text())
             (root / 'vars.json').write_text(json.dumps({
                 'ai_stack_home': str(home), 'ai_stack_bin_dir': str(binary),
@@ -56,6 +57,7 @@ class McpCheckModeTests(unittest.TestCase):
     - ansible.builtin.include_tasks: mcp.yml
 ''')
             (root / 'mcp.yml').write_text((ROLE / 'tasks/mcp.yml').read_text())
+            (root / 'claude_accounts.yml').write_text((ROLE / 'tasks/claude_accounts.yml').read_text())
             (root / 'defaults.yml').write_text((ROLE / 'defaults/main.yml').read_text())
             (root / 'vars.json').write_text(json.dumps({
                 'ai_stack_home': str(home), 'ai_stack_bin_dir': str(binary),
